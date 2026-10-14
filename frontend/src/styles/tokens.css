@@ -1,0 +1,55 @@
+:root {
+  /* 색상 토큰: 공통으로 쓰는 값은 여기서만 정의한다 */
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #fafafc;
+  --text: #1d1d1f;
+  --text-2: #515154;
+  --text-3: #86868b;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --primary: #0f5e54;
+  --primary-hover: #0b4a42;
+  --primary-soft: #e6f1ef;
+  --accent: #b07a1f;
+  --accent-soft: #f7efdf;
+
+  /* 심각도 */
+  --sev-info: #3c6e9e;
+  --sev-info-soft: #e8f0f7;
+  --sev-warning: #b8860b;
+  --sev-warning-soft: #fbf3dc;
+  --sev-average: #d9701c;
+  --sev-average-soft: #fcece0;
+  --sev-high: #d13f36;
+  --sev-high-soft: #fbe8e6;
+  --sev-disaster: #8f1d1d;
+  --sev-disaster-soft: #f3dcdc;
+
+  /* 조치 위험 등급 */
+  --risk-low: #2f7d4f;
+  --risk-low-soft: #e5f3ea;
+  --risk-medium: #b8860b;
+  --risk-medium-soft: #fbf3dc;
+  --risk-high: #d13f36;
+  --risk-high-soft: #fbe8e6;
+
+  /* 검증 결과 */
+  --verdict-confirmed: #2f7d4f;
+  --verdict-refuted: #86868b;
+  --verdict-unknown: #b8860b;
+
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.1);
+
+  --font: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --sidebar-w: 232px;
+  --panel-w: 400px;
+  --topbar-h: 60px;
+}
