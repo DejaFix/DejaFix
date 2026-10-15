@@ -8,6 +8,11 @@
 | `windows-agent-api.md` | 전체 명세: Windows 에이전트 설치·수집 검증(116개 key), Zabbix 7.0 조회 API 7개, 실서버 응답(12.0절) |
 | `api-requests/` | 조회 API 요청 본문 예시 10개 (JSON-RPC) |
 | `verification/` | 검증 결과: 패시브 key별 결과, 액티브 이벤트 로그 표본, 로컬 실서버 API 응답(`api-probe-2026-10-14/`) |
+| `access.md` | 팀 Zabbix 접속 방식·`ZABBIX_URL` 형식·`.env` 주의점 (주소 값 없음) |
+| `readonly-account.md` | 읽기 전용 계정 `dejafix-readonly` 역할·그룹·토큰 구성 (토큰 값 없음) |
+| `mcp-live-test.md` | 팀 서버에서 mcp-zabbix 5도구 실호출 결과 |
+
+데모 템플릿·트리거 정의와 적용 절차는 `infra/zabbix/demo/README.md`.
 
 ## 플랫폼 구성에서의 위치 (멘토 구성도 기준)
 
@@ -34,8 +39,8 @@
 |---|---|---|---|---|
 | `version.md` | 팀 VM의 OS·Zabbix 버전·설치 방식(apt / VM 내 Docker), `apiinfo.version` 응답 캡처 | FR-ZBX-001, G1 | Zabbix·MCP 담당 | 로컬 서버 응답은 `verification/api-probe-2026-10-14/`에 있음. 팀 VM 것은 미기록 |
 | `readonly-account.md` | `dejafix-readonly` 사용자·그룹·권한, API 토큰 발급 절차(값 제외), **`host.update` 호출 시 권한 오류 캡처** | FR-ZBX-004, NFR-SAFE-001 | Zabbix·MCP 담당 | 기록함(역할·그룹·사용자·토큰 구성). **`host.update` 오류 캡처는 미기록** |
-| `access.md` | 접속 방식 `(TODO: 추후결정 — 후보: 포트 포워딩 8081·10051 / 브리지 IP)`, `ZABBIX_URL` 형식, 방화벽 설정, 아침 점검 절차 결과 | FR-ZBX-006, G7 | Zabbix·MCP 담당 | 기록함(80번 포트, `ZABBIX_URL` 형식, `.env` 주의점). 주소 값은 적지 않음 |
-| 실제 아이템 키 | 데모 PC agent 2 설치 결과, 템플릿 이름, cpu·mem·disk·net 키(인터페이스 이름 포함), 스왑 free 불일치 메모 | FR-ZBX-002·007, G2·G18 | 팀장 | **`core-metrics.md`·`windows-agent-api.md`로 충족**. `packs/it/metrics.yaml` 반영만 남음 |
-| `demo-trigger.md` | 데모 템플릿 복제본(CPU 아이템 30초), 트리거 `avg(/<호스트>/system.cpu.util,1m)>85` High, 1회 발동 확인 시각 | FR-ZBX-003, G6 | 팀장 | 미기록 |
+| `access.md` | 접속 방식(웹 80번 포트 `/zabbix`), `ZABBIX_URL` 형식, 방화벽 설정, 아침 점검 절차 결과 | FR-ZBX-006, G7 | Zabbix·MCP 담당 | 기록함(80번 포트, `ZABBIX_URL` 형식, `.env` 주의점). 주소 값은 적지 않음 |
+| 실제 아이템 키 | 데모 PC agent 2 설치 결과, 템플릿 이름, cpu·mem·disk·net 키(인터페이스 이름 포함), 스왑 free 불일치 메모 | FR-ZBX-002·007, G2·G18 | 팀장 | **`core-metrics.md`·`windows-agent-api.md`로 충족**. `packs/it/metrics.yaml` 반영 완료(PR #41) |
+| `demo-trigger.md` | 데모 템플릿 복제본(CPU 아이템 30초), 트리거 `avg(/<호스트>/system.cpu.util,1m)>85` High, 1회 발동 확인 시각 | FR-ZBX-003, G6 | 팀장 | 템플릿·트리거 정의는 **`infra/zabbix/demo/`로 대체**(PR #61, 로컬 7.0.31 가져오기 확인). 팀 서버 적용·주입 후 발동까지 걸린 시간은 **미기록**(Issue #60) |
 | 자빅스 API 목록 | 노션 "자빅스 API 목록"(멘토 순서 ②)의 사본 또는 링크 | FR-INF-014 | 팀장·Zabbix·MCP 담당 | **`api-requests/`·`windows-agent-api.md`로 충족**. 노션 문서 링크만 추가 |
 | `mcp-live-test.md` | 팀 VM 토큰 수령 후 MCP 5도구 실호출 결과(B3 DoD ③) | FR-MCP-002~006 | Zabbix·MCP 담당 | 기록함(2026-10-15 5/5 통과) |
