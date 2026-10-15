@@ -193,3 +193,17 @@ def test_health_zabbix_mock_mode_makes_no_network_call(
     data = client.get("/api/health", headers=headers).json()["data"]
     assert data["zabbix"] == "ok"
     assert fake_zabbix.requests == []
+
+
+def test_health_zabbix_calls_are_cached_briefly_and_shared(
+    make_client, helpers, fake_zabbix
+):
+    """화면 여러 곳이 15초마다 불러도 Zabbix 에는 가볍게: 5초 안의 health 호출은 한 번만 Zabbix 로 간다."""
+    client = make_client(
+        ZABBIX_MOCK="false", ZABBIX_API_TOKEN=ZABBIX_TOKEN, ZABBIX_URL=fake_zabbix.url
+    )
+    headers = helpers.login(client, "oncall", helpers.oncall_password)
+    for _ in range(4):
+        data = client.get("/api/health", headers=headers).json()["data"]
+        assert data["zabbix"] == "ok"
+    assert len(fake_zabbix.requests) == 1

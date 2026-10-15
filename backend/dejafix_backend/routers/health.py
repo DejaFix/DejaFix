@@ -11,10 +11,10 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
-import zabbix_ro
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 
+from dejafix_backend import zabbix
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.db import open_db
 from dejafix_backend.deps import require_role
@@ -56,34 +56,17 @@ def _db_status(settings: Settings) -> dict[str, Any]:
     return result
 
 
-def _zabbix_status(settings: Settings) -> str:
-    """apiinfo.version 한 번(인증 없는 읽기). 토큰·URL 은 응답·로그에 남기지 않는다."""
+async def _zabbix_probe(settings: Settings) -> str:
+    """apiinfo.version 한 번(인증 없는 읽기). 타임아웃·짧은 캐시·single-flight 는 zabbix.call 이 맡는다."""
     if settings.zabbix_mock:
         return "ok"
-    client = zabbix_ro.from_env(
-        {
-            "ZABBIX_MOCK": "false",
-            "ZABBIX_URL": settings.zabbix_url,
-            "ZABBIX_API_TOKEN": settings.zabbix_api_token,
-            "ZABBIX_VERIFY_TLS": settings.zabbix_verify_tls,
-        }
-    )
     try:
-        with client:
-            version = client.call("apiinfo.version", {})
-    except zabbix_ro.ZabbixRoError:
+        version = await zabbix.call(
+            settings, "apiinfo.version", timeout=ZABBIX_HEALTH_TIMEOUT_SEC
+        )
+    except zabbix.ZabbixUnavailable:
         return "down"
     return "ok" if isinstance(version, str) and version else "down"
-
-
-async def _zabbix_probe(settings: Settings) -> str:
-    try:
-        return await asyncio.wait_for(
-            run_in_threadpool(_zabbix_status, settings),
-            timeout=ZABBIX_HEALTH_TIMEOUT_SEC,
-        )
-    except TimeoutError:
-        return "down"
 
 
 def _origin(url: str) -> str:

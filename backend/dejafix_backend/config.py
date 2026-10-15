@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     zabbix_url: str = ""
     zabbix_api_token: str = ""
     zabbix_verify_tls: str = ""
+    # 화면이 15초마다 부르는 API 가 느린 Zabbix 에 같이 멈추지 않게 하는 안전장치 (dejafix_backend/zabbix.py)
+    zabbix_timeout_sec: float = 5.0  # API 5번·6번 호출 한도 (health 는 3초)
+    zabbix_cache_ttl_sec: float = 5.0  # 성공 응답을 재사용하는 시간
+    # 실패를 붙들어 두는 시간(짧게 — 복구가 금방 보이게)
+    zabbix_failure_ttl_sec: float = 2.0
     agent_url: str = "http://agent:8100"
     mcp_zabbix_url: str = "http://mcp-zabbix:8200/mcp"
     internal_token: str = ""
