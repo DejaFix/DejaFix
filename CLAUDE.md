@@ -128,6 +128,13 @@ rg "system\.cpu\.util|vm\.memory\.util|vfs\.fs\.size|check_top_process|check_dis
 - 필수 안전 테스트 8종: SAFE-02 쓰기 메서드 거부, SAFE-03 쓰기 도구 감지 시 기동 거부, SAFE-06 미등록 → C, SAFE-07 rollback 누락 → C 강등, SAFE-08 근거 없는 수치 → null, SAFE-09 오래된 값 → unknown, 메일 dedup, Backend ATTACH 쓰기 거부. 빠지면 머지 불가.
 - 안전 회귀 세트: `uv run pytest -m safety_regression` → "잘못 통과 0/N".
 
+## 에이전트 협업 (GitHub Issue 업무 요청 — `docs/agent-collaboration.md`)
+- **작업을 시작하면 자기 파트 라벨의 열린 Issue부터 확인하고 응답한다**: `gh issue list --label to-<파트> --state open`. 라벨은 `to-frontend`·`to-backend`·`to-agent`·`to-mcp`·`to-infra`.
+- 응답은 코멘트 1개 + 라벨: 수락 `accepted` / 대안 제안 `counter` / 시작하면 `in-progress`. 구현 PR 본문에 `Closes #번호`.
+- **다른 파트 파일은 직접 고치지 않고** `.github/ISSUE_TEMPLATE/agent-request.md` 양식으로 Issue를 만들어 요청한다. `contracts/`가 바뀌면 계약 PR이 먼저다(④).
+- 2번 주고받아도 합의가 안 되거나 안전 규칙·범위·비용·되돌릴 수 없는 일이면 `needs-human`을 붙이고 멈춘다. 이 라벨은 사람만 뗀다.
+- **결정한 것은 `docs/decisions/NNN-제목.md`에 3줄(결정·이유·대안)로 기록**하고 Issue에 링크한다.
+
 ## 기타
 - 경로는 항상 상대경로를 쓴다.
 - 편집 후 자동 포맷 훅: `frontend/`는 prettier, Python은 ruff format(`.claude/settings.json`).
