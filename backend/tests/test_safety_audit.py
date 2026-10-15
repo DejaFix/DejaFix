@@ -59,31 +59,93 @@ def test_the_scan_covers_the_backend_source():
 # ---------------------------------------------------------------- 답변 기준 일원화
 
 
+# LLM 을 직접 부르는 흔적: 라이브러리·엔드포인트 이름, LLM 설정 키, LLM_* 환경 변수를 **읽는** 코드.
+# `llm_usage_today`(API 5번 응답 키)나 `"LLM_TIMEOUT"`(Agent 가 보낸 오류 코드를 전달·비교) 같은 정상 이름은 걸리지 않는다.
+LLM_CLIENT_PATTERN = (
+    r"openai|anthropic|litellm|langchain|ollama|openrouter|chat/completions"
+    r"|llm_base_url|llm_api_key|llm_model"
+    r"|(environ\[|environ\.get\(|getenv\()\s*[\"']LLM_"
+)
+
+
 def test_backend_has_no_llm_client():
     """LLM 호출은 Agent 한 곳에서만 한다 (NFR-MAINT-010)."""
-    hits = lines_matching(
-        r"openai|anthropic|litellm|langchain|ollama|openrouter|chat/completions"
-        r"|llm_base_url|llm_api_key|llm_model|\bLLM_[A-Z_]+"  # LLM 설정을 읽어 직접 부르는 경우
-    )
+    hits = lines_matching(LLM_CLIENT_PATTERN)
     assert hits == [], "backend 에 LLM 호출 흔적이 있다:\n" + "\n".join(hits)
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "from openai import OpenAI",
+        "url = settings.llm_base_url",
+        "key = settings.LLM_API_KEY  # llm_api_key",
+        'model = os.environ["LLM_MODEL"]',
+        "token = os.getenv('LLM_TOKEN')",
+        'httpx.post("https://api.example/v1/chat/completions")',
+    ],
+)
+def test_llm_pattern_catches_direct_use(line):
+    assert re.search(LLM_CLIENT_PATTERN, line, re.IGNORECASE), line
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        '"llm_usage_today": None,  # API 5번 계약의 응답 키(필수 단계는 null)',
+        'if event["code"] == "LLM_TIMEOUT":',
+        'ERRORS = {"LLM_NOT_CONFIGURED", "LLM_ERROR"}  # Agent 가 보내는 오류 코드',
+        "llm_usage = None",
+    ],
+)
+def test_llm_pattern_does_not_flag_contract_names_and_error_codes(line):
+    """정상 이름을 막으면 Backend 가 계약대로 키를 넣는 순간 안전 테스트가 실패한다(오탐)."""
+    assert not re.search(LLM_CLIENT_PATTERN, line, re.IGNORECASE), line
+
+
 # Backend 가 HTTP 로 부르는 곳은 Agent(채팅 중계)와 Agent·MCP 상태 확인뿐이다. 새 호출처가 생기면 여기서 걸린다.
-HTTPX_ALLOWED = {"chat.py", "health.py"}
+HTTP_CLIENT_IMPORT = r"^\s*(import|from)\s+(httpx|requests|aiohttp|urllib3|urllib\.request|http\.client)\b"
+HTTP_ALLOWED = {"chat.py", "health.py"}
+
+
+def http_client_users(paths):
+    return {
+        p.name
+        for p in paths
+        if re.search(HTTP_CLIENT_IMPORT, p.read_text(encoding="utf-8"), re.M)
+    }
 
 
 def test_http_client_is_used_only_where_the_backend_talks_to_agent_or_mcp():
-    users = {
-        p.name
-        for p in SOURCES
-        if re.search(
-            r"^\s*(import httpx|from httpx\b)", p.read_text(encoding="utf-8"), re.M
-        )
-    }
-    assert users <= HTTPX_ALLOWED, (
-        f"httpx 를 쓰는 새 파일: {sorted(users - HTTPX_ALLOWED)} — Agent·MCP 가 아닌 곳을 "
+    users = http_client_users(SOURCES)
+    assert users <= HTTP_ALLOWED, (
+        f"HTTP 클라이언트를 쓰는 새 파일: {sorted(users - HTTP_ALLOWED)} — Agent·MCP 가 아닌 곳을 "
         "부르는 것이면 LLM·Zabbix 직접 호출이 아닌지 먼저 확인하고 이 목록을 고친다"
     )
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import requests",
+        "import aiohttp\n",
+        "from urllib.request import urlopen",
+        "import http.client",
+        "    import httpx",
+        "from httpx import AsyncClient",
+        "import urllib3",
+    ],
+)
+def test_http_client_detection_covers_every_common_library(tmp_path, source):
+    sneaky = tmp_path / "sneaky.py"
+    sneaky.write_text(source, encoding="utf-8")
+    assert http_client_users([sneaky]) == {"sneaky.py"}
+
+
+def test_http_client_detection_ignores_unrelated_text(tmp_path):
+    quiet = tmp_path / "quiet.py"
+    quiet.write_text("# requests 를 쓰지 않는다\nimport smtplib\n", encoding="utf-8")
+    assert http_client_users([quiet]) == set()
 
 
 def test_backend_does_not_compute_tiers():
@@ -109,17 +171,57 @@ def test_backend_reaches_zabbix_only_through_zabbix_ro():
     assert hits == [], "Zabbix 를 직접 다루는 코드:\n" + "\n".join(hits)
 
 
-def test_zabbix_address_and_token_only_go_into_zabbix_ro():
-    """ZABBIX_URL·토큰을 읽는 파일은 설정(config.py)이거나, 그 값을 libs/zabbix_ro 로만 넘기는 파일이다."""
-    hits = lines_matching(r"(?<!mcp_)zabbix_url|zabbix_api_token")
-    for hit in hits:
-        path = hit.split(":", 1)[0]
-        if path.endswith("config.py"):
+ZABBIX_ADDRESS = r"(?<!mcp_)zabbix_url|zabbix_api_token"
+ZABBIX_RO_IMPORT = r"^\s*(import zabbix_ro|from zabbix_ro)\b"
+
+
+def zabbix_address_violations(paths):
+    """ZABBIX_URL·토큰을 쓰는 파일(설정 config.py 제외)은 **zabbix_ro 를 실제로 import** 해야 한다.
+
+    주석이나 문자열에 'zabbix_ro' 가 적혀 있는 것만으로는 통과하지 않는다.
+    """
+    bad = []
+    for path in paths:
+        if path.name == "config.py":
             continue
-        source = (SRC.parent / path).read_text(encoding="utf-8")
-        assert "zabbix_ro" in source, (
-            f"zabbix_ro 를 거치지 않고 주소·토큰을 쓴다: {hit}"
-        )
+        text = path.read_text(encoding="utf-8")
+        if re.search(ZABBIX_ADDRESS, text, re.IGNORECASE) and not re.search(
+            ZABBIX_RO_IMPORT, text, re.MULTILINE
+        ):
+            bad.append(path.name)
+    return bad
+
+
+def test_zabbix_address_and_token_only_go_into_zabbix_ro():
+    assert zabbix_address_violations(SOURCES) == []
+
+
+def test_zabbix_address_check_is_not_vacuous(tmp_path):
+    """위 검사가 실제로 위반을 잡고, 올바른 사용은 통과시키는지 (지금 소스에는 해당 파일이 없어도 검사가 살아 있게)."""
+    comment_only = tmp_path / "comment_only.py"
+    comment_only.write_text(
+        "# zabbix_ro 를 쓸 예정\nURL = settings.zabbix_url\n", encoding="utf-8"
+    )
+    direct = tmp_path / "direct.py"
+    direct.write_text(
+        "import httpx\nhttpx.get(settings.zabbix_url, headers={'t': settings.zabbix_api_token})\n",
+        encoding="utf-8",
+    )
+    proper = tmp_path / "proper.py"
+    proper.write_text(
+        "import zabbix_ro\nclient = zabbix_ro.from_env({'ZABBIX_URL': settings.zabbix_url})\n",
+        encoding="utf-8",
+    )
+    from_import = tmp_path / "from_import.py"
+    from_import.write_text(
+        "from zabbix_ro import from_env\nfrom_env({'ZABBIX_URL': settings.zabbix_url})\n",
+        encoding="utf-8",
+    )
+    mcp_only = tmp_path / "mcp_only.py"
+    mcp_only.write_text("URL = settings.mcp_zabbix_url\n", encoding="utf-8")
+    assert zabbix_address_violations(
+        [comment_only, direct, proper, from_import, mcp_only]
+    ) == ["comment_only.py", "direct.py"]
 
 
 def test_backend_never_writes_to_shared_tables():
