@@ -123,6 +123,16 @@ def _items_of(data: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _rank(pack: Pack, call: ToolCall) -> list[tuple[int, dict[str, Any]]]:
+    """호출 결과의 항목 중 팩 지표에 걸리는 것 → (일치 등급, 항목+별칭+근거 ID)."""
+    ranked = []
+    for item in _items_of(call.result.get("data")) if call.ok else []:
+        found = pack.match_key(str(item.get("key_", "")))
+        if found:
+            ranked.append((found[1], {**item, "_alias": found[0], "_ev": call.id}))
+    return ranked
+
+
 def collect(
     incident: dict[str, Any],
     client: ToolClient,
@@ -145,11 +155,24 @@ def collect(
 
     items = _call(client, 3, "zabbix_list_items", {"hostid": hostid})
     calls.append(items)
-    ranked = []
-    for item in _items_of(items.result.get("data")) if items.ok else []:
-        found = pack.match_key(str(item.get("key_", "")))
-        if found:
-            ranked.append((found[1], {**item, "_alias": found[0]}))
+    seq = 4
+    ranked = _rank(pack, items)
+    # 항목이 많은 호스트는 목록이 잘려(truncated) 이름순 뒤쪽 지표가 빠진다. 팩 별칭 중 못 찾은 것만
+    # 그 별칭의 첫 키 이름으로 한 번씩 더 조회한다(별칭 수만큼이 상한, 키는 팩에서만 읽음).
+    if items.ok and items.result.get("truncated"):
+        found_aliases = {item["_alias"] for _, item in ranked}
+        for alias, keys in pack.metrics.items():
+            if alias in found_aliases or not keys:
+                continue
+            extra = _call(
+                client,
+                seq,
+                "zabbix_list_items",
+                {"hostid": hostid, "key_search": keys[0].split("[", 1)[0]},
+            )
+            seq += 1
+            calls.append(extra)
+            ranked += [r for r in _rank(pack, extra) if r[1]["_alias"] == alias]
     # 한 별칭에 여러 항목이 걸리면(드라이브·인터페이스별, free/total 등) 팩 키와 가까운 순으로
     # 별칭당 MAX_ITEMS_PER_ALIAS 개만 쓴다. 리포트 사실 목록이 길어지지 않게.
     ranked.sort(key=lambda r: r[0])
@@ -175,7 +198,7 @@ def collect(
     if trigger_itemid:
         history = _call(
             client,
-            4,
+            seq,
             "zabbix_get_history",
             {"itemid": str(trigger_itemid), "time_from": iso(now - timedelta(hours=1))},
         )
