@@ -1,0 +1,69 @@
+# Zabbix 7.0 LTS (server + web, PostgreSQL) for DejaFix - local only.
+# - All published ports are bound to 127.0.0.1 (no LAN exposure).
+# - Image tags are pinned: Zabbix 7.0.31 (must stay >= the host's Zabbix Agent 2 version), PostgreSQL major 16.
+# - Secrets come from .env (git-ignored). Template: .env.example
+name: dejafix-zabbix
+
+x-db-env: &db-env
+  POSTGRES_USER: ${POSTGRES_USER:-zabbix}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (copy .env.example)}
+  POSTGRES_DB: ${POSTGRES_DB:-zabbix}
+
+services:
+  postgres-server:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      <<: *db-env
+    volumes:
+      - zbx_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    stop_grace_period: 1m
+    networks:
+      - zbx_net
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:alpine-7.0.31
+    restart: unless-stopped
+    depends_on:
+      postgres-server:
+        condition: service_healthy
+    environment:
+      <<: *db-env
+      DB_SERVER_HOST: postgres-server
+      DB_SERVER_PORT: "5432"
+    ports:
+      - "127.0.0.1:10051:10051"   # server trapper (active agent checks / zabbix_sender)
+    stop_grace_period: 30s
+    networks:
+      - zbx_net
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.0.31
+    restart: unless-stopped
+    depends_on:
+      postgres-server:
+        condition: service_healthy
+      zabbix-server:
+        condition: service_started
+    environment:
+      <<: *db-env
+      DB_SERVER_HOST: postgres-server
+      DB_SERVER_PORT: "5432"
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_SERVER_PORT: "10051"
+      PHP_TZ: ${PHP_TZ:-Asia/Seoul}
+    ports:
+      - "127.0.0.1:8080:8080"     # web UI + API (/api_jsonrpc.php)
+    networks:
+      - zbx_net
+
+volumes:
+  zbx_pgdata:
+
+networks:
+  zbx_net:
