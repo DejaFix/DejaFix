@@ -19,8 +19,9 @@ from shared_db import open_db
 
 from . import chat, worker
 from .config import Settings
+from .mcp_client import McpToolClient, startup_check
 from .packs import load_pack
-from .tools import ToolClient, UnavailableToolClient, check_tool_list
+from .tools import ToolClient, UnavailableToolClient
 
 log = logging.getLogger("dejafix.agent")
 
@@ -47,6 +48,13 @@ async def mcp_status(settings: Settings) -> str:
         return "down"
 
 
+def make_tool_client(settings: Settings) -> ToolClient:
+    """MCP_ZABBIX_URL 이 있으면 실 MCP 클라이언트, 없으면 모든 조회가 TOOL_ERROR."""
+    if not settings.mcp_zabbix_url:
+        return UnavailableToolClient()
+    return McpToolClient(settings.mcp_zabbix_url, settings.internal_token)
+
+
 def create_app(
     settings: Settings | None = None,
     packs_dir: Path | None = None,
@@ -61,9 +69,8 @@ def create_app(
         app.state.settings = settings
         pack = load_pack(settings.domain_pack, packs_dir)  # PackError → 기동 실패
         app.state.pack = pack
-        # 실 MCP 클라이언트는 mcp-zabbix 서버(T42)가 생기면 붙인다. 그 전엔 모든 조회가 TOOL_ERROR.
-        client = tool_client or UnavailableToolClient()
-        check_tool_list(client.list_tools())  # 허용 밖 도구 → 기동 실패 (SAFE-03)
+        client = tool_client or make_tool_client(settings)
+        await startup_check(client)  # 허용 밖 도구 → 기동 실패 (SAFE-03)
         app.state.tool_client = client
         open_db(settings.shared_db_path, "shared").close()
 
