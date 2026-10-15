@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { RiskBadge } from '../components/Chips'
 import { Icon } from '../components/Icon'
-
-export const statusText = { draft: '작성됨', reviewed: '검토 완료', discarded: '폐기' } as const
+import { statusText } from '../lib/planStatus'
 
 export default function Plans() {
   const { data } = useQuery({ queryKey: ['plans'], queryFn: api.plans })
