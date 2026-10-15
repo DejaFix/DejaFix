@@ -35,13 +35,15 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <form className="card login-card" onSubmit={submit}>
-        <div className="brand" style={{ padding: 0, marginBottom: 6 }}>
-          DejaFix
+        <div className="brand login-brand">
+          <span>
+            DejaFix
+            <small className="brand-sub">Zabbix AI</small>
+          </span>
         </div>
-        <h1 className="page-title" style={{ fontSize: 22 }}>
-          사내 계정으로 로그인
-        </h1>
-        <p className="page-sub">데모 계정으로 로그인합니다.</p>
+        <h1 className="page-title login-title">사내 계정으로 로그인</h1>
+        <p className="page-sub">AI가 분석한 장애 원인과 대응 계획을 확인합니다.</p>
+
         <label className="field" htmlFor="login-id">
           아이디
           <input id="login-id" value={id} onChange={(e) => setId(e.target.value)} autoFocus autoComplete="username" />
@@ -57,16 +59,11 @@ export default function Login() {
           />
         </label>
         {error ? (
-          <p role="alert" style={{ color: 'var(--sev-high)', marginTop: 12 }}>
+          <p role="alert" className="form-error">
             {error}
           </p>
         ) : null}
-        <button
-          className="btn primary"
-          style={{ width: '100%', marginTop: 20, height: 42 }}
-          type="submit"
-          disabled={!id.trim() || !pw || submitting}
-        >
+        <button className="btn primary login-submit" type="submit" disabled={!id.trim() || !pw || submitting}>
           {submitting ? '로그인 중…' : '로그인'}
         </button>
       </form>
