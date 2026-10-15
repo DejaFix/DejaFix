@@ -33,6 +33,15 @@ def _extract_json(text: str) -> Any:
 
 def complete_json(settings: Settings, prompt: str) -> Any:
     """실 LLM 1회 호출 → JSON. 실패는 LlmError 로만 올린다(원문 예외를 넘기지 않음)."""
+    content = complete_text(settings, prompt)
+    try:
+        return _extract_json(content)
+    except ValueError as exc:
+        raise LlmError("LLM_ERROR", "응답을 JSON으로 읽을 수 없음") from exc
+
+
+def complete_text(settings: Settings, prompt: str) -> str:
+    """실 LLM 1회 호출 → 응답 문자열."""
     if settings.llm_mode != "real":
         raise LlmError("LLM_NOT_CONFIGURED")
     url = settings.llm_base_url.rstrip("/") + "/chat/completions"
@@ -57,9 +66,11 @@ def complete_json(settings: Settings, prompt: str) -> Any:
         raise LlmError("LLM_ERROR", f"HTTP {resp.status_code}")
     try:
         content = resp.json()["choices"][0]["message"]["content"]
-        return _extract_json(content)
     except (KeyError, IndexError, TypeError, ValueError) as exc:
-        raise LlmError("LLM_ERROR", "응답을 JSON으로 읽을 수 없음") from exc
+        raise LlmError("LLM_ERROR", "응답 형식을 읽을 수 없음") from exc
+    if not isinstance(content, str) or not content.strip():
+        raise LlmError("LLM_ERROR", "빈 응답")
+    return content
 
 
 def fake_draft(base_draft: dict[str, Any], evidence_ids: list[str]) -> dict[str, Any]:

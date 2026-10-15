@@ -1,7 +1,7 @@
 """AI Agent FastAPI 앱 (:8100, 내부 전용).
 
 기동 순서: 설정 → 도메인 팩 로드(실패하면 기동 중단) → MCP 도구 목록 검사(허용 밖이면 중단)
-→ shared.db 스키마 멱등 적용 → 분석 워커(10초 주기) 시작. 채팅은 다음 PR에서 붙는다.
+→ shared.db 스키마 멱등 적용 → 분석 워커(10초 주기) 시작. 채팅은 POST /v1/chat (SSE).
 """
 
 from __future__ import annotations
@@ -12,11 +12,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from shared_db import open_db
 
-from . import worker
+from . import chat, worker
 from .config import Settings
 from .packs import load_pack
 from .tools import ToolClient, UnavailableToolClient, check_tool_list
@@ -84,6 +85,74 @@ def create_app(
                 task.cancel()
 
     app = FastAPI(title="DejaFix Agent", lifespan=lifespan)
+
+    @app.post("/v1/chat")
+    async def chat_endpoint(request: Request):
+        """contracts/agent-api.md 1-2. meta 를 먼저 보내고 답을 만든 뒤 final 로 닫는다."""
+        try:
+            body = await request.json()
+        except ValueError:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        raw_user = request.headers.get("X-User-Id")
+        user_id = int(raw_user) if raw_user and raw_user.isdigit() else None
+        caller = str(body.get("caller") or "backend")
+        db_path = settings.shared_db_path
+        try:
+            started = await asyncio.to_thread(
+                chat.start, db_path, body, user_id, caller, settings.model_label
+            )
+        except chat.ChatError as exc:
+            return JSONResponse(
+                {"error": {"code": exc.code, "message": exc.message}},
+                status_code=exc.status,
+            )
+        message = str(body.get("message")).strip()
+        pack = request.app.state.pack
+
+        async def events():
+            yield chat.sse(
+                "meta",
+                {
+                    "conversation_id": started.conversation_id,
+                    "run_id": started.run_id,
+                    "message_id": started.message_id,
+                },
+            )
+            try:
+                ans = await asyncio.to_thread(
+                    chat.answer, settings, pack, message, started.context
+                )
+                if ans.from_llm:
+                    for i in range(0, len(ans.content), 40):
+                        yield chat.sse("token", {"text": ans.content[i : i + 40]})
+                msg_id = await asyncio.to_thread(chat.finish, db_path, started, ans)
+                yield chat.sse(
+                    "final",
+                    {
+                        "message_id": msg_id,
+                        "content": ans.content,
+                        "evidence_ids": ans.evidence_ids,
+                        "unknowns": ans.unknowns,
+                    },
+                )
+            except Exception as exc:
+                log.exception("chat failed: run=%s", started.run_id)
+                partial = chat.Answer("", [], [], False)
+                await asyncio.to_thread(
+                    chat.finish, db_path, started, partial, "INTERNAL_ERROR"
+                )
+                yield chat.sse(
+                    "error",
+                    {"code": "INTERNAL_ERROR", "message": type(exc).__name__},
+                )
+
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream; charset=utf-8",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @app.get("/healthz")
     async def healthz() -> dict:
