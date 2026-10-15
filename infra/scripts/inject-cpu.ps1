@@ -26,9 +26,15 @@ if ($Minutes -lt 1 -or $Minutes -gt $MaxMinutes) {
     exit 2
 }
 
+# 워커만 고른다: 표식 + 워커 명령줄 형태(-NonInteractive -WindowStyle Hidden -Command "$tag='표식'").
+# 표식 문자열만 들어간 다른 셸(예: rg DEJAFIX_INJECT_CPU)은 잡지 않는다.
 function Get-InjectProcess {
     Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
-        Where-Object { $_.CommandLine -like "*$Marker*" -and $_.ProcessId -ne $PID }
+        Where-Object {
+            $_.ProcessId -ne $PID -and
+            $_.CommandLine -like "*-NonInteractive -WindowStyle Hidden -Command*" -and
+            $_.CommandLine -like "*`$tag='$Marker'*"
+        }
 }
 
 $running = @(Get-InjectProcess)
@@ -52,7 +58,10 @@ Write-Host ("[inject-cpu] 시작 {0:yyyy-MM-dd HH:mm:ss} KST / 종료 예정 {1:
 $procs = @()
 try {
     for ($n = 0; $n -lt $cores; $n++) {
-        $procs += Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -WindowStyle Hidden -PassThru
+        $p = Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -WindowStyle Hidden -PassThru
+        # 같은 PC의 Zabbix agent·화면 조작이 굶지 않게 낮은 우선순위로 돈다. CPU 사용률은 그대로 100% 근처까지 오른다.
+        try { $p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch { }
+        $procs += $p
     }
     Write-Host ("[inject-cpu] PID: {0}" -f (($procs | ForEach-Object { $_.Id }) -join ', '))
     Write-Host '[inject-cpu] Ctrl+C 로 즉시 중단할 수 있습니다.'

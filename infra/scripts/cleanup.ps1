@@ -14,9 +14,15 @@ $ErrorActionPreference = 'Stop'
 $Marker = 'DEJAFIX_INJECT_CPU'
 $FillDir = Join-Path $env:TEMP 'dejafix-fill'
 
+# 워커만 고른다: 표식 + 워커 명령줄 형태(-NonInteractive -WindowStyle Hidden -Command "$tag='표식'").
+# 표식 문자열만 들어간 다른 셸(예: rg DEJAFIX_INJECT_CPU)은 잡지 않는다.
 function Get-InjectProcess {
     Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
-        Where-Object { $_.CommandLine -like "*$Marker*" -and $_.ProcessId -ne $PID }
+        Where-Object {
+            $_.ProcessId -ne $PID -and
+            $_.CommandLine -like "*-NonInteractive -WindowStyle Hidden -Command*" -and
+            $_.CommandLine -like "*`$tag='$Marker'*"
+        }
 }
 
 $found = @(Get-InjectProcess)
@@ -26,8 +32,14 @@ foreach ($p in $found) {
 Write-Host ("[cleanup] 부하 프로세스 {0}개 종료 요청" -f $found.Count)
 
 if (Test-Path -LiteralPath $FillDir) {
-    Remove-Item -LiteralPath $FillDir -Recurse -Force
-    Write-Host "[cleanup] $FillDir 삭제"
+    try {
+        Remove-Item -LiteralPath $FillDir -Recurse -Force -ErrorAction Stop
+        Write-Host "[cleanup] $FillDir 삭제"
+    }
+    catch {
+        # 삭제 실패해도 아래 확인 출력과 exit 1 로 보고한다
+        [Console]::Error.WriteLine("[cleanup] $FillDir 삭제 실패: $($_.Exception.Message)")
+    }
 }
 
 Start-Sleep -Seconds 1
