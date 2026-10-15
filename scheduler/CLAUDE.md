@@ -20,3 +20,6 @@
 
 ## 테스트
 - `uv run pytest` — `ZABBIX_MOCK=true` fixture로 INSERT·중복 방지·resolved 전이 (FR-SCH-005)
+
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T 번호(Scheduler·DB: T06·T07, T35~T37, T41, T64). 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.

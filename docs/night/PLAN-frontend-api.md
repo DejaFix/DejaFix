@@ -1,6 +1,6 @@
 # PLAN-frontend-api — 프론트 데이터 형식 전환·API 연동 작업 큐
 
-- 파트: frontend-api (담당 장재현, 부 배병환) / 폴더: `frontend/`만
+- 파트: frontend-api (담당 연동·인프라 담당, 부 화면 담당) / 폴더: `frontend/`만
 - 기준: `docs/mvp-checklist.md`, `docs/plan.md` 7장(API 계약)·4-2(화면), `docs/requirements.md` FR-FE, `contracts/api.md`(머지되면 이것이 우선)
 - 위에서부터 하나씩 처리한다. 항목마다 `npm run lint`, `npx tsc --noEmit`, `npm run build` 통과 후 커밋 1개.
 - 실패 2번이면 `[BLOCKED]`로 바꾸고 사유를 `LOG-frontend-api.md`에 쓴다.

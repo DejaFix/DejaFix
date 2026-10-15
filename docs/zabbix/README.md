@@ -25,3 +25,17 @@
 - `history.get`은 value_type 하나씩만 조회한다(기본값 3).
 - `problem.get`은 호스트를 주지 않는다 → `event.get`(`selectHosts`)이나 `trigger.get`(`selectHosts`)을 한 번 더 부른다.
 - 지표 분류는 key 이름 대신 템플릿의 `component` 태그(cpu / memory / storage / network)로 조회할 수 있다(Windows 템플릿에서 확인, Linux는 미검증).
+- 허용 메서드 13개(기획서 6-2): `apiinfo.version, problem.get, event.get, trigger.get, host.get, hostgroup.get, hostinterface.get, item.get, history.get, trend.get, maintenance.get, action.get, alert.get`. `user.login` 미사용.
+- 토큰·비밀번호 **값은 어디에도 적지 않는다**(Slack 1:1 DM만, 기획서 11-4).
+
+## 아직 남겨야 닫히는 기록 (요구사항 수용 기준이 "`docs/zabbix/`에 기록"인 것)
+
+| 기록 | 내용 | 근거 | 담당 | 상태 |
+|---|---|---|---|---|
+| `version.md` | 팀 VM의 OS·Zabbix 버전·설치 방식(apt / VM 내 Docker), `apiinfo.version` 응답 캡처 | FR-ZBX-001, G1 | Zabbix·MCP 담당 | 로컬 서버 응답은 `verification/api-probe-2026-10-14/`에 있음. 팀 VM 것은 미기록 |
+| `readonly-account.md` | `dejafix-readonly` 사용자·그룹·권한, API 토큰 발급 절차(값 제외), **`host.update` 호출 시 권한 오류 캡처** | FR-ZBX-004, NFR-SAFE-001 | Zabbix·MCP 담당 | 로컬에서 `user.get` 차단 확인됨. 팀 VM 토큰·`host.update` 캡처 미기록 |
+| `access.md` | 접속 방식 `(TODO: 추후결정 — 후보: 포트 포워딩 8081·10051 / 브리지 IP)`, `ZABBIX_URL` 형식, 방화벽 설정, 아침 점검 절차 결과 | FR-ZBX-006, G7 | Zabbix·MCP 담당 | 미기록 |
+| 실제 아이템 키 | 데모 PC agent 2 설치 결과, 템플릿 이름, cpu·mem·disk·net 키(인터페이스 이름 포함), 스왑 free 불일치 메모 | FR-ZBX-002·007, G2·G18 | 팀장 | **`core-metrics.md`·`windows-agent-api.md`로 충족**. `packs/it/metrics.yaml` 반영만 남음 |
+| `demo-trigger.md` | 데모 템플릿 복제본(CPU 아이템 30초), 트리거 `avg(/<호스트>/system.cpu.util,1m)>85` High, 1회 발동 확인 시각 | FR-ZBX-003, G6 | 팀장 | 미기록 |
+| 자빅스 API 목록 | 노션 "자빅스 API 목록"(멘토 순서 ②)의 사본 또는 링크 | FR-INF-014 | 팀장·Zabbix·MCP 담당 | **`api-requests/`·`windows-agent-api.md`로 충족**. 노션 문서 링크만 추가 |
+| `mcp-live-test.md` | 팀 VM 토큰 수령 후 MCP 5도구 실호출 결과(B3 DoD ③) | FR-MCP-002~006 | Zabbix·MCP 담당 | 미기록 |
