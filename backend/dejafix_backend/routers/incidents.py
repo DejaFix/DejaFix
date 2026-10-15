@@ -31,19 +31,28 @@ SEVERITY_LABELS = {
 # agent_runs.status 중 아직 진행 중인 값 (done·failed 가 아닌 것)
 _RUNNING = {"queued", "collecting", "analyzing", "validating", "reported", "planning"}
 
-# 장애마다 가장 최근 analyze run, 최신 version 리포트, 최신 계획을 서브쿼리로 붙인다.
-_INCIDENT_SQL = """
+# 장애마다 가장 최근 analyze run, 최신 version 리포트, 그 리포트의 계획을 서브쿼리로 붙인다.
+# 계획 선택(contracts/api.md API 11번): change_plans.report_id = 최신 리포트 id 인 것 중 최신 id,
+# 없으면 그 장애의 최신 계획.
+_LATEST_REPORT_ID = """(SELECT a.id FROM shared.analysis_reports a
+         WHERE a.incident_id = i.id ORDER BY a.version DESC LIMIT 1)"""
+
+_INCIDENT_SQL = f"""
 SELECT i.id, i.zabbix_eventid, i.zabbix_triggerid, i.hostid, i.host_name, i.title,
        i.severity, i.status, i.started_at, i.resolved_at, i.tags_json,
        (SELECT r.status FROM shared.agent_runs r
          WHERE r.incident_id = i.id AND r.kind = 'analyze'
          ORDER BY r.started_at DESC, r.id DESC LIMIT 1) AS run_status,
-       (SELECT a.id FROM shared.analysis_reports a
-         WHERE a.incident_id = i.id ORDER BY a.version DESC LIMIT 1) AS report_id,
+       {_LATEST_REPORT_ID} AS report_id,
        (SELECT a.kind FROM shared.analysis_reports a
          WHERE a.incident_id = i.id ORDER BY a.version DESC LIMIT 1) AS report_kind,
        (SELECT p.id FROM shared.change_plans p
-         WHERE p.incident_id = i.id ORDER BY p.id DESC LIMIT 1) AS plan_id
+         WHERE p.incident_id = i.id
+         ORDER BY CASE WHEN p.report_id = (SELECT a2.id FROM shared.analysis_reports a2
+                     WHERE a2.incident_id = p.incident_id
+                     ORDER BY a2.version DESC LIMIT 1) THEN 0 ELSE 1 END,
+                  p.id DESC
+         LIMIT 1) AS plan_id
 FROM shared.incidents i
 """
 
