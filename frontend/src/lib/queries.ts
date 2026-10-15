@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { ApiError, apiRequest } from './http'
 import type {
   ApiResponse,
@@ -16,6 +16,9 @@ import type {
 
 // 필수 API(#4·#5·#6·#10·#11)의 react-query 훅. 전부 15초마다 다시 조회한다(FR-FE-012).
 // 반환값의 data는 응답 봉투 {data, meta} 그대로다. 예: const { data } = useHealth(); data?.data.zabbix
+// 오류 중 data: react-query는 다시 조회가 실패해도 마지막 성공 값을 남긴다.
+//  - Zabbix 실시간 값(#4·#5·#6)은 실패하는 동안 data를 undefined로 감춘다 → 화면은 error로 배너·UnknownValue를 그린다(SAFE-09).
+//  - 저장된 장애(#10·#11)는 마지막 값을 유지한다. 화면은 isError면 "갱신 실패" 표시를 함께 보여 준다.
 // 채팅(#18)은 SSE라 별도 PR에서 다룬다.
 
 export const REFETCH_INTERVAL_MS = 15_000
@@ -26,6 +29,11 @@ const retry = (failureCount: number, error: Error) =>
 
 const polling = { refetchInterval: REFETCH_INTERVAL_MS, retry } as const
 
+/** 조회가 실패하는 동안 지난 성공 값을 지금 상태처럼 보여 주지 않도록 data를 감춘다(SAFE-09, NFR-AVAIL-004). */
+function hideDataOnError<T>(query: UseQueryResult<T, ApiError>): UseQueryResult<T, ApiError> {
+  return query.isError ? ({ ...query, data: undefined } as UseQueryResult<T, ApiError>) : query
+}
+
 export const queryKeys = {
   health: ['health'] as const,
   dashboardSummary: ['dashboard', 'summary'] as const,
@@ -34,22 +42,24 @@ export const queryKeys = {
   incidentDetail: (id: number) => ['incidents', 'detail', id] as const,
 }
 
-/** #4 GET /api/health — 상단 연결 상태 */
+/** #4 GET /api/health — 상단 연결 상태. 실패 중에는 data가 undefined(연결 상태를 '확인할 수 없음'으로) */
 export function useHealth() {
-  return useQuery<ApiResponse<Health, HealthMeta>, ApiError>({
+  const query = useQuery<ApiResponse<Health, HealthMeta>, ApiError>({
     queryKey: queryKeys.health,
     queryFn: ({ signal }) => apiRequest<Health, HealthMeta>('/api/health', { signal }),
     ...polling,
   })
+  return hideDataOnError(query)
 }
 
-/** #5 GET /api/dashboard/summary — 현황 홈 KPI 4종(값은 Measured) */
+/** #5 GET /api/dashboard/summary — 현황 홈 KPI 4종(값은 Measured). 실패 중에는 data가 undefined */
 export function useDashboardSummary() {
-  return useQuery<ApiResponse<DashboardSummary, DashboardSummaryMeta>, ApiError>({
+  const query = useQuery<ApiResponse<DashboardSummary, DashboardSummaryMeta>, ApiError>({
     queryKey: queryKeys.dashboardSummary,
     queryFn: ({ signal }) => apiRequest<DashboardSummary, DashboardSummaryMeta>('/api/dashboard/summary', { signal }),
     ...polling,
   })
+  return hideDataOnError(query)
 }
 
 export interface ProblemsParams {
@@ -57,13 +67,14 @@ export interface ProblemsParams {
   hostid?: string
 }
 
-/** #6 GET /api/problems — Zabbix 실시간 문제(Zabbix가 끊기면 503 ZABBIX_UNAVAILABLE로 error가 채워짐) */
+/** #6 GET /api/problems — Zabbix 실시간 문제. Zabbix가 끊기면 error.code 'ZABBIX_UNAVAILABLE'(503)이고 data는 undefined */
 export function useProblems(params: ProblemsParams = {}) {
-  return useQuery<ApiResponse<Problem[], ProblemsMeta>, ApiError>({
+  const query = useQuery<ApiResponse<Problem[], ProblemsMeta>, ApiError>({
     queryKey: queryKeys.problems(params),
     queryFn: ({ signal }) => apiRequest<Problem[], ProblemsMeta>('/api/problems', { signal, query: { ...params } }),
     ...polling,
   })
+  return hideDataOnError(query)
 }
 
 export interface IncidentsParams {

@@ -25,6 +25,8 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
 }
 
 function handleUnauthorized(): void {
+  // 여러 요청이 동시에 401을 받아도 로그아웃은 한 번만: 이미 토큰이 지워졌으면 아무것도 하지 않는다.
+  if (!tokenStorage.get()) return
   tokenStorage.clear()
   if (onUnauthorized) {
     onUnauthorized()
@@ -63,6 +65,9 @@ export async function apiRequest<T, M = Record<string, unknown>>(
   const finalHeaders = new Headers(headers)
   if (json !== undefined) finalHeaders.set('Content-Type', 'application/json')
   const bearer = token ?? (auth ? tokenStorage.get()?.token : undefined)
+  // 인증이 필요한데 토큰이 없으면(이미 로그아웃됨) 요청을 보내지 않는다.
+  // 401 직후 아직 내려가지 않은 폴링 훅이 토큰 없는 요청을 반복하지 않게 하고, 로그아웃 처리기도 다시 부르지 않는다.
+  if (auth && !bearer) throw new ApiError(401, 'UNAUTHORIZED', '로그인이 필요합니다')
   if (bearer) finalHeaders.set('Authorization', `Bearer ${bearer}`)
 
   let res: Response
