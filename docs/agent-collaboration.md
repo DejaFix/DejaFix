@@ -87,7 +87,7 @@ dev 머지는 에이전트가 한다. **`main` 머지는 사람만** 한다(dev 
 
 **강제 장치**
 - `.claude/settings.json`: `gh pr review *`·`gh pr merge * --auto --squash*`만 허용하고, `--admin` 머지는 금지한다.
-- `.claude/hooks/guard-merge.mjs`: 머지 명령 전에 PR을 조회해 **대상이 dev가 아니면**, 승인이 모자라거나 변경 요청·`needs-human`이 남아 있으면 막는다. PR 정보를 못 읽어도 막는다. 명령 위치(줄 처음, `;` `&` `|` `(` 뒤)에 있는 머지 명령만 검사하므로 커밋 메시지·PR 본문 속 문구는 막지 않는다.
+- `.claude/hooks/guard-merge.mjs`: 머지 명령 전에 PR을 조회해 **대상이 dev가 아니면**, 승인이 모자라거나 변경 요청·`needs-human`이 남아 있으면 막는다. PR 정보를 못 읽어도 막는다. 명령 위치(줄 처음, `;` `&` `|` `$(` 뒤)에 있는 머지 명령만 검사하므로 커밋 메시지·PR 본문 속 문구는 막지 않는다.
 - 승인은 GitHub 계정 단위다. 작성자 본인 계정의 승인은 세지 않는다. 그래서 리뷰어 에이전트는 **다른 팀원의 세션**이어야 한다.
 - 지금 저장소에는 dev·main 브랜치 규칙이 없다(ruleset `develop`·`pr`가 `disabled`). 이 상태에서는 GitHub이 `--auto` 예약을 승인 전에도 바로 머지할 수 있어서, 위 훅이 먼저 막는다. 저장소 관리자가 ruleset을 켜서 dev에는 승인 1명, main에는 사람 승인과 직접 push 금지를 걸어야 GitHub 쪽에서도 막힌다.
 - 에이전트는 머지를 되돌리지 않는다(revert·force push 금지). 잘못 머지되면 `needs-human` Issue로 올린다.

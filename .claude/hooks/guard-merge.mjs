@@ -17,8 +17,8 @@ try {
 const command = input.tool_input?.command
 if (typeof command !== 'string') process.exit(0)
 
-// 명령 위치(줄 처음, ; & | ( $( 뒤)의 머지만 본다. 커밋 메시지·PR 본문 속 문구는 건너뛴다.
-const merges = [...command.matchAll(/(?:^|[;&|(\n])\s*(?:\$\()?\s*gh\s+pr\s+merge\b([^;&|\n)]*)/g)]
+// 명령 위치(줄 처음, ; & | $( 뒤)의 머지만 본다. 커밋 메시지·PR 본문 속 문구는 건너뛴다.
+const merges = [...command.matchAll(/(?:^|[;&|\n]|\$\()\s*gh\s+pr\s+merge\b([^;&|\n)]*)/g)]
 if (merges.length === 0) process.exit(0)
 
 function block(reason) {
