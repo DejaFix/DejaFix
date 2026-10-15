@@ -4,12 +4,15 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { cssVar, sevCss } from '../lib/colors'
 import { useThemeVersion } from '../hooks/useThemeVersion'
-import { openedAgo, severityLabel, shortAgo } from '../lib/format'
-import type { AlertItem, Severity } from '../lib/types'
+import { severityLabel, shortAgo } from '../lib/format'
+import { useIncidents } from '../lib/queries'
+import type { Incident, Severity } from '../lib/types'
 import { Collapsible } from '../components/Collapsible'
-import { SeverityChip, UnknownValue } from '../components/Chips'
+import { UnknownValue } from '../components/Chips'
 import { EChart } from '../components/EChart'
 import { Icon } from '../components/Icon'
+import { AnalysisBadge, SeverityInfoChip } from '../components/IncidentParts'
+import { kstShort } from '../components/incidentFormat'
 
 function Kpi({
   label,
@@ -48,29 +51,24 @@ function Kpi({
   )
 }
 
-function AlertRow({ a }: { a: AlertItem }) {
-  const detail = a.group === 'new' && ['a1', 'a2', 'a3', 'a4'].includes(a.id)
-  const body = (
-    <>
-      <SeverityChip severity={a.severity} />
+function IncidentRow({ i }: { i: Incident }) {
+  return (
+    <Link className="alert-row" to={`/incidents/${i.id}`}>
+      <SeverityInfoChip severity={i.severity} />
       <div className="alert-main">
-        <div className="alert-name">{a.name}</div>
+        <div className="alert-name">{i.title}</div>
         <div className="alert-meta">
-          <span className="mono">{a.host}</span>
-          {a.repeat24h && <span className="repeat">24시간 {a.repeat24h}회 반복</span>}
+          <span className="mono">{i.host.name}</span>
+          {i.status === 'resolved' && <span className="repeat">해결됨</span>}
         </div>
       </div>
-      <span className="alert-time">{openedAgo(a.minutesOpen)}</span>
-    </>
-  )
-  return detail ? (
-    <Link className="alert-row" to={`/incidents/${a.id}`}>
-      {body}
+      <AnalysisBadge status={i.analysis.status} />
+      <span className="alert-time">{kstShort(i.started_at) ?? '—'}</span>
     </Link>
-  ) : (
-    <div className="alert-row">{body}</div>
   )
 }
+
+const DAY_MS = 24 * 3600_000
 
 function DiskForecast() {
   const { data } = useQuery({ queryKey: ['disk'], queryFn: api.diskForecasts })
@@ -224,7 +222,12 @@ function Heatmap() {
 
 export default function Dashboard() {
   const summary = useQuery({ queryKey: ['summary'], queryFn: api.summary })
-  const alerts = useQuery({ queryKey: ['alerts'], queryFn: api.alerts })
+  const incidents = useIncidents({ limit: 50 })
+  const list = incidents.data?.data
+  // 표시용 묶음일 뿐이다: 시작 24시간 안 = 새 장애, 그 외 = 오래된 장애
+  const nowMs = incidents.dataUpdatedAt
+  const fresh = list?.filter((i) => nowMs - new Date(i.started_at).getTime() < DAY_MS) ?? []
+  const old = list?.filter((i) => nowMs - new Date(i.started_at).getTime() >= DAY_MS) ?? []
   const groups = useQuery({ queryKey: ['groups'], queryFn: api.crossGroups })
   const baselines = useQuery({ queryKey: ['baselines'], queryFn: api.baselines })
   const s = summary.data
@@ -281,35 +284,45 @@ export default function Dashboard() {
       <section className="card">
         <div className="card-head">
           <h2 className="card-title">지금 확인할 장애</h2>
-          <span className="card-sub">누르면 서버 상세 · 알림 판정식 · 관련 값</span>
+          <span className="card-sub">누르면 장애 상세 · AI 분석 · 근거</span>
         </div>
-        {!alerts.data ? (
+        {incidents.isError && !list ? (
+          <p className="card-sub">장애 목록을 불러오지 못했습니다. 15초 뒤 다시 시도합니다.</p>
+        ) : !list ? (
           <div className="skeleton" />
         ) : (
           <>
+            {incidents.isError && <p className="card-sub">갱신 실패 — 마지막으로 받은 목록입니다.</p>}
             <Collapsible
               id="sec-new"
               title="새로 열린 장애"
-              count={alerts.data.fresh.length}
-              meta="최근 24시간 안에 열림 — 지금 생긴 문제"
+              count={fresh.length}
+              meta="최근 24시간 안에 시작 — 지금 생긴 문제"
               defaultOpen
             >
-              {alerts.data.fresh.map((a) => (
-                <AlertRow key={a.id} a={a} />
+              {fresh.length === 0 && (
+                <div className="alert-row">
+                  <span className="card-sub">최근 24시간 안에 시작한 장애가 없습니다.</span>
+                </div>
+              )}
+              {fresh.map((i) => (
+                <IncidentRow key={i.id} i={i} />
               ))}
             </Collapsible>
-            <Collapsible
-              id="sec-old"
-              title="오래 열려 있는 장애"
-              count={48}
-              meta="24시간 넘게 열린 채 — 아직 문제인지, 정리할 알림인지 확인"
-            >
-              {alerts.data.old.map((a) => (
-                <AlertRow key={a.id} a={a} />
+            <Collapsible id="sec-old" title="오래된 장애" count={old.length} meta="24시간 넘게 지난 장애">
+              {old.length === 0 && (
+                <div className="alert-row">
+                  <span className="card-sub">해당하는 장애가 없습니다.</span>
+                </div>
+              )}
+              {old.map((i) => (
+                <IncidentRow key={i.id} i={i} />
               ))}
-              <div className="alert-row">
-                <span className="card-sub">나머지 42건은 상세 목록 화면에서 확인합니다 (구현 예정)</span>
-              </div>
+              {incidents.data?.meta.next_cursor && (
+                <div className="alert-row">
+                  <span className="card-sub">더 오래된 장애는 상세 목록 화면에서 확인합니다 (구현 예정)</span>
+                </div>
+              )}
             </Collapsible>
           </>
         )}
