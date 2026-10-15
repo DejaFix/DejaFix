@@ -12,6 +12,7 @@
 """
 
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,19 @@ def lines_matching(pattern: str, flags: int = re.IGNORECASE):
     return found
 
 
+def text_matching(pattern: str, flags: int = re.IGNORECASE):
+    """파일 **전체**를 한 문자열로 보고 찾는다 — 여러 줄에 걸친 SQL·호출도 잡는다."""
+    regex = re.compile(pattern, flags | re.DOTALL)
+    found = []
+    for path in SOURCES:
+        text = path.read_text(encoding="utf-8")
+        for match in regex.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            snippet = " ".join(match.group(0).split())[:100]
+            found.append(f"{path.relative_to(SRC.parent)}:{line}: {snippet}")
+    return found
+
+
 def test_the_scan_covers_the_backend_source():
     """검사가 빈 목록을 훑고 '통과'하는 일이 없도록."""
     names = {p.name for p in SOURCES}
@@ -49,8 +63,27 @@ def test_backend_has_no_llm_client():
     """LLM 호출은 Agent 한 곳에서만 한다 (NFR-MAINT-010)."""
     hits = lines_matching(
         r"openai|anthropic|litellm|langchain|ollama|openrouter|chat/completions"
+        r"|llm_base_url|llm_api_key|llm_model|\bLLM_[A-Z_]+"  # LLM 설정을 읽어 직접 부르는 경우
     )
     assert hits == [], "backend 에 LLM 호출 흔적이 있다:\n" + "\n".join(hits)
+
+
+# Backend 가 HTTP 로 부르는 곳은 Agent(채팅 중계)와 Agent·MCP 상태 확인뿐이다. 새 호출처가 생기면 여기서 걸린다.
+HTTPX_ALLOWED = {"chat.py", "health.py"}
+
+
+def test_http_client_is_used_only_where_the_backend_talks_to_agent_or_mcp():
+    users = {
+        p.name
+        for p in SOURCES
+        if re.search(
+            r"^\s*(import httpx|from httpx\b)", p.read_text(encoding="utf-8"), re.M
+        )
+    }
+    assert users <= HTTPX_ALLOWED, (
+        f"httpx 를 쓰는 새 파일: {sorted(users - HTTPX_ALLOWED)} — Agent·MCP 가 아닌 곳을 "
+        "부르는 것이면 LLM·Zabbix 직접 호출이 아닌지 먼저 확인하고 이 목록을 고친다"
+    )
 
 
 def test_backend_does_not_compute_tiers():
@@ -76,6 +109,19 @@ def test_backend_reaches_zabbix_only_through_zabbix_ro():
     assert hits == [], "Zabbix 를 직접 다루는 코드:\n" + "\n".join(hits)
 
 
+def test_zabbix_address_and_token_only_go_into_zabbix_ro():
+    """ZABBIX_URL·토큰을 읽는 파일은 설정(config.py)이거나, 그 값을 libs/zabbix_ro 로만 넘기는 파일이다."""
+    hits = lines_matching(r"(?<!mcp_)zabbix_url|zabbix_api_token")
+    for hit in hits:
+        path = hit.split(":", 1)[0]
+        if path.endswith("config.py"):
+            continue
+        source = (SRC.parent / path).read_text(encoding="utf-8")
+        assert "zabbix_ro" in source, (
+            f"zabbix_ro 를 거치지 않고 주소·토큰을 쓴다: {hit}"
+        )
+
+
 def test_backend_never_writes_to_shared_tables():
     """shared.db 는 Agent·Scheduler 만 쓴다. Backend 는 ATTACH 읽기 전용 + backend.db 에만 쓴다."""
     shared_tables = (
@@ -83,14 +129,63 @@ def test_backend_never_writes_to_shared_tables():
         "conversations|messages|scheduler_jobs|plan_reviews"
     )
     write = r"(insert\s+(or\s+\w+\s+)?into|update|delete\s+from|replace\s+into|drop\s+table|alter\s+table)"
-    hits = lines_matching(rf"{write}\s+(shared\.)?({shared_tables})\b")
+    # 줄바꿈으로 나뉜 SQL("INSERT INTO\n    shared.incidents")도 잡도록 파일 전체를 본다
+    hits = text_matching(rf"{write}\s+(shared\.)?({shared_tables})\b")
     assert hits == [], "shared 테이블에 쓰는 SQL:\n" + "\n".join(hits)
+
+
+def test_the_multiline_scan_catches_a_split_sql_statement(tmp_path, monkeypatch):
+    """위 검사가 여러 줄 SQL 을 실제로 잡는지(빈틈 확인용)."""
+    bad = tmp_path / "bad.py"
+    bad.write_text("SQL = '''\nINSERT INTO\n    shared.incidents (id)\nVALUES (1)'''\n")
+    monkeypatch.setattr(sys.modules[__name__], "SOURCES", [bad])
+    monkeypatch.setattr(sys.modules[__name__], "SRC", tmp_path)
+    assert text_matching(r"insert\s+into\s+shared\.incidents")
+    assert not lines_matching(
+        r"insert\s+into\s+shared\.incidents"
+    )  # 줄 단위로는 못 본다
 
 
 # ---------------------------------------------------------------- 실행 경로 없음
 
 
 FORBIDDEN_KEYS = {"execute", "executed", "run", "apply", "applied", "command_run"}
+# 변형(can_execute·run_command·auto_apply …)도 막는다. run_id·run_status 처럼 run 이 이름 일부인 정상 키는 허용한다.
+FORBIDDEN_KEY_PATTERN = re.compile(
+    r"(^|_)(execute|executed|executes|exec|apply|applied)(_|$)"
+    r"|(^|_)run_(command|cmd|now|action|plan|step)"
+    r"|(can|do|allow|auto)_?(run|execute|exec|apply)"
+    r"|command_run",
+    re.IGNORECASE,
+)
+
+
+def is_forbidden_key(key: str) -> bool:
+    return key.lower() in FORBIDDEN_KEYS or bool(FORBIDDEN_KEY_PATTERN.search(key))
+
+
+@pytest.mark.parametrize(
+    "key,forbidden",
+    [
+        ("execute", True),
+        ("run", True),
+        ("can_execute", True),
+        ("canExecute", True),
+        ("run_command", True),
+        ("auto_apply", True),
+        ("applied", True),
+        ("exec", True),
+        ("run_id", False),  # 정상: 근거가 저장된 run 의 ID
+        ("run_status", False),
+        ("report_id", False),
+        ("duration_ms", False),
+        ("tier", False),
+        ("max_tier", False),
+        ("precheck", False),
+    ],
+)
+def test_forbidden_key_rule(key, forbidden):
+    assert is_forbidden_key(key) is forbidden
 
 
 def walk_keys(node, path=""):
@@ -123,7 +218,7 @@ def test_no_get_response_has_an_execute_key_and_plans_stay_preview(
         response = seeded_client.get(path, headers=headers)
         assert response.status_code == 200, path
         body = response.json()
-        bad = [p for p, key in walk_keys(body) if key.lower() in FORBIDDEN_KEYS]
+        bad = [p for p, key in walk_keys(body) if is_forbidden_key(key)]
         assert bad == [], f"{path} 에 실행 관련 키: {bad}"
         plan = body["data"].get("plan") if isinstance(body["data"], dict) else None
         if plan:
