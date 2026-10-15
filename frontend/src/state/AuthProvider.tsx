@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ApiError, authApi } from '../lib/authApi'
+import { setUnauthorizedHandler } from '../lib/http'
 import { tokenStorage, type StoredAuth } from '../lib/tokenStorage'
 import { AuthContext, type AuthState } from './auth'
 
@@ -45,11 +47,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated')
   }, [])
 
+  const queryClient = useQueryClient()
   const logout = useCallback(() => {
     tokenStorage.clear()
     setSession(null)
     setStatus('anonymous')
-  }, [])
+    // 다음 사용자에게 이전 사용자의 화면 데이터가 보이지 않게 캐시를 비운다.
+    queryClient.clear()
+  }, [queryClient])
+
+  // 어떤 API든 401이 나면(토큰 만료·무효) 공통 래퍼가 토큰을 지우고 여기로 알린다 → RequireAuth가 /login으로 보냄.
+  useEffect(() => {
+    setUnauthorizedHandler(logout)
+    return () => setUnauthorizedHandler(null)
+  }, [logout])
 
   const value = useMemo<AuthState>(
     () => ({
