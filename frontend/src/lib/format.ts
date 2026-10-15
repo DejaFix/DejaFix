@@ -1,14 +1,18 @@
-import type { Risk, Role, Severity, Verdict } from './types'
+import type { LegacyRisk, LegacySeverity, LegacyVerdict, Role } from './types'
 
-export const severityLabel: Record<Severity, string> = {
+export const severityLabel: Record<LegacySeverity, string> = {
   info: '정보',
   warning: '경고',
   average: '보통',
   high: '높음',
   disaster: '심각',
 }
-export const riskLabel: Record<Risk, string> = { low: '낮음', medium: '보통', high: '높음' }
-export const verdictLabel: Record<Verdict, string> = { confirmed: '확인됨', refuted: '반증됨', unknown: '판단 불가' }
+export const riskLabel: Record<LegacyRisk, string> = { low: '낮음', medium: '보통', high: '높음' }
+export const verdictLabel: Record<LegacyVerdict, string> = {
+  confirmed: '확인됨',
+  refuted: '반증됨',
+  unknown: '판단 불가',
+}
 
 export function openedAgo(minutes: number): string {
   if (minutes < 60) return `${minutes}분 전 열림`
