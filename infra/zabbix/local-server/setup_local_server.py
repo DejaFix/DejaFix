@@ -6,8 +6,9 @@
 - changes the default Admin password (last step)
 Secrets are written only to --secrets (outside the repo), never printed.
 
-usage: python setup_local_server.py --host-name DESKTOP-4V9JO99 --secrets C:\\Users\\403\\host-setup\\zabbix-secrets.json
-       [--url http://127.0.0.1:8080/api_jsonrpc.php] [--admin-password zabbix]
+usage: python setup_local_server.py --host-name $env:COMPUTERNAME --secrets $HOME\\host-setup\\zabbix-secrets.json
+       [--url http://127.0.0.1:18080/api_jsonrpc.php] [--admin-password zabbix]
+Never point --url at the team (production) Zabbix: this script writes (hosts, roles, users, tokens).
 """
 
 import argparse
@@ -75,7 +76,7 @@ def pw(n=24):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--url", default="http://127.0.0.1:8080/api_jsonrpc.php")
+    ap.add_argument("--url", default="http://127.0.0.1:18080/api_jsonrpc.php")
     ap.add_argument("--host-name", required=True)
     ap.add_argument("--secrets", required=True)
     ap.add_argument("--admin-password", default="zabbix")

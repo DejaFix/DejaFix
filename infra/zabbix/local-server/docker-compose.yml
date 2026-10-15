@@ -1,5 +1,7 @@
 # Zabbix 7.0 LTS (server + web, PostgreSQL) for DejaFix - local only.
 # - All published ports are bound to 127.0.0.1 (no LAN exposure).
+# - Host ports use the 18xxx range so they never clash with the app (8080 public, 8000 backend, 8100 agent,
+#   5173 vite) or the team Zabbix VM forwarding (8081 web, 10051 trapper). Override in .env if needed.
 # - Image tags are pinned: Zabbix 7.0.31 (must stay >= the host's Zabbix Agent 2 version), PostgreSQL major 16.
 # - Secrets come from .env (git-ignored). Template: .env.example
 name: dejafix-zabbix
@@ -37,7 +39,7 @@ services:
       DB_SERVER_HOST: postgres-server
       DB_SERVER_PORT: "5432"
     ports:
-      - "127.0.0.1:10051:10051"   # server trapper (active agent checks / zabbix_sender)
+      - "127.0.0.1:${ZBX_TRAPPER_PORT:-18051}:10051"   # server trapper (active agent checks / zabbix_sender)
     stop_grace_period: 30s
     networks:
       - zbx_net
@@ -58,7 +60,7 @@ services:
       ZBX_SERVER_PORT: "10051"
       PHP_TZ: ${PHP_TZ:-Asia/Seoul}
     ports:
-      - "127.0.0.1:8080:8080"     # web UI + API (/api_jsonrpc.php)
+      - "127.0.0.1:${ZBX_WEB_PORT:-18080}:8080"        # web UI + API (/api_jsonrpc.php)
     networks:
       - zbx_net
 
