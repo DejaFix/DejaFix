@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { alerts, BASE_TIME_KST, oldAlerts } from '../lib/mock'
-import { roleLabel, toUtc } from '../lib/format'
+import { roleLabel } from '../lib/format'
+import { useHealth, useIncidents } from '../lib/queries'
 import { useAssistant } from '../state/assistant'
 import { useAuth } from '../state/auth'
 import { usePrefs } from '../state/prefs'
 import { AssistantPanel } from './AssistantPanel'
+import { ConnectionStatus, ZabbixBanner } from './ConnectionStatus'
 import { Icon, type IconName } from './Icon'
+import { kstShort } from './incidentFormat'
 
 interface NavDef {
   to: string
@@ -35,6 +37,10 @@ export function Layout() {
   const [query, setQuery] = useState('')
   const [message, setMessage] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  const health = useHealth()
+  const incidents = useIncidents({ limit: 50 })
+  const checkedAt = health.data?.meta.checked_at
+  const baseTime = checkedAt ? (tz === 'KST' ? kstShort(checkedAt) : checkedAt.slice(5, 16).replace('T', ' ')) : null
   const items = nav.filter((n) => !n.adminOnly || role === 'admin')
 
   useEffect(() => {
@@ -57,11 +63,11 @@ export function Layout() {
   const onSearch = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || !query.trim()) return
     const q = query.trim().toLowerCase()
-    const hit = [...alerts, ...oldAlerts].find(
-      (a) => a.host.toLowerCase().includes(q) || a.name.toLowerCase().includes(q),
+    const hit = incidents.data?.data.find(
+      (i) => (i.host.name ?? '').toLowerCase().includes(q) || i.title.toLowerCase().includes(q),
     )
-    if (hit && hit.group === 'new') navigate(`/incidents/${hit.id}`)
-    else setMessage(hit ? '이 장애는 상세 화면이 아직 없습니다' : '일치하는 호스트·장애가 없습니다')
+    if (hit) navigate(`/incidents/${hit.id}`)
+    else setMessage('일치하는 호스트·장애가 없습니다')
   }
 
   return (
@@ -99,7 +105,8 @@ export function Layout() {
       </aside>
       <div className={`main ${open ? 'panel-open' : ''}`}>
         <header className="topbar">
-          <span className="topbar-time">기준 {tz === 'KST' ? BASE_TIME_KST : toUtc(BASE_TIME_KST)}</span>
+          <span className="topbar-time">{baseTime ? `확인 ${baseTime}` : '확인 시각 확인할 수 없음'}</span>
+          <ConnectionStatus health={health.data?.data} />
           <div className="seg" role="group" aria-label="시간대">
             {(['KST', 'UTC'] as const).map((z) => (
               <button key={z} className={tz === z ? 'on' : ''} onClick={() => setTz(z)}>
@@ -107,7 +114,7 @@ export function Layout() {
               </button>
             ))}
           </div>
-          <span className="mock-chip">목업 데이터</span>
+          {import.meta.env.DEV && import.meta.env.VITE_MSW !== 'off' && <span className="mock-chip">목업 데이터</span>}
           {message && (
             <span className="toast" role="status">
               {message}
@@ -140,6 +147,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
+        <ZabbixBanner health={health.data?.data} />
         <Outlet />
       </div>
       <AssistantPanel />
