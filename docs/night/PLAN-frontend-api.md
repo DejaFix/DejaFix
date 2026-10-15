@@ -13,7 +13,8 @@
 
 ## 작업 큐
 
-- [ ] **0. 준비**: `msw`·`prettier`를 devDependency로 추가(`npm install -D msw prettier`), `.prettierrc` 추가, `frontend/.nvmrc`(`22`)·`engines.node`(">=22 <23") 확인 (기획서 13-1)
+- [x] **0-p. prettier**: devDependency 추가(`prettier@^3.9.10`), `frontend/.prettierrc`(semi 없음·작은따옴표·120자) — 10/15 완료
+- [ ] **0. 준비**: `msw`를 devDependency로 추가(`npm install -D msw`) (기획서 13-1)
 - [ ] **1. Vite `/api` 프록시**: `vite.config.ts`에 `server.proxy['/api'] = 'http://localhost:8000'`. 코드에서 API 주소는 상대경로 `/api`만 쓰고 `VITE_API_BASE_URL` 같은 절대 주소 변수는 쓰지 않는다 (IF-INT-FE-002, FR-FE-016)
 - [ ] **2. `types.ts`를 기획서 7장 형식으로**: 기존 목업 타입은 범위 밖 화면용으로 남기고, 계약 타입을 추가·전환 (FR-DATA-006, IF-INT-BE)
   - [ ] 공통 봉투 `ApiOk<T> = {data, meta}`, `ApiError = {error:{code, message}}`, 커서 `meta.next_cursor`
@@ -32,4 +33,4 @@
 - [ ] **7. `api.ts` fetch 전환 + 15초 폴링**: 필수 화면이 쓰는 함수만 `fetch('/api/…')` + `Authorization: Bearer <JWT>`로 교체, 봉투 해제·`error.code` 처리(`ZABBIX_UNAVAILABLE` → 배너). react-query `refetchInterval: 15000`을 현황 홈·장애 상세·연결 상태에 적용. 범위 밖 화면 함수(`baselines`, `diskForecasts`, `trend`, `heatmap`, `crossGroups`, `costItems`, `servers` 등)는 목 그대로 둔다 (FR-FE-002~004·012)
 - [ ] **8. 현황 홈·장애 상세를 새 타입으로**: 화면 구성은 유지하고 데이터만 교체 — KPI 4종(`Measured`), 장애 목록(#10·#6), 상세 리포트·EvidenceTrace·계획 미리보기(A 초록 "조회 · 안전" / B 주황 "변경 · 승인 필요(미구현)" / C 빨강 "금지 · 사람이 판단", ReadOnlyNotice, 실행 버튼 없음)·메일 발송 기록. 원인 후보의 "검증 결과(확인/반증)" 표시는 계약에 없으므로 확신도·근거로 바꾼다. 다시 분석·메일 재발송·검토 버튼은 렌더하지 않는다 (FR-FE-003·004·006·008·009)
 - [ ] **9. 채팅 `fetch` 스트림**: `askAssistant`를 `POST /api/chat` + `fetch` ReadableStream SSE 파서로 교체(`EventSource` 금지). `token`은 순차 표시, `meta`→`final`만 와도 정상, `final.unknowns`·`evidence_ids` 표시, `error` 이벤트 처리, 장애 상세에서 열면 `context.incident_id` 첨부. 응답이 JSON이면 비스트리밍으로 같은 레이아웃 표시(탈출 규칙 1) (FR-FE-011·014)
-- [ ] **10. 마무리 점검**: DOM에 "실행·Run·Execute" 버튼 없음, 번들에 키 문자열 없음, localStorage에 토큰 없음, 엔진 하드코딩 `rg` 0건(루트 CLAUDE.md ⑨) — 결과를 LOG에 기록
+- [ ] **10. 마무리 점검**: DOM에 "실행·Run·Execute" 버튼 없음, 번들에 키 문자열 없음, localStorage에 토큰 없음, 엔진 하드코딩 `rg` 0건(루트 CLAUDE.md ⑨), `frontend/.nvmrc`(`22`)·`engines.node`(">=22 <23") 확인(13-1) — 결과를 LOG에 기록
