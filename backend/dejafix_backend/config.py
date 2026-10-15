@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     zabbix_url: str = ""
     zabbix_api_token: str = ""
     zabbix_verify_tls: str = ""
+    # ZABBIX_MOCK=true 일 때 어떤 상황의 목 데이터를 쓸지(libs/zabbix_ro ZABBIX_MOCK_SCENARIO). 기본 demo.
+    zabbix_mock_scenario: str = "demo"
     # 화면이 15초마다 부르는 API 가 느린 Zabbix 에 같이 멈추지 않게 하는 안전장치 (dejafix_backend/zabbix.py)
     zabbix_timeout_sec: float = 5.0  # API 5번·6번 호출 한도 (health 는 3초)
     zabbix_cache_ttl_sec: float = 5.0  # 성공 응답을 재사용하는 시간

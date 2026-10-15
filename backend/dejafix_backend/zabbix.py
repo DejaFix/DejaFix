@@ -55,6 +55,9 @@ def build_client(settings: Settings) -> zabbix_ro.ZabbixRoClient:
             "ZABBIX_URL": settings.zabbix_url,
             "ZABBIX_API_TOKEN": settings.zabbix_api_token,
             "ZABBIX_VERIFY_TLS": settings.zabbix_verify_tls,
+            # 목 모드에서 상황을 고른다. 이 값을 모르는 zabbix_ro 버전은 무시한다.
+            # 기본 demo: Scheduler·mcp-zabbix 목과 같은 장애(30001)·호스트라 목 모드 화면이 서로 어긋나지 않는다.
+            "ZABBIX_MOCK_SCENARIO": settings.zabbix_mock_scenario,
         }
     )
 
