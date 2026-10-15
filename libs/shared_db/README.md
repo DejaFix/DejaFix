@@ -5,7 +5,7 @@
 | 경로 | 내용 | 상태 |
 |---|---|---|
 | `fixtures/seed_dev.sql` | 개발용 시드. 장애 6건으로 화면 분석 상태 6값과 요청서 #11 응답 모양을 전부 만든다 | 있음 |
-| 스키마 적용 모듈 | `db-schema.sql` 구역별 멱등 적용, 연결 PRAGMA (T35) | uv workspace(T02) 뒤에 추가 |
+| `shared_db/__init__.py` | `open_db(path, "shared"|"backend")`: 연결 PRAGMA + 구역별 멱등 적용 (T35). `connect(..., uri=True)`는 Backend의 읽기 전용 ATTACH용. `load_dev_seed()`는 개발 시드 | 있음 |
 
 ## 시드 넣기 (개발 PC에서만)
 
