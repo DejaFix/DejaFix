@@ -1,6 +1,6 @@
 # infra/scripts
 
-Windows PowerShell 운영 스크립트 (담당 이재헌, 부 이태윤 / 백업은 노예진). `*.ps1`은 CRLF(`.gitattributes`).
+Windows PowerShell 운영 스크립트 (담당 Zabbix·MCP 담당, 부 팀장 / 백업은 DB·메일 담당). `*.ps1`은 CRLF(`.gitattributes`).
 
 | 스크립트 | 등급 | 내용 | 근거 |
 |---|---|---|---|

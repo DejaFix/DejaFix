@@ -1,6 +1,6 @@
 # DejaFix
 
-Zabbix 알람이 뜨면 AI가 **조회만으로** 원인 후보·영향 범위를 정리하고, 조치는 **계획(미리보기)으로만** 내며, 모든 수치에 **근거**를 붙여 담당자에게 메일로 보내는 장애 대응 코파일럿. 화면 부제는 "Zabbix AI". 6명이 각자 Claude Code로 개발한다.
+장애 대응 코파일럿. Zabbix 알람이 뜨면 AI가 **조회만으로** 원인 후보·영향 범위를 정리하고, **조치는 실행 전에 규칙으로 안전성을 판정해 계획(미리보기)으로만** 내며, 모든 수치에 **근거**를 붙인다. 결과는 웹 화면과 담당자 메일로 전달한다. **실행 여부는 규칙(`packs/<domain>/actions.yaml`)과 코드가 결정하고 LLM은 결정하지 않는다**(차별점 3축은 ⑨, 원문은 `docs/plan.md` 1-3). 화면 부제는 "Zabbix AI". 6명이 각자 Claude Code로 개발한다.
 
 ## 0. 작업 기준 문서
 - **매 작업의 기준은 `docs/mvp-checklist.md`** (금요일 10/16 데모의 [필수]만 뽑은 요약본). 먼저 읽는다.
@@ -9,7 +9,9 @@ Zabbix 알람이 뜨면 AI가 **조회만으로** 원인 후보·영향 범위�
 - 파트별 야간 작업 큐는 `docs/night/PLAN-<파트>.md`, 자잘한 UI 수정사항은 `docs/ui-backlog.md`에 모은다(바로 고치지 않음).
 
 ## ① 우선순위 원칙
-멘토 지시(노션) > 멘토 구조도 > #세팅 채널 결정 > 통합 기획서·기존 기획서.
+- **무엇을 만드는가(제품 정체성·차별점)**: 통합 기획서 기준(`docs/plan.md` 1-3 — 실행 전 안전 레이어, 2차 영향 예측, 규칙이 실행 여부 결정, 실측 증명). 멘토 지시(노션)·멘토 구조도는 **일정·구성·기술 제약**(금요일 MVP, 구성 5개, SQLite, 조회만·미리보기만, 역할 로테이션)으로 반영한다. 둘이 충돌하면 Claude가 임의로 고르지 않고 팀에 묻는다.
+- **어떻게 만드는가(개발 환경·규칙)**: #세팅 채널 결정 > 기획서 13장 > 기존 가이드 문서.
+- 멘토가 말한 메일은 7단계 중 **보고 단계의 출력**이다. 제품을 "메일 보내는 도구"로 요약하지 않는다.
 
 ## ② 안전 3원칙과 SAFE 규칙 (어기는 코드는 머지 불가)
 1. **운영 Zabbix는 `*.get` 조회만**. 쓰기·설정 변경 없음.
@@ -52,18 +54,18 @@ Zabbix 알람이 뜨면 AI가 **조회만으로** 원인 후보·영향 범위�
 
 | 폴더 | 주담당 | 부담당 |
 |---|---|---|
-| `frontend/` 화면·UI | 배병환 | 장재현 |
-| `frontend/` 공통 컴포넌트·API 연동·MSW | 장재현 | 배병환 |
-| `backend/` API·인증·메일 워커 | 김준하(메일 노예진) | 장재현 |
-| `libs/zabbix_ro/` | 김준하 | 이재헌 |
-| `agent/`, `packs/it/actions.yaml`·`prompts/` | 이태윤 | 노예진 |
-| `packs/it/metrics.yaml`, `infra/zabbix/` | 이태윤 | 이재헌 |
-| `mcp-zabbix/` | 이재헌 | 노예진 |
-| `scheduler/` | 노예진 | 김준하 |
-| `infra/scripts/` (주입·정리·점검·백업) | 이재헌 | 이태윤 |
-| 루트, `.claude/`, compose·Dockerfile, `docs/night/` | 장재현 | 김준하 |
-| `docs/demo/` | 이태윤 | 배병환 |
-| `docs/` 기획 문서 | 노예진 | 배병환 |
+| `frontend/` 화면·UI | 화면 담당 | 연동·인프라 담당 |
+| `frontend/` 공통 컴포넌트·API 연동·MSW | 연동·인프라 담당 | 화면 담당 |
+| `backend/` API·인증·메일 워커 | Backend 담당(메일 워커는 DB·메일 담당) | 연동·인프라 담당 |
+| `libs/zabbix_ro/` | Backend 담당 | Zabbix·MCP 담당 |
+| `agent/`, `packs/it/actions.yaml`·`prompts/` | 팀장 | DB·메일 담당 |
+| `packs/it/metrics.yaml`, `infra/zabbix/` | 팀장 | Zabbix·MCP 담당 |
+| `mcp-zabbix/` | Zabbix·MCP 담당 | DB·메일 담당 |
+| `scheduler/` | DB·메일 담당 | Backend 담당 |
+| `infra/scripts/` (주입·정리·점검·백업) | Zabbix·MCP 담당 | 팀장 |
+| 루트, `.claude/`, compose·Dockerfile, `docs/night/` | 연동·인프라 담당 | Backend 담당 |
+| `docs/demo/` | 팀장 | 화면 담당 |
+| `docs/` 기획 문서 | DB·메일 담당 | 화면 담당 |
 | `mcp-aws/` | [이후] 미배정 | — |
 
 ## ④ 계약 변경 절차
