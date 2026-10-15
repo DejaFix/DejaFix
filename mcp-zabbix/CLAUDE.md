@@ -34,9 +34,10 @@
 
 ## 환경 변수 (이름만)
 `ZABBIX_URL`, `ZABBIX_API_TOKEN`, `ZABBIX_VERIFY_TLS`, `ZABBIX_MOCK`, `INTERNAL_TOKEN`(선택)
+- `MCP_ZABBIX_BIND`(기본 `127.0.0.1`, compose 컨테이너에서는 `0.0.0.0` — 호스트 포트는 공개하지 않음), `MCP_ZABBIX_PORT`(기본 `8200`)
 
 ## 실행 (uv workspace, 루트에서)
-- 로컬: `uv sync` → `uv run --package mcp-zabbix python -m mcp_zabbix` (`:8200/mcp`, 모듈 이름은 골격 PR에서 확정)
+- 로컬: `uv sync` → `uv run --package mcp-zabbix python -m mcp_zabbix` (`:8200/mcp`, `GET /healthz`). 실 Zabbix 없이: `ZABBIX_MOCK=true`
 - 확인: MCP 클라이언트로 `tools/list` → 이름 5개가 `contracts/mcp-tools.md`와 일치
 - compose: `docker compose -f infra/docker-compose.yml up -d mcp-zabbix` (호스트 포트 없음, `expose`만)
 
