@@ -14,8 +14,9 @@ import ServerCompare from './pages/ServerCompare'
 import { useAuth } from './state/auth'
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
-  return user ? <>{children}</> : <Navigate to="/login" replace />
+  const { status } = useAuth()
+  if (status === 'restoring') return null
+  return status === 'authenticated' ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 export default function App() {
