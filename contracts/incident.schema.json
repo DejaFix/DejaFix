@@ -28,16 +28,20 @@
       "properties": {
         "eventid": { "type": "string" },
         "triggerid": { "type": "string" },
-        "hostid": { "type": "string" }
+        "hostid": {
+          "type": ["string", "null"],
+          "description": "Scheduler 가 trigger.get 으로 호스트를 보강하기 전에는 null (db-schema.sql hostid 는 NOT NULL 아님)"
+        }
       }
     },
     "host": {
       "type": "object",
       "required": ["id", "name"],
       "additionalProperties": false,
+      "description": "호스트 보강 전에는 id·name 이 null 일 수 있다. 프론트는 UnknownValue 로 표시",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" }
+        "id": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] }
       }
     },
     "title": { "type": "string" },
