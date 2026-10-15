@@ -198,3 +198,13 @@ def test_start_and_stop_worker(dbs, monkeypatch):
 
     asyncio.run(scenario())
     assert len(mail_rows(dbs.backend)) == 2
+
+
+def test_lifespan_starts_and_stops_worker(make_client):
+    """#72: 백엔드 기동 시 메일 워커가 뜨고, 종료 시 태스크가 정리된다."""
+    client = make_client()
+    task = client.app.state.mail_worker_task
+    assert task is not None and not task.done()
+    client.__exit__(None, None, None)
+    assert client.app.state.mail_worker_task is None
+    assert task.done()

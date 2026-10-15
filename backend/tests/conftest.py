@@ -88,6 +88,9 @@ def env(tmp_path, monkeypatch):
         "INTERNAL_TOKEN": "",
         "CHAT_STREAMING": "true",
         "CHAT_FIRST_EVENT_TIMEOUT_SEC": "3",
+        # lifespan 이 메일 워커를 띄우므로 로컬 .env 의 수신자·공급자가 테스트에 섞이지 않게 고정
+        "MAIL_PROVIDER": "console",
+        "MAIL_RECIPIENTS": "",
     }
     for key, value in values.items():
         monkeypatch.setenv(key, value)
