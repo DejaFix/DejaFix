@@ -731,7 +731,7 @@ export const healthDegraded: Health = {
 
 // #5 GET /api/dashboard/summary
 export const dashboardSummary: DashboardSummary = {
-  active_incidents: { value: 2, unit: '건', collected_at: '2026-10-16T01:20:30Z', unknown: false },
+  active_incidents: { value: 3, unit: '건', collected_at: '2026-10-16T01:20:30Z', unknown: false },
   high_incidents: { value: 2, unit: '건', collected_at: '2026-10-16T01:20:30Z', unknown: false },
   hosts: {
     ok: { value: 2, unit: '대', collected_at: '2026-10-16T01:20:35Z', unknown: false },
@@ -823,11 +823,28 @@ const incident9: Incident = {
   analysis: { status: 'skipped', report_id: null, plan_id: null }, // ANALYZE_MIN_SEVERITY(2) 미만
 }
 
+// 호스트 보강 전(host·hostid null) — 화면은 UnknownValue로 그려야 한다(SAFE-10)
+const incident14: Incident = {
+  id: 14,
+  source: 'zabbix',
+  zabbix: { eventid: '40241', triggerid: '23525', hostid: null },
+  host: { id: null, name: null },
+  title: 'Zabbix agent is not available (for 3m)',
+  severity: { level: 2, label: 'Warning' },
+  status: 'problem',
+  started_at: '2026-10-16T01:26:00Z',
+  resolved_at: null,
+  tags: [],
+  analysis: { status: 'pending', report_id: null, plan_id: null },
+}
+
 // started_at 내림차순
-export const incidentList: Incident[] = [incident13, incident12, incident9]
+export const incidentList: Incident[] = [incident14, incident13, incident12, incident9]
 
 // #11 GET /api/incidents/{id}
 export const incidentDetails: Record<number, IncidentDetail> = {
+  // 호스트 보강 전 + 분석 대기: 리포트 없음(요청서 확인 요청 8)
+  14: { incident: incident14, report: null, evidence: [], plan: null, steps: [], mail_logs: [] },
   // 요청서 #11 예시 그대로: LLM 리포트, A·B·C 단계, STALE 값, 메일 sent
   12: {
     incident: incident12,
