@@ -3,7 +3,10 @@ import type { Role } from '../lib/types'
 import { AuthContext } from './auth'
 
 const KEY = 'dejafix.session'
-interface Session { id: string; role: Role }
+interface Session {
+  id: string
+  role: Role
+}
 
 function readSession(): Session | null {
   try {
@@ -19,13 +22,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(readSession)
   const login = useCallback((id: string, role: Role) => {
     const next = { id, role }
-    try { localStorage.setItem(KEY, JSON.stringify(next)) } catch { /* 저장 실패해도 세션 내에서는 동작 */ }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next))
+    } catch {
+      /* 저장 실패해도 세션 내에서는 동작 */
+    }
     setSession(next)
   }, [])
   const logout = useCallback(() => {
-    try { localStorage.removeItem(KEY) } catch { /* 무시 */ }
+    try {
+      localStorage.removeItem(KEY)
+    } catch {
+      /* 무시 */
+    }
     setSession(null)
   }, [])
-  const value = useMemo(() => ({ user: session?.id ?? null, role: session?.role ?? 'viewer', login, logout }), [session, login, logout])
+  const value = useMemo(
+    () => ({ user: session?.id ?? null, role: session?.role ?? 'viewer', login, logout }),
+    [session, login, logout],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

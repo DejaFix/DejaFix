@@ -8,7 +8,14 @@ import { usePrefs } from '../state/prefs'
 import { AssistantPanel } from './AssistantPanel'
 import { Icon, type IconName } from './Icon'
 
-interface NavDef { to: string; label: string; icon: IconName; badge?: number; end?: boolean; adminOnly?: boolean }
+interface NavDef {
+  to: string
+  label: string
+  icon: IconName
+  badge?: number
+  end?: boolean
+  adminOnly?: boolean
+}
 
 const nav: NavDef[] = [
   { to: '/', label: '현황 · 장애 대응', icon: 'dashboard', badge: 4, end: true },
@@ -32,7 +39,10 @@ export function Layout() {
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); searchRef.current?.focus() }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchRef.current?.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -47,7 +57,9 @@ export function Layout() {
   const onSearch = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || !query.trim()) return
     const q = query.trim().toLowerCase()
-    const hit = [...alerts, ...oldAlerts].find((a) => a.host.toLowerCase().includes(q) || a.name.toLowerCase().includes(q))
+    const hit = [...alerts, ...oldAlerts].find(
+      (a) => a.host.toLowerCase().includes(q) || a.name.toLowerCase().includes(q),
+    )
     if (hit && hit.group === 'new') navigate(`/incidents/${hit.id}`)
     else setMessage(hit ? '이 장애는 상세 화면이 아직 없습니다' : '일치하는 호스트·장애가 없습니다')
   }
@@ -55,32 +67,75 @@ export function Layout() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand"><span className="brand-mark"><Icon name="logo" size={18} /></span>DejaFix</div>
+        <div className="brand">
+          <span className="brand-mark">
+            <Icon name="logo" size={18} />
+          </span>
+          DejaFix
+        </div>
         {items.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <Icon name={n.icon} />{n.label}{n.badge ? <span className="nav-badge">{n.badge}</span> : null}
+          <NavLink
+            key={n.to}
+            to={n.to}
+            end={n.end}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <Icon name={n.icon} />
+            {n.label}
+            {n.badge ? <span className="nav-badge">{n.badge}</span> : null}
           </NavLink>
         ))}
-        <div className="sidebar-foot">조회 전용 · Zabbix에 쓰지 않음<br />(변경 계획은 승인까지만)<br /><br />{user} · {roleLabel[role]}</div>
+        <div className="sidebar-foot">
+          조회 전용 · Zabbix에 쓰지 않음
+          <br />
+          (변경 계획은 승인까지만)
+          <br />
+          <br />
+          {user} · {roleLabel[role]}
+        </div>
       </aside>
       <div className={`main ${open ? 'panel-open' : ''}`}>
         <header className="topbar">
           <span className="topbar-time">기준 {tz === 'KST' ? BASE_TIME_KST : toUtc(BASE_TIME_KST)}</span>
           <div className="seg" role="group" aria-label="시간대">
-            {(['KST', 'UTC'] as const).map((z) => <button key={z} className={tz === z ? 'on' : ''} onClick={() => setTz(z)}>{z}</button>)}
+            {(['KST', 'UTC'] as const).map((z) => (
+              <button key={z} className={tz === z ? 'on' : ''} onClick={() => setTz(z)}>
+                {z}
+              </button>
+            ))}
           </div>
           <span className="mock-chip">목업 데이터</span>
-          {message && <span className="toast" role="status">{message}</span>}
+          {message && (
+            <span className="toast" role="status">
+              {message}
+            </span>
+          )}
           <label className="search">
             <Icon name="search" size={16} />
-            <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearch} placeholder="호스트 · 그룹 · 장애 찾기" aria-label="검색" />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onSearch}
+              placeholder="호스트 · 그룹 · 장애 찾기"
+              aria-label="검색"
+            />
             <span className="kbd">Ctrl K</span>
           </label>
-          <button className="btn dark" onClick={() => setOpen(!open)}><Icon name="sparkle" size={16} />AI 어시스턴트</button>
-          <button className="btn" onClick={logout}>로그아웃</button>
+          <button className="btn dark" onClick={() => setOpen(!open)}>
+            <Icon name="sparkle" size={16} />
+            AI 어시스턴트
+          </button>
+          <button className="btn" onClick={logout}>
+            로그아웃
+          </button>
         </header>
         <nav className="mobile-nav" aria-label="메뉴">
-          {items.map((n) => <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>{n.label}</NavLink>)}
+          {items.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+              {n.label}
+            </NavLink>
+          ))}
         </nav>
         <Outlet />
       </div>

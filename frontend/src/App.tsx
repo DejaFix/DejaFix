@@ -22,7 +22,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route element={<RequireAuth><Layout /></RequireAuth>}>
+      <Route
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="incidents/:id" element={<IncidentDetail />} />
         <Route path="plans" element={<Plans />} />

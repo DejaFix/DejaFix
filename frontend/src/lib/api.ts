@@ -1,8 +1,26 @@
-import { alerts, baselines, costItems, crossGroups, deliveries, diskForecasts, heatmap, heatProjects, incidents, notificationRules, oldAlerts, plans, reports, servers, summary, trend, users } from './mock'
+import {
+  alerts,
+  baselines,
+  costItems,
+  crossGroups,
+  deliveries,
+  diskForecasts,
+  heatmap,
+  heatProjects,
+  incidents,
+  notificationRules,
+  oldAlerts,
+  plans,
+  reports,
+  servers,
+  summary,
+  trend,
+  users,
+} from './mock'
 import type { AssistantReply, EvidenceCall } from './types'
 
 // 백엔드(BFF) API가 준비되면 이 파일의 함수 내부만 fetch로 바꾼다. 화면 코드는 그대로 둔다.
-const wait = <T,>(value: T, ms = 220): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms))
+const wait = <T>(value: T, ms = 220): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms))
 
 export const api = {
   summary: () => wait(summary),
@@ -23,7 +41,12 @@ export const api = {
   users: () => wait(users),
 }
 
-const tool = (name: string, command: string, result: string, ms: number): EvidenceCall => ({ tool: name, command, result, ms })
+const tool = (name: string, command: string, result: string, ms: number): EvidenceCall => ({
+  tool: name,
+  command,
+  result,
+  ms,
+})
 
 export async function askAssistant(question: string): Promise<AssistantReply> {
   const q = question.toLowerCase()
@@ -31,7 +54,10 @@ export async function askAssistant(question: string): Promise<AssistantReply> {
   if (q.includes('확인') || q.includes('장애')) {
     return {
       text: '지금 새로 열린 장애는 4건입니다.\n1. app-web-03 메모리 95% 초과 (12분 전, 24시간 12회 반복)\n2. db-win-01 CPU 권한 시간 과다 (3시간 전)\n3. batch-02 설치 패키지 수 변경 (5시간 전)\n4. ml-gpu-07 디스크 응답 지연 (34분 전)\n우선 1번을 보시길 권합니다. 반복 횟수가 가장 많고 메모리 누수 가능성이 확인되었습니다.',
-      evidence: [tool('zabbix.problems', 'severity>=info age<24h', '새 장애 4건, 오래된 장애 48건', 310), tool('zabbix.history', 'host=app-web-03 item=memory range=6h', '6시간 동안 선형 증가', 220)],
+      evidence: [
+        tool('zabbix.problems', 'severity>=info age<24h', '새 장애 4건, 오래된 장애 48건', 310),
+        tool('zabbix.history', 'host=app-web-03 item=memory range=6h', '6시간 동안 선형 증가', 220),
+      ],
       unknowns: [],
     }
   }
