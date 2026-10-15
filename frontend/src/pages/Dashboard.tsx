@@ -5,14 +5,20 @@ import { api } from '../lib/api'
 import { cssVar, sevCss } from '../lib/colors'
 import { useThemeVersion } from '../hooks/useThemeVersion'
 import { severityLabel, shortAgo } from '../lib/format'
-import { useIncidents } from '../lib/queries'
-import type { Incident, Severity } from '../lib/types'
+import { useDashboardSummary, useIncidents } from '../lib/queries'
+import type { Incident, Measured, Severity } from '../lib/types'
 import { Collapsible } from '../components/Collapsible'
-import { UnknownValue } from '../components/Chips'
 import { EChart } from '../components/EChart'
 import { Icon } from '../components/Icon'
 import { AnalysisBadge, SeverityInfoChip, Unknown } from '../components/IncidentParts'
 import { kstShort } from '../components/incidentFormat'
+
+/** Measured 하나를 화면 값으로. unknown이거나 value가 null이면 0·빈칸 대신 UnknownValue(SAFE-10). */
+function MeasuredText({ m }: { m: Measured | undefined }) {
+  if (!m) return <Unknown reason="TOOL_ERROR" />
+  if (m.unknown || m.value === null) return <Unknown reason={m.unknown_reason} at={m.collected_at} />
+  return <>{m.value.toLocaleString('ko-KR')}</>
+}
 
 function Kpi({
   label,
@@ -21,33 +27,42 @@ function Kpi({
   hint,
   color,
   target,
+  loading,
 }: {
   label: string
-  value: number | null
-  unit: string
-  hint: string
+  value: React.ReactNode
+  unit?: string
+  hint: React.ReactNode
   color: string
-  target: string
+  target?: string
+  loading: boolean
 }) {
-  const go = () => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  return (
-    <button type="button" className="card kpi-card" onClick={go}>
+  const go = () => target && document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const body = (
+    <>
       <div className="kpi-label">
         <span className="dot" style={{ background: color }} />
         {label}
       </div>
       <div className="kpi-value">
-        {value === null ? (
-          <UnknownValue />
+        {loading ? (
+          '…'
         ) : (
           <>
             {value}
-            <small>{unit}</small>
+            {unit && <small>{unit}</small>}
           </>
         )}
       </div>
-      <div className="kpi-hint">{hint}</div>
+      <div className="kpi-hint">{loading ? '불러오는 중' : hint}</div>
+    </>
+  )
+  return target ? (
+    <button type="button" className="card kpi-card" onClick={go}>
+      {body}
     </button>
+  ) : (
+    <div className="card kpi-card">{body}</div>
   )
 }
 
@@ -221,7 +236,7 @@ function Heatmap() {
 }
 
 export default function Dashboard() {
-  const summary = useQuery({ queryKey: ['summary'], queryFn: api.summary })
+  const summary = useDashboardSummary()
   const incidents = useIncidents({ limit: 50 })
   const list = incidents.data?.data
   // 표시용 묶음일 뿐이다: 시작 24시간 안 = 새 장애, 그 외 = 오래된 장애
@@ -230,14 +245,24 @@ export default function Dashboard() {
   const old = list?.filter((i) => nowMs - new Date(i.started_at).getTime() >= DAY_MS) ?? []
   const groups = useQuery({ queryKey: ['groups'], queryFn: api.crossGroups })
   const baselines = useQuery({ queryKey: ['baselines'], queryFn: api.baselines })
-  const s = summary.data
+  const s = summary.data?.data
+  const loadingKpi = summary.isPending
 
   return (
     <div className="page">
       <div className="page-head">
         <h1 className="page-title">현황 · 장애 대응</h1>
         <p className="page-sub">
-          {s ? `지금 열린 장애 ${s.openTotal}건 · 서버 ${s.serverTotal.toLocaleString()}대 감시 중` : '불러오는 중'}
+          {s ? (
+            <>
+              지금 진행 중인 장애 <MeasuredText m={s.active_incidents} />건 · 감시 호스트{' '}
+              <MeasuredText m={s.hosts.total} />대
+            </>
+          ) : loadingKpi ? (
+            '불러오는 중'
+          ) : (
+            <Unknown reason="TOOL_ERROR" />
+          )}
         </p>
       </div>
       <div className="note" style={{ marginBottom: 16 }}>
@@ -248,36 +273,51 @@ export default function Dashboard() {
 
       <div className="grid kpi">
         <Kpi
-          label="새로 열린 장애"
-          value={s?.newOpen ?? null}
-          unit="건"
-          hint="최근 24시간 안 · 높음 이상 0건"
-          color={sevCss.high}
-          target="sec-new"
-        />
-        <Kpi
-          label="반복해서 열리는 알림"
-          value={s?.repeating ?? null}
-          unit="건"
-          hint="24시간에 3번 이상 열렸다 닫힘"
+          label="진행 중인 장애"
+          value={<MeasuredText m={s?.active_incidents} />}
+          unit={s && !s.active_incidents.unknown ? s.active_incidents.unit : undefined}
+          hint="수집된 장애 중 아직 해결되지 않은 것"
           color={sevCss.warning}
           target="sec-new"
+          loading={loadingKpi}
         />
         <Kpi
-          label="오래 열려 있는 장애"
-          value={s?.longOpen ?? null}
-          unit="건"
-          hint="가장 오래된 것 746일째"
-          color={sevCss.info}
-          target="sec-old"
+          label="높음 이상 장애"
+          value={<MeasuredText m={s?.high_incidents} />}
+          unit={s && !s.high_incidents.unknown ? s.high_incidents.unit : undefined}
+          hint="심각도 높음·심각(4·5)"
+          color={sevCss.high}
+          target="sec-new"
+          loading={loadingKpi}
         />
         <Kpi
-          label="30일 안에 가득 찰 디스크(예상)"
-          value={s?.diskFullSoon ?? null}
+          label="정상 호스트"
+          value={
+            <>
+              <MeasuredText m={s?.hosts.ok} /> / <MeasuredText m={s?.hosts.total} />
+            </>
+          }
           unit="대"
-          hint="증가 속도가 그대로라면 · 지금 가득 찬 서버는 아님"
+          hint={
+            <>
+              확인 불가 <MeasuredText m={s?.hosts.unknown} />대
+            </>
+          }
+          color={sevCss.info}
+          loading={loadingKpi}
+        />
+        <Kpi
+          label="오늘 리포트"
+          value={<MeasuredText m={s?.reports_today} />}
+          unit={s && !s.reports_today.unknown ? s.reports_today.unit : undefined}
+          hint={
+            <>
+              평균 분석 시간 <MeasuredText m={s?.avg_analysis_sec} />
+              {s && !s.avg_analysis_sec.unknown && s.avg_analysis_sec.value !== null ? '초' : ''}
+            </>
+          }
           color={sevCss.average}
-          target="sec-disk"
+          loading={loadingKpi}
         />
       </div>
 
