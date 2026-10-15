@@ -15,7 +15,7 @@
 | 성공 | `{ "data": ..., "meta": {...} }` |
 | 실패 | `{ "error": { "code": "...", "message": "..." } }` + HTTP 상태. 스택 트레이스는 넣지 않는다 |
 | 목록 | `?limit=50&cursor=` (limit 1~100, 기본 50). 다음 쪽 커서는 `meta.next_cursor`(없으면 `null`). 커서는 불투명 문자열 |
-| 시각 | 전부 **UTC ISO 8601** `2026-10-16T01:20:00Z`. KST 변환은 프론트 |
+| 시각 | 전부 **UTC ISO 8601** `2026-10-16T01:20:00Z`(`YYYY-MM-DDTHH:MM:SSZ`, 소수 초 없음 — DB 저장 형식과 같다). KST 변환은 프론트 |
 | 응답 속도 | 프론트가 현황 홈·장애 상세를 15초마다 다시 부른다 → 1초 안에 응답 |
 | 확인할 수 없는 값 | **0이나 빈 문자열로 보내지 않고** `Measured`(아래)로 보낸다 (SAFE-10) |
 | 실행 금지 | 어떤 응답에도 `execute`·`run` 필드가 없다. `plan.mode` 는 항상 `"preview"` (SAFE-04) |
@@ -182,7 +182,8 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
 }
 ```
 - `status` = `problem | resolved`, `severity_min` 0~5. 잘못된 `cursor` → 422.
-- 장애는 `shared.incidents`, `analysis` 는 장애마다 **가장 최근 `kind='analyze'` run** 과 **최신 version 리포트**, 최신 계획을 JOIN 해 채운다. `report_id`·`plan_id` 가 없으면 `null`.
+- 장애는 `shared.incidents`, `analysis` 는 장애마다 **가장 최근 `kind='analyze'` run** 과 **최신 version 리포트**, 그 리포트의 계획(아래 #11 계획 선택 기준)을 JOIN 해 채운다. `report_id`·`plan_id` 가 없으면 `null`.
+- 호스트 보강(Scheduler 의 `trigger.get selectHosts`, FR-SCH-003) 전에는 `host.id`·`host.name`·`zabbix.hostid` 가 `null` 일 수 있다. 프론트는 `UnknownValue` 로 표시한다.
 
 **`analysis.status` 변환 규칙** (`agent-api.md` 3-2, 요청서 확인 요청 4):
 
@@ -232,7 +233,7 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
     "steps": [
       { "seq": 1, "action_id": "check_disk_usage", "title": "디스크 사용량 확인", "target": "LAB-PC-07 C:", "command_preview": "Get-PSDrive C", "tier": "A", "rationale": "규칙: packs/it/actions.yaml check_disk_usage", "precheck": null, "expected_effect": "현재 사용량 확인", "risk": "없음 (조회)", "rollback": null, "evidence_ids": ["ev_a1"] },
       { "seq": 2, "action_id": "clean_temp_files", "title": "임시 파일 정리", "target": "LAB-PC-07 %TEMP%", "command_preview": "Move-Item $env:TEMP\\* (Join-Path $env:TEMP ..\\dejafix-quarantine)", "tier": "B", "rationale": "규칙: packs/it/actions.yaml clean_temp_files", "precheck": "임시 폴더 크기와 사용 중인 파일 확인", "expected_effect": "수 GB 확보 예상", "risk": "사용 중인 파일 이동 시 프로그램 오류 가능", "rollback": "격리 폴더의 파일을 원래 위치로 다시 이동", "evidence_ids": ["ev_a1"] },
-      { "seq": 3, "action_id": null, "title": "서버 재부팅", "target": "LAB-PC-07", "command_preview": "Restart-Computer", "tier": "C", "rationale": "actions.yaml 미등록 동작 → C로 지정 (SAFE-06)", "precheck": null, "expected_effect": null, "risk": "서비스 중단", "rollback": null, "evidence_ids": [] }
+      { "seq": 3, "action_id": "reboot_host", "title": "서버 재부팅", "target": "LAB-PC-07", "command_preview": "Restart-Computer", "tier": "C", "rationale": "규칙: packs/it/actions.yaml reboot_host", "precheck": null, "expected_effect": null, "risk": "모든 서비스 중단", "rollback": null, "evidence_ids": [] }
     ],
     "mail_logs": [
       { "id": 7, "kind": "incident_report", "recipient": "oncall@example.com", "status": "sent", "attempts": 1, "error": null, "created_at": "2026-10-16T01:20:55Z", "sent_at": "2026-10-16T01:20:58Z" }
@@ -241,7 +242,8 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
   "meta": {}
 }
 ```
-- 출처: `shared.incidents`·최신 `analysis_reports`·그 리포트의 run 의 `tool_calls`·최신 `change_plans`·`plan_steps`(읽기 전용 ATTACH) + `backend.db` `mail_logs`. Backend 는 **저장된 값을 옮기기만** 한다 — 분석 문장·원인·티어를 만들거나 바꾸지 않는다.
+- 출처: `shared.incidents`·최신 version `analysis_reports`·그 리포트의 run 의 `tool_calls`·그 리포트의 `change_plans`·`plan_steps`(읽기 전용 ATTACH) + `backend.db` `mail_logs`. Backend 는 **저장된 값을 옮기기만** 한다 — 분석 문장·원인·티어를 만들거나 바꾸지 않는다.
+- **계획 선택 기준**: `change_plans.report_id = 응답에 쓴 report.id` 인 계획을 쓴다(같은 리포트에 여러 개면 가장 최근 `id`). 그런 계획이 없을 때만 그 장애의 최신 계획을 쓴다. 다시 분석해 리포트 version 이 올라가도 리포트와 계획이 어긋나지 않게 하기 위함이다.
 - **리포트가 아직 없으면** `report: null, evidence: [], plan: null, steps: []`. 프론트는 `incident.analysis.status` 로 "분석 중" 등을 표시한다. 메일 기록이 없으면 `mail_logs: []`.
 - `report.causes[].evidence_ids` 의 모든 ID 는 `evidence[]` 에 존재한다(값은 Agent 가 검증해 저장한다). `report.kind="fallback"` 이면 프론트가 "LLM 미연결 — 규칙 기반 최소 리포트" 라벨을 붙인다.
 - `evidence` 는 리포트가 참조하는 run 의 `tool_calls` 전체이고 **`result_json` 은 제외**한다.
@@ -301,6 +303,8 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 
 - 요청서 #11 예시의 `causes[0].evidence_ids` 가 `ev_a2` 를 가리키지만 `evidence[]` 에 없었다. 이 계약은 "모든 evidence_ids 가 evidence[] 에 존재" 규칙에 맞게 `ev_a2` 항목을 추가했다.
 - 프론트 권한표(viewer 도 AI 질문 가능, 요청서 F17)와 달리 **#18 은 operator** 다(`FR-BE-003`). viewer 에게 열려면 이 계약을 먼저 바꾼다.
+- 요청서 #11 예시의 3단계(서버 재부팅)는 `action_id: null`·"미등록 → C"였지만, `packs/it/actions.yaml` 에 `reboot_host` 가 C 등급으로 등록돼 있어 실제 Agent 출력처럼 `action_id: "reboot_host"`·`rationale: "규칙: packs/it/actions.yaml reboot_host"` 로 바꿨다. 참고로 미등록 동작이면 Agent 는 `rationale` 을 `packs/it/actions.yaml 미등록 동작(<id 또는 제목>) → C (SAFE-06)` 형식으로 쓴다.
+- `host.id`·`host.name`·`zabbix.hostid` 는 `null` 을 허용한다(호스트 보강 전, PR #45 리뷰 반영).
 
 ## 5. 변경 절차
 
