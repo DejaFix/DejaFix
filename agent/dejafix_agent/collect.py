@@ -23,6 +23,7 @@ from .packs import Pack
 from .tools import ToolClient
 
 MAX_RESULT_BYTES = 32 * 1024
+MAX_ITEMS_PER_ALIAS = 3
 
 
 def utcnow() -> datetime:
@@ -135,11 +136,21 @@ def collect(
 
     items = _call(client, 3, "zabbix_list_items", {"hostid": hostid})
     calls.append(items)
-    matched = []
+    ranked = []
     for item in _items_of(items.result.get("data")) if items.ok else []:
-        alias = pack.classify_key(str(item.get("key_", "")))
-        if alias:
-            matched.append({**item, "_alias": alias})
+        found = pack.match_key(str(item.get("key_", "")))
+        if found:
+            ranked.append((found[1], {**item, "_alias": found[0]}))
+    # 한 별칭에 여러 항목이 걸리면(드라이브·인터페이스별, free/total 등) 팩 키와 가까운 순으로
+    # 별칭당 MAX_ITEMS_PER_ALIAS 개만 쓴다. 리포트 사실 목록이 길어지지 않게.
+    ranked.sort(key=lambda r: r[0])
+    per_alias: dict[str, int] = {}
+    matched = []
+    for _, item in ranked:
+        n = per_alias.get(item["_alias"], 0)
+        if n < MAX_ITEMS_PER_ALIAS:
+            matched.append(item)
+            per_alias[item["_alias"]] = n + 1
     items.extra["metric_items"] = matched
     clocks = [clock_iso(i.get("lastclock")) for i in matched]
     clocks = [c for c in clocks if c]
