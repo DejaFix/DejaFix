@@ -64,9 +64,10 @@ export interface Tag {
   value: string
 }
 
+// 호스트 보강(Scheduler trigger.get selectHosts) 전에는 null — 화면은 UnknownValue로 (contracts/incident.schema.json)
 export interface HostRef {
-  id: string
-  name: string
+  id: string | null
+  name: string | null
 }
 
 // ---- #4 GET /api/health ----
@@ -128,7 +129,7 @@ export interface IncidentAnalysis {
 export interface Incident {
   id: number
   source: 'zabbix'
-  zabbix: { eventid: string; triggerid: string; hostid: string }
+  zabbix: { eventid: string; triggerid: string; hostid: string | null }
   host: HostRef
   title: string
   severity: SeverityInfo
