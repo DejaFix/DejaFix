@@ -45,17 +45,51 @@ class Pack:
 
     def classify_key(self, item_key: str) -> str | None:
         """트리거 아이템 키를 지표 별칭으로 분류한다. 모르면 None."""
+        found = self.match_key(item_key)
+        return found[0] if found else None
+
+    def match_key(self, item_key: str) -> tuple[str, int] | None:
+        """(별칭, 일치 등급). 등급이 낮을수록 팩에 적은 키와 가깝다. 모르면 None.
+
+        0: 키가 똑같다
+        1: "[" 앞 이름과 첫 매개변수 뒤가 같다 (첫 매개변수만 다름, 예: 드라이브·인터페이스)
+        2: "[" 앞 이름만 같다
+        한 별칭에 여러 항목이 걸릴 때 등급 순으로 골라 쓴다.
+        """
+        best: tuple[str, int] | None = None
         for alias, keys in self.metrics.items():
             for key in keys:
-                if item_key == key or item_key.startswith(key.split("[")[0] + "["):
-                    return alias
-        return None
+                rank = _key_rank(item_key, key)
+                if rank is not None and (best is None or rank < best[1]):
+                    best = (alias, rank)
+        return best
 
     def allowed_actions_text(self) -> str:
         """LLM 프롬프트에 넣는 허용 동작 목록 (FR-AG-004)."""
         return "\n".join(
             f"- {a.id} | {a.title} | tier {a.tier}" for a in self.actions.values()
         )
+
+
+def _split_key(key: str) -> tuple[str, list[str] | None]:
+    """'name[a,b]' → ('name', ['a', 'b']). 매개변수가 없으면 ('name', None)."""
+    if "[" not in key or not key.endswith("]"):
+        return key, None
+    name, _, rest = key.partition("[")
+    return name, [p.strip() for p in rest[:-1].split(",")]
+
+
+def _key_rank(item_key: str, pack_key: str) -> int | None:
+    if item_key == pack_key:
+        return 0
+    item_name, item_params = _split_key(item_key)
+    pack_name, pack_params = _split_key(pack_key)
+    if item_name != pack_name or item_params is None:
+        return None
+    if pack_params and len(pack_params) == len(item_params) > 1:
+        if pack_params[1:] == item_params[1:]:
+            return 1
+    return 2
 
 
 def find_packs_dir(start: Path | None = None) -> Path:

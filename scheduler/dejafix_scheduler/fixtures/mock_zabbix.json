@@ -1,0 +1,31 @@
+{
+  "_comment": "ZABBIX_MOCK=true 용 고정 응답 (FR-SCH-005). problem.get(recent=true)·trigger.get(selectHosts) 모양, Zabbix 처럼 숫자도 문자열.",
+  "problems": [
+    {
+      "eventid": "90001",
+      "objectid": "23001",
+      "clock": "1792027200",
+      "r_eventid": "0",
+      "r_clock": "0",
+      "name": "High CPU utilization (over 90% for 1m)",
+      "severity": "4",
+      "acknowledged": "0",
+      "tags": [{ "tag": "scope", "value": "performance" }]
+    },
+    {
+      "eventid": "90002",
+      "objectid": "23002",
+      "clock": "1792023600",
+      "r_eventid": "90010",
+      "r_clock": "1792025400",
+      "name": "Free disk space is less than 10% on volume C:",
+      "severity": "3",
+      "acknowledged": "0",
+      "tags": [{ "tag": "scope", "value": "capacity" }]
+    }
+  ],
+  "triggers": {
+    "23001": { "hostid": "10601", "name": "MOCK-PC-01" },
+    "23002": { "hostid": "10602", "name": "MOCK-PC-02" }
+  }
+}

@@ -14,17 +14,16 @@ interface NavDef {
   to: string
   label: string
   icon: IconName
-  badge?: number
   end?: boolean
   adminOnly?: boolean
 }
 
 const nav: NavDef[] = [
-  { to: '/', label: '현황 · 장애 대응', icon: 'dashboard', badge: 4, end: true },
+  { to: '/', label: '현황 · 장애 대응', icon: 'dashboard', end: true },
   { to: '/cost', label: '비용 절감', icon: 'cost' },
   { to: '/compare', label: '서버 비교', icon: 'compare' },
   { to: '/reports', label: '리포트', icon: 'report' },
-  { to: '/plans', label: '변경 계획', icon: 'plan', badge: 2 },
+  { to: '/plans', label: '변경 계획', icon: 'plan' },
   { to: '/alerts', label: '알림', icon: 'bell' },
   { to: '/admin', label: '관리자', icon: 'admin', adminOnly: true },
 ]
@@ -41,6 +40,10 @@ export function Layout() {
   const incidents = useIncidents({ limit: 50 })
   const checkedAt = health.data?.meta.checked_at
   const baseTime = checkedAt ? (tz === 'KST' ? kstShort(checkedAt) : checkedAt.slice(5, 16).replace('T', ' ')) : null
+  // 현황 배지: 진행 중 장애 건수. 목록을 다 받지 못했으면 '+'를 붙이고, 못 받았거나 갱신에 실패했으면 숨긴다(오래된 숫자 금지, SAFE-09).
+  const openIncidents = useIncidents({ status: 'problem', limit: 100 })
+  const openCount = openIncidents.isError ? undefined : openIncidents.data?.data.length
+  const openBadge = openCount ? `${openCount}${openIncidents.data?.meta.next_cursor ? '+' : ''}` : null
   const items = nav.filter((n) => !n.adminOnly || role === 'admin')
 
   useEffect(() => {
@@ -91,7 +94,7 @@ export function Layout() {
           >
             <Icon name={n.icon} />
             {n.label}
-            {n.badge ? <span className="nav-badge">{n.badge}</span> : null}
+            {n.to === '/' && openBadge ? <span className="nav-badge">{openBadge}</span> : null}
           </NavLink>
         ))}
         <div className="sidebar-foot">

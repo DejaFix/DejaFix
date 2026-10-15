@@ -16,10 +16,12 @@
 - `contracts/db-schema.sql`, `contracts/incident.schema.json`
 
 ## 실행
-- (TODO: 골격 작성 시 기록) 예: `uv run --package scheduler python -m scheduler`
+- 로컬: `uv run --package scheduler python -m dejafix_scheduler` (패키지 이름 `dejafix_scheduler` — 폴더 이름과 같으면 pytest importlib 모드에서 가려짐)
+- 환경 변수: `SHARED_DB_PATH`, `INCIDENT_POLL_SEC`(기본 30, 최소 5), `ZABBIX_MOCK`(true면 `dejafix_scheduler/fixtures/mock_zabbix.json`), `SCHEDULER_MOCK_FILE`(목 파일 경로 바꿀 때)
+- 실서버 모드는 `libs/zabbix_ro`의 `from_env()`·`client.call(method, params)`를 쓴다. 아직 없으면 매 주기 `scheduler_jobs.poll_problems.status='error'`로 남기고 계속 돈다
 
 ## 테스트
-- `uv run pytest` — `ZABBIX_MOCK=true` fixture로 INSERT·중복 방지·resolved 전이 (FR-SCH-005)
+- `uv run pytest scheduler` — `ZABBIX_MOCK=true` fixture로 INSERT·중복 방지·resolved 전이·호스트 보강·실패 재시도·`scheduler_jobs` (FR-SCH-001~005·009)
 
 ## 작업 완료 체크
 작업 단위는 `docs/work-order.md`의 T 번호(Scheduler·DB: T06·T07, T35~T37, T41, T64). 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.

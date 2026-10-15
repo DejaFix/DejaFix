@@ -8,6 +8,8 @@
 - 스키마 원본은 contracts/db-schema.sql. "-- @db backend" 구역만 backend.db 에 적용한다.
   구역을 섞어 적용하면 backend.db 안에 빈 incidents 같은 그림자 테이블이 생겨 ATTACH 한
   shared.incidents 대신 잘못 읽힌다.
+- 상대 DB 경로는 저장소 루트 기준으로 푼다(실행 위치 무관). 절대 경로인데 부모 폴더가 없으면
+  새 빈 DB 를 조용히 만들지 않고 경로를 남기며 실패한다 (예: Windows 에서 '/data/...' -> C:/data).
 """
 
 import logging
@@ -16,7 +18,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from dejafix_backend.config import Settings
+from dejafix_backend.config import ROOT, Settings
 
 log = logging.getLogger("dejafix.backend")
 
@@ -43,8 +45,31 @@ class Db:
         self.conn.close()
 
 
-def _file_uri(path: str, mode: str) -> str:
-    return f"{Path(path).resolve().as_uri()}?mode={mode}"
+def db_file(path: str) -> Path:
+    """DB 경로를 절대 경로로 푼다. 상대 경로는 cwd 가 아니라 저장소 루트 기준."""
+    p = Path(path)
+    # Windows 의 '/data/x' 는 드라이브가 없어 is_absolute() 가 False 지만 루트 기준 경로다.
+    return (p if p.anchor else ROOT / p).resolve()
+
+
+def _backend_db_file(path: str) -> Path:
+    """backend.db 경로. 루트 아래 상대 경로만 부모 폴더를 만들고, 그 밖은 없으면 실패한다."""
+    file = db_file(path)
+    if not file.parent.exists():
+        if Path(path).anchor:
+            log.error(
+                "backend.db 폴더가 없습니다: %s (BACKEND_DB_PATH=%s)", file.parent, path
+            )
+            raise RuntimeError(
+                f"backend.db 폴더가 없습니다: {file.parent} (BACKEND_DB_PATH={path}). "
+                "로컬은 data/backend.db 처럼 상대 경로를 쓰세요."
+            )
+        file.parent.mkdir(parents=True, exist_ok=True)
+    return file
+
+
+def _file_uri(file: Path, mode: str) -> str:
+    return f"{file.as_uri()}?mode={mode}"
 
 
 def _pragmas(conn: sqlite3.Connection) -> None:
@@ -55,19 +80,17 @@ def _pragmas(conn: sqlite3.Connection) -> None:
 
 def open_db(settings: Settings) -> Db:
     """backend.db 를 열고 shared.db 를 읽기 전용으로 붙인다 (없으면 shared_ok=False)."""
-    Path(settings.backend_db_path).parent.mkdir(parents=True, exist_ok=True)
+    backend_file = _backend_db_file(settings.backend_db_path)
     conn = sqlite3.connect(
-        _file_uri(settings.backend_db_path, "rwc"), uri=True, check_same_thread=False
+        _file_uri(backend_file, "rwc"), uri=True, check_same_thread=False
     )
     conn.row_factory = sqlite3.Row
     _pragmas(conn)
     shared_ok = False
-    if Path(settings.shared_db_path).exists():
+    shared_file = db_file(settings.shared_db_path)
+    if shared_file.exists():
         try:
-            conn.execute(
-                "ATTACH DATABASE ? AS shared",
-                (_file_uri(settings.shared_db_path, "ro"),),
-            )
+            conn.execute("ATTACH DATABASE ? AS shared", (_file_uri(shared_file, "ro"),))
             shared_ok = True
         except sqlite3.OperationalError as exc:
             log.warning("shared.db attach 실패, waiting 으로 처리: %s", exc)
@@ -96,8 +119,9 @@ def init_backend_db(settings: Settings) -> None:
     if not zone:
         raise RuntimeError(f"{path} 에 '-- @db backend' 구역이 없습니다")
 
-    Path(settings.backend_db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(_file_uri(settings.backend_db_path, "rwc"), uri=True)
+    conn = sqlite3.connect(
+        _file_uri(_backend_db_file(settings.backend_db_path), "rwc"), uri=True
+    )
     try:
         _pragmas(conn)
         conn.executescript(zone)
