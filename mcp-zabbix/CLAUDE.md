@@ -43,5 +43,8 @@
 - 반드시 있어야 할 테스트: SAFE-09 `delay 30s, lastclock 11분 전` → stale, `2분 전` → not stale / 150건 fixture → 100건 + `truncated:true` / Zabbix 5xx → `{ok:false, reason:"ZABBIX_ERROR"}` 스택 없음 / `tools/list`에 쓰기·planned 도구 없음 / 없는 eventid → `NOT_FOUND`
 - 실연동(B3 DoD ③): 토큰을 받은 뒤 5도구 실호출 1회씩, 결과를 `docs/zabbix/`에 기록
 
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T 번호(MCP: T08, T42~T45, T65 / Agent 접점: T47·T49). 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.
+
 ## 데모 기준
 Agent의 고정 수집 세트 4회 호출이 모두 `ok:true`로 돌아오고 `tool_calls`에 남아 EvidenceTrace 도구명이 전부 `zabbix_*`로 보인다.

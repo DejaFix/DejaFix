@@ -49,5 +49,8 @@
 - `uv run pytest -m safety_regression` → "잘못 통과 0/N" (D-NUMBERS 장면에 사용)
 - 하드코딩 검사(루트 CLAUDE.md ⑨) 0건
 
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T 번호(Agent: T46~T55, T66, T69). 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.
+
 ## 데모 기준
 주입 → 60초 안에 `analysis_reports`·`change_plans`·`plan_steps` 행이 생기고 run은 `done`. 공급자 미확정이면 `kind='fallback'` + 규칙 기반 계획으로 같은 흐름(요구사항 2-2). 가짜 LLM은 데모에 쓰지 않는다.

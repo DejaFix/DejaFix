@@ -54,5 +54,8 @@
 - 반드시 있어야 할 테스트: **ATTACH 쓰기 거부**(`INSERT INTO shared.incidents` → readonly 오류) / **메일 dedup**(같은 리포트에 워커 3회 → 수신자당 1행) / 로그인 성공·실패·역할 403 / `/api/health` Agent 기동 전 `waiting` / #11 응답에 4묶음·근거 ID 일치·`execute` 없음·`mode:"preview"` / `analysis.status` 6값 / Zabbix 차단 시 503 `ZABBIX_UNAVAILABLE` / SMTP 차단 시 `attempts=3`·`failed`
 - Incident 응답은 `contracts/incident.schema.json`으로 검증(FR-DATA-006)
 
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T 번호(Backend: T05, T27~T34, T63, T68 / 메일 워커: T38·T39·T75). 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.
+
 ## 데모 기준
 `ZABBIX_MOCK=false`에서 #5·#6이 실제 Problem을 돌려주고(B3 DoD ①), 장애 상세 #11에 리포트·근거·계획·메일 기록이 한 번에 오며, 리포트 저장 후 40초 안에 메일이 발송된다.

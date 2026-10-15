@@ -132,7 +132,7 @@ rg "system\.cpu\.util|vm\.memory\.util|vfs\.fs\.size|check_top_process|check_dis
 - 경로는 항상 상대경로를 쓴다.
 - 편집 후 자동 포맷 훅: `frontend/`는 prettier, Python은 ruff format(`.claude/settings.json`).
 - 변경분 검사: `plan-reviewer` 서브에이전트(`.claude/agents/plan-reviewer.md`)가 SAFE 위반·계약 불일치·[이후] 침범·엔진 하드코딩을 보고한다(수정은 하지 않음).
-- 노션은 사람이 갱신한다. Claude는 읽기만 한다.
+- **작업 현황 체크**: 작업 단위는 `docs/work-order.md`의 T 번호다. 노션 「DejaFix 작업 진행 현황」(https://app.notion.com/p/3faa99f94fb080f09f3df4d2a2efa68f?pvs=13)의 현황표에서 **작업을 시작하면 `진행 중`, PR을 올리면 산출물 링크, 머지되어 끝나면 그 행을 `완료`로 체크**한다. 30분 넘게 막히면 `BLOCKED` + 막힌 이유. 체크는 **사람이** 한다(여러 세션이 동시에 쓰면 덮어쓰기). Claude Code 세션은 노션을 읽기만 하고, 작업이 끝나면 "노션 현황표에서 T번호를 완료로 체크하세요"라고 알린다.
 
 ## 폴더
 `frontend/ backend/ agent/ scheduler/ mcp-zabbix/ mcp-aws/(README만, L1) libs/zabbix_ro/ packs/it/ contracts/ infra/(scripts/) docs/(night/)`

@@ -34,5 +34,8 @@
 - `backup-db.ps1` 실행 → 파일 2개, `PRAGMA integrity_check` ok, 복원 후 로그인 가능(FR-INF-006)
 - 주입 → 정리 1회 시험: 작업 관리자 CPU ≥ 85% 후 자동 종료, `cleanup.ps1` 후 부하 프로세스 0개(FR-INF-003·005)
 
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T 번호(인프라: T01·T02·T13, T61·T62, T72, T77 / 스크립트: T60 / Zabbix 환경: T10·T11, T56~T59). 끝나서 PR이 dev에 머지되거나 수동 작업이 확인되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.
+
 ## 데모 기준
 데모 호스트 PC에서 compose로 5개 서비스 기동, 주입 → 화면 → 메일 **3분 안에 2회 연속**(B6 DoD). 11:00까지 Zabbix 불안정이면 `ZABBIX_MOCK=true`, 13:00까지 compose 불안정이면 로컬 프로세스.

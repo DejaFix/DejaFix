@@ -11,3 +11,6 @@
 
 ## 테스트
 - `uv run pytest` — SAFE-02: `host.update`, `item.create`, `user.login`, `problem.delete` → 요청 없이 예외 (머지 조건)
+
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T30. 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.

@@ -45,5 +45,8 @@
 - 수동 점검표: DOM에 "실행/Run/Execute" 요소 없음(FR-FE-008) / localStorage에 토큰 없음, 번들에 `sk-`·토큰 문자열 없음(SAFE-13) / 네트워크 탭 폴링 15±2초, `/api/chat` 요청에 `Authorization` 헤더(FR-FE-011·012) / 주소창 `/incidents/1` 직접 입력 → 404 아님(FR-FE-016)
 - vitest 컴포넌트 테스트는 [선택]
 
+## 작업 완료 체크
+작업 단위는 `docs/work-order.md`의 T 번호(Frontend: T04, T14~T26, T67). 끝나서 PR이 dev에 머지되면 노션 「DejaFix 작업 진행 현황」 현황표에서 그 행을 **`완료`로 체크**한다(사람이). 세션은 끝날 때 완료할 T 번호를 알려 준다.
+
 ## 데모 기준
 주입 후 15초 안에 현황 홈 목록 맨 위에 새 장애, 상세에서 리포트(fallback 라벨 포함 가능)·근거 패널·A/B/C 배지 계획·메일 기록이 보이고, 어시스턴트에 "이 서버 백업 작업이 원인인가?"를 물으면 "확인할 수 없음 · NOT_COLLECTED"가 나온다(시나리오 D-MAIN·D-UNKNOWN).

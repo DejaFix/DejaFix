@@ -67,5 +67,8 @@ docker compose -f infra/docker-compose.yml logs -f --tail=100 agent
 ## 브랜치
 `dev`(기본, 통합) ← `feat/<영역>-<주제>` · `fix/…` · `docs/…` · `night/<파트>-<MMDD>` PR(승인 1명, squash). `main`은 데모·배포 안정본(10/16 11:30 dev → main, 태그 `release/demo-1016`). 직접 push 금지.
 
+## 작업 현황
+노션 「DejaFix 작업 진행 현황」(https://app.notion.com/p/3faa99f94fb080f09f3df4d2a2efa68f?pvs=13)의 현황표가 단일 출처다. 행 = `docs/work-order.md`의 T 번호. 시작하면 `진행 중`, PR을 올리면 산출물 링크, 머지되면 **`완료`로 체크**, 30분 넘게 막히면 `BLOCKED`. 갱신은 사람이 한다.
+
 ## 문서
 - `docs/mvp-checklist.md` 금요일 [필수] / `docs/work-order.md` 전체 작업 순서 / `docs/plan.md` 기획서 v1.3 / `docs/requirements.md` 요구사항정의서 v1.3 / `docs/review-v1.3.md` 검토 의견 / `docs/night/` 야간 작업 루프 / `docs/demo/` 시연
