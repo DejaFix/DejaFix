@@ -41,7 +41,7 @@ export function Layout() {
   const checkedAt = health.data?.meta.checked_at
   const baseTime = checkedAt ? (tz === 'KST' ? kstShort(checkedAt) : checkedAt.slice(5, 16).replace('T', ' ')) : null
   // 현황 배지: 진행 중 장애 건수. 목록을 다 받지 못했으면 '+'를 붙이고, 못 받았으면 숨긴다(근거 없는 숫자 금지).
-  const openIncidents = useIncidents({ status: 'problem', limit: 200 })
+  const openIncidents = useIncidents({ status: 'problem', limit: 100 })
   const openCount = openIncidents.data?.data.length
   const openBadge = openCount ? `${openCount}${openIncidents.data?.meta.next_cursor ? '+' : ''}` : null
   const items = nav.filter((n) => !n.adminOnly || role === 'admin')
