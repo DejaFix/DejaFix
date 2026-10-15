@@ -46,6 +46,10 @@ problems = client.call("problem.get", {"output": "extend", "recent": True})  # J
 - `eventids`·`triggerids`·`hostids`·`itemids`·`objectids`·`limit` 파라미터로 간단히 거른다. 그 밖의 필터·정렬은 하지 않는다.
 - fixture 가 없는 허용 메서드(`hostgroup.get` 등)는 빈 목록.
 
+## 테스트
+
+`uv run pytest libs/zabbix_ro` — SAFE-02(쓰기 메서드는 요청 없이 거부)는 `safety_regression` 마커.
+
 ## 연결 점검 (`probe`)
 
 Zabbix 서버에 토큰이 제대로 붙는지 한 줄로 확인한다(T63 실연동). **환경 변수에서만** 읽고 `.env` 파일은 읽지 않는다.
@@ -56,9 +60,5 @@ uv run python -m zabbix_ro.probe
 ```
 
 - 허용된 읽기 메서드 5개(`apiinfo.version`·`host.get`·`problem.get`·`trigger.get`·`item.get`)를 결과 1건으로 한 번씩 부르고 `[ OK ]`/`[FAIL]`과 걸린 시간을 줄마다 찍는다. FAIL이 하나라도 있으면 종료 코드 1, 하나 실패해도 나머지를 계속 점검한다.
-- 마지막 줄은 `host.update`가 **클라이언트에서** 요청 없이 막히는지 확인한다. 서버가 읽기 전용 계정의 쓰기를 거부하는지는 이 도구로 볼 수 없다(T56 권한 오류 캡처).
+- 쓰기 차단은 **실서버로 쓰기를 보내지 않고** 확인한다: 허용 목록에 쓰기 메서드(`host.update` 등)가 없는지, 목 클라이언트(네트워크 없음)가 거부하는지. 서버가 읽기 전용 계정의 쓰기를 거부하는지는 이 도구로 볼 수 없다(T56 권한 오류 캡처).
 - 토큰·URL은 출력하지 않는다. URL·토큰이 비었거나 설정 값이 잘못되면 `[FAIL] 설정` 한 줄로 이유를 알려 준다.
-
-## 테스트
-
-`uv run pytest libs/zabbix_ro` — SAFE-02(쓰기 메서드는 요청 없이 거부)는 `safety_regression` 마커.

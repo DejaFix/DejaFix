@@ -44,8 +44,37 @@ def test_real_mode_calls_only_the_five_read_methods_and_never_a_write():
         method for _, method, _ in CHECKS
     ]  # host.update 는 요청이 나가지 않았다
     assert "7.0.31" in text
-    assert "쓰기 차단" in text and "요청 없이" in text
+    assert "쓰기 차단" in text and "요청 없이" in text and "네트워크 미사용" in text
     assert TOKEN not in text and URL not in text  # 비밀값·주소는 출력하지 않는다
+
+
+@pytest.mark.safety_regression
+def test_probe_never_sends_a_write_even_if_the_allowlist_is_broken(monkeypatch):
+    """허용 목록이 회귀로 깨져 host.update 가 들어 있어도, 점검 도구는 실서버로 쓰기 요청을 보내지 않고 FAIL 로 알린다 (SAFE-02)."""
+    from zabbix_ro import client as client_module
+
+    monkeypatch.setattr(
+        client_module,
+        "ALLOWED_METHODS",
+        client_module.ALLOWED_METHODS | {"host.update", "user.login"},
+    )
+    sent: list[str] = []
+    env = {"ZABBIX_URL": URL, "ZABBIX_API_TOKEN": TOKEN, "ZABBIX_MOCK": "false"}
+    code, text = run_probe(env, ok_transport(sent))
+    assert (
+        "host.update" not in sent and "user.login" not in sent
+    )  # 요청이 나가지 않았다
+    assert sent == [method for _, method, _ in CHECKS]
+    assert code == 1
+    assert "[FAIL] 쓰기 차단" in text and "host.update" in text
+
+
+@pytest.mark.safety_regression
+def test_write_check_uses_no_network_at_all():
+    """쓰기 차단 확인 함수는 transport 도 URL 도 없이 동작한다 — 어디로도 요청이 나갈 수 없다."""
+    from zabbix_ro.probe import _check_write_block
+
+    assert _check_write_block() is None
 
 
 def test_a_failing_method_makes_exit_code_1_and_keeps_going():
