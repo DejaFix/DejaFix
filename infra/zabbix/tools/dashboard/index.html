@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DejaFix 핵심 지표</title>
+<style>
+/* Layout: status bar, then a 2x2 grid of category cards (1 column on narrow screens), then open problems and a how-to-read note. */
+:root {
+  --bg: #eef2f3; --surface: #ffffff; --surface-2: #f5f8f9; --ink: #13222a; --muted: #57676f; --line: #d4dde0;
+  --accent: #0b6b70; --ok: #1e7547; --ok-soft: #e0f1e7; --warn: #9a5a00; --warn-soft: #fbeed8;
+  --bad: #b0281f; --bad-soft: #fbe3e0; --idle: #5f6382; --idle-soft: #e8e9f2; --s1: #0b6b70; --s2: #b5651d;
+  --font: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0e1518; --surface: #151f24; --surface-2: #1b272d; --ink: #e2eaed; --muted: #94a5ad; --line: #2b3940;
+    --accent: #52c3c4; --ok: #5cc690; --ok-soft: #173326; --warn: #f0a845; --warn-soft: #3a2a12;
+    --bad: #ff8278; --bad-soft: #3d1b18; --idle: #aeb2d0; --idle-soft: #262838; --s1: #52c3c4; --s2: #f0a845; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+h1 small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 8px; font-family: var(--mono); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.chip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+button { font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.err { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 12px 14px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 10px; padding: 16px; min-width: 0; border-top: 4px solid var(--line); }
+.card.ok { border-top-color: var(--ok); } .card.warn { border-top-color: var(--warn); } .card.bad { border-top-color: var(--bad); } .card.idle { border-top-color: var(--idle); }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.card-head h2 { margin: 0; font-size: 17px; }
+.card-head h2 span { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+.pill { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--ok-soft); } .pill.warn { color: var(--warn); background: var(--warn-soft); }
+.pill.bad { color: var(--bad); background: var(--bad-soft); } .pill.idle { color: var(--idle); background: var(--idle-soft); }
+.headline { display: flex; flex-wrap: wrap; gap: 4px 22px; align-items: baseline; }
+.big { font-family: var(--mono); font-size: 34px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 4px; font-family: var(--font); }
+svg.spark { width: 100%; height: auto; display: block; }
+.spark text { fill: var(--muted); font-size: 13px; font-family: var(--mono); }
+.rows { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.row .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.row .note { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.row.over .v { color: var(--bad); font-weight: 700; }
+.rule { font-size: 12px; color: var(--muted); }
+.cprob { font-size: 13px; color: var(--bad); background: var(--bad-soft); border-radius: 6px; padding: 6px 10px; }
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; }
+section.panel h2 { font-size: 16px; margin: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-size: 12px; font-weight: 600; background: var(--surface-2); }
+.tbl { overflow-x: auto; }
+.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; font-size: 13px; }
+.how div { display: flex; gap: 8px; align-items: baseline; }
+code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; word-break: break-all; }
+a { color: var(--accent); }
+.mono { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DejaFix 핵심 지표<small id="hostName">—</small></h1>
+    <div class="bar">
+      <span class="chip" id="agentChip"><span class="dot"></span><span>에이전트 확인 중</span></span>
+      <span class="chip" id="srcChip">출처 —</span>
+      <span class="chip" id="updChip">갱신 —</span>
+      <button type="button" id="refresh">새로고침</button>
+    </div>
+  </header>
+  <div class="err" id="err" hidden></div>
+  <div class="grid" id="grid"></div>
+  <section class="panel">
+    <h2>열린 장애</h2>
+    <div class="tbl"><table><thead><tr><th>심각도</th><th>분류</th><th>장애</th><th>발생</th></tr></thead><tbody id="probs"></tbody></table></div>
+  </section>
+  <section class="panel">
+    <h2>이 화면 읽는 법</h2>
+    <div class="how">
+      <div><span class="pill ok">정상</span><span>값이 들어오고 기준 안쪽</span></div>
+      <div><span class="pill warn">기준 초과</span><span>지금 값이 기준을 넘음. 장애는 템플릿 기준 시간(5~15분) 동안 계속될 때 열린다</span></div>
+      <div><span class="pill bad">장애</span><span>Zabbix 트리거가 실제로 연 장애가 이 분류 지표에 걸려 있음</span></div>
+      <div><span class="pill idle">값 없음</span><span>아직 수집 전(탐색 1시간 주기)이거나 10분 넘게 값이 안 옴</span></div>
+    </div>
+    <p class="rule">그래프는 최근 1시간(Zabbix <code>history.get</code>), 점선은 템플릿 기준선이다. 같은 값은 Zabbix 웹 <a href="http://127.0.0.1:8080" target="_blank" rel="noopener">http://127.0.0.1:8080</a> → Monitoring › Latest data에서도 볼 수 있다. 30초마다 자동 갱신.</p>
+  </section>
+</div>
+<script>
+(function () {
+  var CATS = { cpu: "CPU", mem: "MEM", disk: "DISK", net: "Network" };
+  var SUB = { cpu: "프로세서", mem: "메모리", disk: "저장소", net: "네트워크" };
+  var SEV = ["미분류", "정보", "경고", "평균", "높음", "재해"];
+  var STALE = 600;
+
+  function fmt(v, f) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    if (f === "pct") return v.toFixed(1) + " %";
+    if (f === "bytes") { var g = v / 1073741824; return g >= 1 ? g.toFixed(2) + " GB" : (v / 1048576).toFixed(0) + " MB"; }
+    if (f === "bps") { if (v >= 1e9) return (v / 1e9).toFixed(2) + " Gbps"; if (v >= 1e6) return (v / 1e6).toFixed(2) + " Mbps"; if (v >= 1e3) return (v / 1e3).toFixed(1) + " kbps"; return v.toFixed(0) + " bps"; }
+    if (f === "sec") return (v * 1000).toFixed(2) + " ms";
+    if (f === "rate") return v.toFixed(0) + " /s";
+    if (f === "linkstate") return v === 2 ? "연결됨 (2)" : String(v);
+    return String(Math.round(v * 100) / 100);
+  }
+  function ago(clock, now) {
+    if (!clock) return "값 없음";
+    var s = now - clock; if (s < 90) return s + "초 전"; if (s < 5400) return Math.round(s / 60) + "분 전"; return Math.round(s / 3600) + "시간 전";
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function overOf(m) { if (m.value === null) return null; if (m.crit != null && m.value > m.crit) return "crit"; if (m.warn != null && m.value > m.warn) return "warn"; return null; }
+
+  function spark(series, now, opt) {
+    // series: [{pts:[[t,v]], color}]; x: last hour, y: 0..max (pct fixed 0..100)
+    var W = 600, H = 130, L = 62, R = 8, T = 8, B = 20;
+    var all = []; series.forEach(function (s) { s.pts.forEach(function (p) { all.push(p[1]); }); });
+    var max = opt.pct ? 100 : Math.max(1, Math.max.apply(null, all.concat([opt.line || 0])) * 1.15);
+    var x = function (t) { return L + (W - L - R) * (1 - (now - t) / 3600); };
+    var y = function (v) { return T + (H - T - B) * (1 - v / max); };
+    var g = '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(opt.label) + ' 최근 1시간">';
+    [0, max / 2, max].forEach(function (v) { g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)" stroke-width="1"/>' +
+      '<text x="' + (L - 4) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + esc(opt.tick(v)) + '</text>'; });
+    if (opt.line != null && opt.line <= max) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(opt.line) + '" y2="' + y(opt.line) + '" stroke="var(--bad)" stroke-width="1" stroke-dasharray="4 3"/>';
+    series.forEach(function (s) {
+      var pts = s.pts.filter(function (p) { return p[0] >= now - 3600; });
+      if (!pts.length) return;
+      var d = pts.map(function (p, i) { return (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1); }).join(" ");
+      g += '<path d="' + d + '" fill="none" stroke="' + s.color + '" stroke-width="2.2"/>';
+      var e = pts[pts.length - 1]; g += '<circle cx="' + x(e[0]).toFixed(1) + '" cy="' + y(e[1]).toFixed(1) + '" r="3.5" fill="' + s.color + '"/>';
+    });
+    g += '<text x="' + L + '" y="' + (H - 3) + '">-60분</text><text x="' + (W - R) + '" y="' + (H - 3) + '" text-anchor="end">지금</text></svg>';
+    return g;
+  }
+
+  function card(key, c, now) {
+    var mains = c.metrics.filter(function (m) { return m.main; });
+    var subs = c.metrics.filter(function (m) { return !m.main; });
+    var fresh = mains.some(function (m) { return m.clock && now - m.clock < STALE; });
+    var over = c.metrics.map(overOf).filter(Boolean);
+    var st = c.problems.length ? ["bad", "장애 " + c.problems.length + "건"] : over.length ? ["warn", "기준 초과"] : fresh ? ["ok", "정상"] : ["idle", "값 없음"];
+    var head = mains.map(function (m) {
+      var lab = m.instance && key === "disk" ? m.instance + " " : key === "net" ? m.label + " " : "";
+      return '<div><div class="big">' + esc(fmt(m.value, m.fmt)) + '<small>' + esc(lab || m.label) + '</small></div></div>';
+    }).join("");
+    var colors = ["var(--s1)", "var(--s2)"];
+    var series = mains.filter(function (m) { return m.series && m.series.length; }).map(function (m, i) { return { pts: m.series, color: colors[i % 2] }; });
+    var m0 = mains[0] || {};
+    var pct = m0.fmt === "pct";
+    var chart = series.length ? spark(series, now, { pct: pct, line: m0.crit != null && pct ? m0.crit : null, label: CATS[key],
+      tick: function (v) { return pct ? Math.round(v) + "%" : fmt(v, m0.fmt).replace(/\.\d+/, ""); } }) : '<p class="rule">최근 1시간 그래프 데이터 없음</p>';
+    var legend = key === "net" && series.length > 1 ? '<div class="rule"><span style="color:var(--s1)">━</span> 수신 · <span style="color:var(--s2)">━</span> 송신</div>' : "";
+    var rows = subs.map(function (m) {
+      var o = overOf(m);
+      var inst = m.instance && m.instance.charAt(0) === "{" ? "NIC " + m.instance.slice(0, 9) + "…}" : m.instance;
+      var note = m.missing ? "아직 이 Item이 없음 (템플릿 자동 탐색 후 생김)" : !m.clock ? "아직 값 없음" : (inst ? inst + " · " : "") + ago(m.clock, now);
+      if (m.rule) note += " · 기준: " + m.rule;
+      return '<div class="row' + (o ? " over" : "") + '"><span>' + esc(m.label) + '</span><span class="v">' + esc(fmt(m.value, m.fmt)) + '</span><span class="note">' + esc(note) + '</span></div>';
+    }).join("");
+    var probs = c.problems.map(function (p) { return '<div class="cprob">[' + SEV[p.severity] + '] ' + esc(p.name) + '</div>'; }).join("");
+    var rule = m0.rule ? '<div class="rule">판단 기준: ' + esc(m0.rule) + ' · 마지막 값 ' + esc(ago(m0.clock, now)) + '</div>' : "";
+    return '<article class="card ' + st[0] + '"><div class="card-head"><h2>' + CATS[key] + '<span>' + SUB[key] + '</span></h2><span class="pill ' + st[0] + '">' + st[1] + '</span></div>' +
+      '<div class="headline">' + head + '</div>' + chart + legend + rule + probs + '<div class="rows">' + rows + '</div></article>';
+  }
+
+  function render(d) {
+    var now = d.generated;
+    document.getElementById("hostName").textContent = d.host || "—";
+    document.getElementById("updChip").textContent = "갱신 " + new Date(now * 1000).toLocaleTimeString("ko-KR");
+    var err = document.getElementById("err");
+    if (!d.ok) {
+      err.hidden = false; err.textContent = "Zabbix API에 연결하지 못했습니다: " + d.error + " — Docker의 Zabbix 서버가 켜져 있는지 확인하세요 (scripts\\zabbix\\check_zabbix.ps1).";
+      return;
+    }
+    err.hidden = true;
+    document.getElementById("srcChip").textContent = "Zabbix " + d.version + " · " + d.source.replace(/^https?:\/\//, "").replace("/api_jsonrpc.php", "");
+    var aa = d.agent.active_available, ping = d.agent.last_ping;
+    var ok = aa === 1 && ping && now - ping < STALE;
+    var chip = document.getElementById("agentChip");
+    chip.style.color = ok ? "var(--ok)" : "var(--bad)";
+    chip.lastElementChild.textContent = (ok ? "에이전트 연결됨" : "에이전트 연결 안 됨") + " · 마지막 수신 " + ago(ping, now);
+    document.getElementById("grid").innerHTML = ["cpu", "mem", "disk", "net"].map(function (k) { return card(k, d.categories[k], now); }).join("");
+    document.getElementById("probs").innerHTML = d.problems.length ? d.problems.map(function (p) {
+      return "<tr><td>" + SEV[p.severity] + "</td><td>" + (CATS[p.category] || "기타") + "</td><td>" + esc(p.name) + "</td><td class=\"mono\">" + new Date(p.clock * 1000).toLocaleString("ko-KR") + "</td></tr>";
+    }).join("") : '<tr><td colspan="4">열린 장애가 없습니다.</td></tr>';
+  }
+
+  function load() {
+    fetch("/api/core", { cache: "no-store" }).then(function (r) { return r.json(); }).then(render).catch(function (e) {
+      var err = document.getElementById("err"); err.hidden = false; err.textContent = "대시보드 서버에 연결하지 못했습니다: " + e.message;
+    });
+  }
+  document.getElementById("refresh").addEventListener("click", load);
+  load(); setInterval(load, 30000);
+})();
+</script>
+</body>
+</html>
