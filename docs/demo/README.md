@@ -15,7 +15,7 @@
 | T-60분 | 아침 점검 재실행 / `docker compose ps` 전부 Up / `/api/health` 전부 ok / LLM 잔액(확정 시) 또는 fallback 모드 확인(`LLM_FAKE=false`, 키 빈 값) / 테스트 메일 1통 / 골든 백업으로 DB 복원 / 데모 PC 이전 주입 프로세스 없음(`cleanup.ps1`) |
 | T-10분 | 브라우저 로그인(`oncall`)·확대 125% / 메일함 탭 / Zabbix 웹 탭 / 알림·메신저 끄기 / 타이머(3분) |
 | 진행 중 | 주입 → 대기 중 구조도·안전 3원칙(·D-ENGINE) 약 2분 → D-MAIN → (D-BLOCK) → D-UNKNOWN → (D-NUMBERS) → 질문 |
-| 실패 시 | ① 분석이 늦으면 fallback 리포트로 계속("LLM 실패에도 흐름 유지") ② Zabbix 연결 실패 → `ZABBIX_MOCK=true` 재기동(1분) ③ 전체 실패 → 녹화 영상 |
+| 실패 시 | ① 분석이 늦으면 fallback 리포트로 계속("LLM 실패에도 흐름 유지") ② Zabbix 연결 실패 → `ZABBIX_MOCK=true` 재기동(1분) ③ 전체 실패 → 녹화 영상 — 판단 기준·절차·준비 상태는 `docs/demo/fallback-paths.md` |
 | 종료 후 | `cleanup.ps1`, 디스크 임시 파일 삭제 확인, 멘토 피드백 노션 기록 |
 
 ## 리허설 측정 기록 (NFR-PERF-001, NFR-OBS-008, NFR-EVAL-002) — `docs/demo/rehearsal-log.md`에 누적
