@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dejafix/contracts/incident-v0",
+  "title": "Incident",
+  "description": "표준 Incident 형식 (기획서 5-5, DR-018). #10 목록의 항목이자 #11 상세의 incident 객체. analysis 는 저장 컬럼이 아니라 Backend 가 shared.db 를 JOIN 해 채운다.",
+  "type": "object",
+  "required": [
+    "id",
+    "source",
+    "zabbix",
+    "host",
+    "title",
+    "severity",
+    "status",
+    "started_at",
+    "resolved_at",
+    "tags",
+    "analysis"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "integer" },
+    "source": { "const": "zabbix" },
+    "zabbix": {
+      "type": "object",
+      "required": ["eventid", "triggerid", "hostid"],
+      "additionalProperties": false,
+      "properties": {
+        "eventid": { "type": "string" },
+        "triggerid": { "type": "string" },
+        "hostid": { "type": "string" }
+      }
+    },
+    "host": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "title": { "type": "string" },
+    "severity": {
+      "type": "object",
+      "required": ["level", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "level": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "label": {
+          "enum": [
+            "Not classified",
+            "Information",
+            "Warning",
+            "Average",
+            "High",
+            "Disaster"
+          ]
+        }
+      }
+    },
+    "status": { "enum": ["problem", "resolved"] },
+    "started_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "resolved_at": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tag", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "tag": { "type": "string" },
+          "value": { "type": "string" }
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["status", "report_id", "plan_id"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["skipped", "pending", "running", "done", "fallback", "failed"] },
+        "report_id": { "type": ["integer", "null"] },
+        "plan_id": { "type": ["integer", "null"] }
+      }
+    }
+  }
+}
