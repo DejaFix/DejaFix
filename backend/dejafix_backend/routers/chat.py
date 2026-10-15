@@ -17,7 +17,7 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.deps import require_role
@@ -31,10 +31,24 @@ _SSE_MEDIA_TYPE = "text/event-stream; charset=utf-8"
 _UNAVAILABLE = ("AGENT_UNAVAILABLE", "Agent에 연결할 수 없습니다")
 
 
+MAX_MESSAGE_CHARS = 4000
+_NL = chr(10)  # 줄바꿈
+_PING = ": ping" + _NL + _NL  # SSE 주석 프레임(이벤트 아님, 클라이언트가 무시)
+
+
 class ChatRequest(BaseModel):
     conversation_id: str | None = None
-    message: str = Field(min_length=1)
+    message: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
     context: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("message")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if (
+            not value.strip()
+        ):  # 공백뿐인 질문은 Agent 로 보내지 않는다 (422 VALIDATION_ERROR)
+            raise ValueError("message 가 비어 있습니다")
+        return value
 
 
 def get_agent_transport() -> httpx.AsyncBaseTransport | None:
@@ -108,20 +122,61 @@ async def _events(lines: AsyncIterator[str]) -> AsyncIterator[tuple[str, dict]]:
             data.append(line[len("data:") :].removeprefix(" "))
 
 
+async def _with_keepalive(
+    lines: AsyncIterator[str], interval: float
+) -> AsyncIterator[str | None]:
+    """`lines` 를 그대로 내보내되, `interval` 초 동안 아무 줄도 없으면 None(틱)을 낸다.
+
+    asyncio.wait_for 로 감싸면 시간이 지날 때 읽기 자체가 취소돼 스트림이 깨진다. 읽기 작업을 계속 두고
+    기다리기만 한다. 소비자가 먼저 닫으면(브라우저가 끊김) 남은 읽기 작업을 취소한다.
+    """
+    iterator = lines.__aiter__()
+    pending: asyncio.Future | None = None
+    try:
+        while True:
+            if pending is None:
+                pending = asyncio.ensure_future(iterator.__anext__())
+            done, _ = await asyncio.wait({pending}, timeout=interval)
+            if not done:
+                yield None
+                continue
+            task, pending = pending, None
+            try:
+                line = task.result()
+            except StopAsyncIteration:
+                return
+            yield line
+    finally:
+        if pending is not None:
+            pending.cancel()
+
+
 async def _relay(
     client: httpx.AsyncClient,
     response: httpx.Response,
     lines: AsyncIterator[str],
     head: list[str],
+    keepalive_sec: float = 15.0,
 ) -> AsyncIterator[str]:
-    """Agent 의 SSE 를 줄 단위로 그대로 넘긴다."""
+    """Agent 의 SSE 를 줄 단위로 그대로 넘긴다.
+
+    Agent 가 `keepalive_sec` 초 동안 조용하면(도구 호출·LLM 대기) nginx·프록시가 유휴 연결을 끊지 않도록
+    SSE 주석 프레임 `: ping` 을 보낸다. 주석 프레임은 `event:`·`data:` 가 없어 클라이언트가 무시한다(SSE 표준).
+    이벤트 한가운데(event: 줄 뒤, 빈 줄 전)에서는 보내지 않는다 — 빈 줄이 그 이벤트를 끊어 버리기 때문이다.
+    """
     last_event: str | None = None
+    in_event = False
     broken = False
     try:
-        async for line in _all_lines(head, lines):
+        async for line in _with_keepalive(_all_lines(head, lines), keepalive_sec):
+            if line is None:
+                if not in_event:
+                    yield _PING
+                continue
             if line.startswith("event:"):
                 last_event = line[len("event:") :].strip()
-            yield line + "\n"
+            in_event = line != ""
+            yield line + _NL
     except httpx.HTTPError:
         broken = True
     finally:
@@ -244,7 +299,7 @@ async def chat(
     if not streaming:
         return await _collect(client, response, lines, head)
     return StreamingResponse(
-        _relay(client, response, lines, head),
+        _relay(client, response, lines, head, settings.chat_keepalive_sec),
         media_type=_SSE_MEDIA_TYPE,
         headers=_SSE_HEADERS,
     )
