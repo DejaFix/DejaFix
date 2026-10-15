@@ -78,18 +78,31 @@ npm run dev       # http://localhost:5173
 - 없는 id(예: `/incidents/99`)는 404 `NOT_FOUND`.
 - 현황 홈 목록·KPI는 #10·#5를 쓴다. 단, **#5 `/api/dashboard/summary`와 #6 `/api/problems`는 아직 백엔드의 임시 응답**(고정 예시 JSON, T32 전)이라 시드와 숫자가 맞지 않는다(예: #6의 `incident_id: 12`는 시드에 없는 장애).
 
-## 4. 지금 상태 (2026-10-15)
+## 4. 지금 상태 (2026-10-15 16:40, dev `e7ccb10`)
 
+### API
 | API | 연결 | 비고 |
 |---|---|---|
 | #1 로그인·#3 me | 실제 | `admin`·`oncall`. 응답 `meta.expires_at`(8시간) |
 | #4 health | 실제 | Agent·MCP를 안 띄우면 `agent: down`, `mcp_zabbix: down`. `zabbix`는 `ZABBIX_MOCK=true`면 `ok` |
-| #10·#11 incidents | 실제 | 시드 6건, 커서 `meta.next_cursor` |
-| #5 summary·#6 problems | 임시 응답 | 형식은 계약과 같고 값은 고정 예시 |
+| #10·#11 incidents | 실제 | 시드 6건, 커서 `meta.next_cursor`. `limit`은 1~100(넘으면 422 `VALIDATION_ERROR`) |
+| #5 summary·#6 problems | 임시 응답 | 형식은 계약과 같고 값은 고정 예시(백엔드 T32 전) |
 | #18 chat | 실제(Agent 없음) | Agent가 없으면 SSE `error` 이벤트 `AGENT_UNAVAILABLE` → 어시스턴트 패널에 "Agent 연결 안 됨" |
 
-- **화면 대부분이 아직 `frontend/src/lib/api.ts`(Legacy 목)를 쓴다.** 그래서 MSW를 꺼도 현황 홈·장애 상세에는 실데이터가 보이지 않는다(장애 상세는 "장애를 찾을 수 없습니다"). 실제 백엔드를 쓰는 화면은 로그인과 AI 어시스턴트 패널뿐이다. 화면 이전은 to-frontend Issue에서 진행한다.
-- 실데이터를 직접 보려면 개발자 도구 콘솔에서: `const { apiRequest } = await import('/src/lib/http.ts'); await apiRequest('/api/incidents/1')`
+### 화면 (`VITE_MSW=off` + 시드로 확인)
+| 화면 | 데이터 | 상태 |
+|---|---|---|
+| 로그인 | 실제 #1 | JWT는 `sessionStorage`에만 저장 |
+| 상단 연결 상태 | 실제 #4 (`useHealth`) | `확인 <시각> · Zabbix · Agent · MCP · DB` 칩, Zabbix `down`이면 경고 배너. "목업 데이터" 칩은 MSW를 켰을 때만 보인다 |
+| 현황 홈 — 장애 목록 | 실제 #10 (`useIncidents`) | 시드 6건이 3 → 1 → 4 → 5 → 2 → 6 순서로 보인다. 호스트가 `null`이면 `UnknownValue` |
+| 현황 홈 — KPI 카드 4개 | **아직 Legacy 목**(`lib/api.ts` `api.summary`) | 실제 목록과 숫자가 맞지 않는다. `useDashboardSummary`(#5)로 이전 필요 |
+| 사이드 메뉴 배지 | **고정값 4·2** | PR #70(실데이터 건수로 교체) 리뷰 중 |
+| 장애 상세 `/incidents/:id` | 실제 #11 (`useIncidentDetail`) | 3장 표대로 보인다(1: 정상 리포트·A/B/C·메일 sent, 2: fallback 라벨·메일 failed 3회, 3: 분석 대기·리포트 없음 등) |
+| AI 어시스턴트 패널 | 실제 #18 | Agent 없으면 "Agent 연결 안 됨" |
+| 범위 밖 카드·화면 | Legacy 목 그대로 | 현황 홈의 평소 범위·디스크 예측·추이·히트맵, `/cost`·`/compare`·`/reports`·`/plans`·`/alerts`·`/admin` (frontend CLAUDE.md "범위 밖") |
+
+- 어느 화면에도 "실행/Run/Execute" 버튼·토글이 없다(홈·장애 상세 1~3 확인).
+- API 응답을 직접 보려면 개발자 도구 콘솔에서: `const { apiRequest } = await import('/src/lib/http.ts'); await apiRequest('/api/incidents/1')`
 
 ## 5. 자주 막히는 것
 | 증상 | 원인·해결 |
