@@ -1,6 +1,6 @@
 ﻿# DejaFix 로컬 기동 (compose 없이, 탈출 규칙 3 "로컬 프로세스 데모"용)
 # MCP(:8200) -> Agent(:8100) -> Scheduler -> Backend(:8000) -> Frontend(:5173) 순서로 띄우고 각 /healthz 를 확인한다.
-# - .env 는 scripts/run_with_env.py 가 python-dotenv 로 읽는다(값은 출력하지 않음). 이 스크립트가 넘기는 환경 변수가 .env 보다 우선.
+# - .env 는 scripts/run_with_env.py 가 python-dotenv 로 읽는다(값은 출력하지 않음). python-dotenv 는 서비스 패키지 의존성이 아니라 `uv run --with python-dotenv` 로 붙인다(빈 .venv 대비). 이 스크립트가 넘기는 환경 변수가 .env 보다 우선.
 # - 이미 쓰는 포트가 있으면 그 서비스는 띄우지 않고 실패로 보고한다(떠 있는 프로세스를 끄지 않음).
 # - 띄운 프로세스 PID 는 <LogDir>\dev-up.pids.json 에 남긴다 -> scripts/dev-down.ps1 이 그 PID 만 종료.
 #
@@ -75,13 +75,13 @@ if ($Seed) {
 
 $services = @(
     @{ name = "mcp-zabbix"; port = $McpPort; health = "http://127.0.0.1:$McpPort/healthz";
-       args = @("run", "--package", "mcp-zabbix", "python", "scripts/run_with_env.py", "module", "mcp_zabbix") },
+       args = @("run", "--with", "python-dotenv", "--package", "mcp-zabbix", "python", "scripts/run_with_env.py", "module", "mcp_zabbix") },
     @{ name = "agent"; port = $AgentPort; health = "http://127.0.0.1:$AgentPort/healthz";
-       args = @("run", "--package", "agent", "python", "scripts/run_with_env.py", "asgi", "dejafix_agent.main:app", "$AgentPort") },
+       args = @("run", "--with", "python-dotenv", "--package", "agent", "python", "scripts/run_with_env.py", "asgi", "dejafix_agent.main:app", "$AgentPort") },
     @{ name = "scheduler"; port = 0; health = "";
-       args = @("run", "--package", "scheduler", "python", "scripts/run_with_env.py", "module", "dejafix_scheduler") },
+       args = @("run", "--with", "python-dotenv", "--package", "scheduler", "python", "scripts/run_with_env.py", "module", "dejafix_scheduler") },
     @{ name = "backend"; port = $BackendPort; health = "http://127.0.0.1:$BackendPort/healthz";
-       args = @("run", "--package", "backend", "python", "scripts/run_with_env.py", "asgi", "dejafix_backend.main:app", "$BackendPort") }
+       args = @("run", "--with", "python-dotenv", "--package", "backend", "python", "scripts/run_with_env.py", "asgi", "dejafix_backend.main:app", "$BackendPort") }
 )
 
 $started = @()
