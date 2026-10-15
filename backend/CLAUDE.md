@@ -1,5 +1,7 @@
 # backend — BFF (FastAPI :8000, 내부 전용 · 외부 공개는 frontend 8080뿐)
 
+> **내 라벨: `to-backend`.** 작업 시작 시 `gh issue list --label to-backend --state open` 부터 확인 (응답 규칙은 `docs/agent-collaboration.md`).
+
 주담당 Backend 담당 · 부담당 연동·인프라 담당. 메일 워커(`backend/` 안)는 DB·메일 담당(부 Backend 담당).
 먼저 읽을 것: 루트 `CLAUDE.md` → `docs/mvp-checklist.md` "Backend" → `contracts/api.md`·`contracts/incident.schema.json`·`contracts/agent-api.md`·`contracts/db-schema.sql`.
 
