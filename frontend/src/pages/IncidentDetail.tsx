@@ -62,7 +62,8 @@ export default function IncidentDetail() {
         <div style={{ flex: 1 }}>
           <h1 className="page-title">{incident.title}</h1>
           <p className="page-sub">
-            <span className="mono">{incident.host.name}</span> · 시작 {kstShort(incident.started_at) ?? '—'}
+            <span className="mono">{incident.host.name ?? <Unknown reason="NOT_COLLECTED" />}</span> · 시작{' '}
+            {kstShort(incident.started_at) ?? '—'}
             {incident.status === 'resolved' && ` · 해결 ${kstShort(incident.resolved_at) ?? '—'}`}
           </p>
         </div>
@@ -70,7 +71,7 @@ export default function IncidentDetail() {
         <SeverityInfoChip severity={incident.severity} />
         <button
           className="btn dark"
-          onClick={() => ask(`${incident.host.name}의 '${incident.title}' 장애 원인을 알려줘`)}
+          onClick={() => ask(`${incident.host.name ?? '이 서버'}의 '${incident.title}' 장애 원인을 알려줘`)}
         >
           <Icon name="sparkle" size={16} />
           AI에게 묻기
