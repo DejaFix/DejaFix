@@ -63,12 +63,14 @@ docker compose -f infra/docker-compose.yml ps            # 5개 Up
 
 ## 3. 시드·DB 준비 (리허설마다 같은 출발점)
 ```powershell
-# 1) 백업 (지우기 전에 반드시) — infra\scripts\backup-db.ps1 은 아직 없음(README 목록에만 있음)
-$b = "backups\$(Get-Date -Format yyMMdd-HHmm)"; New-Item -ItemType Directory -Force $b | Out-Null
-# 2) 서비스를 끈 뒤(scripts\dev-down.ps1) 두 DB를 함께 옮기고 다시 시드 — 떠 있으면 파일이 잠겨 옮겨지지 않음
-Move-Item data\shared.db*, data\backend.db* $b ; uv run --no-project --python 3.12 python -I scripts\seed_dev.py   # scripts\seed_dev.py 는 PR #106
+# 1) 백업 (지우기 전에 반드시) — SQLite 백업 API라 서비스가 켜져 있어도 됨. backups\<시각>\ 에 2파일 + integrity_check (#105)
+powershell -ExecutionPolicy Bypass -File infra\scripts\backup-db.ps1
+# 2) 서비스를 끈 뒤(scripts\dev-down.ps1) 두 DB를 함께 지우고 다시 시드 — 떠 있으면 파일이 잠겨 지워지지 않음
+Remove-Item data\shared.db*, data\backend.db* ; uv run --no-project --python 3.12 python -I scripts\seed_dev.py   # scripts\seed_dev.py 는 PR #106
 ```
 - **`shared.db`만 다시 시드하지 않는다.** 리포트 id가 1부터 다시 매겨져 `backend.db`의 예전 `mail_logs`(같은 `report_id`)가 새 리포트에 붙어 보이고, dedup 키(`auto:<report_id>:<수신자>`) 때문에 새 리포트 메일이 **발송되지 않는다**(10/15 밤 E2E에서 확인 — 08:05 기록이 09:14 리포트에 "발송됨"으로 표시). `backend.db`를 다시 만들면 계정도 `.env` 비밀번호로 새로 생긴다.
+- 메일 워커(#86)는 `dedup_key`가 없는 **모든** 리포트에 보낸다. 다시 시드하거나 `MAIL_RECIPIENTS`를 바꾸면 시드 리포트(1·2와 분석된 3)에도 한 통씩 나간다. `MAIL_PROVIDER=smtp`로 데모하면 수신자가 시드 장애 메일도 받는다(10/16 새벽 E2E, #86 코멘트).
+- 골든 백업(10/16 11:30): `powershell -ExecutionPolicy Bypass -File infra\scripts\backup-db.ps1 -Label golden` — 라벨 붙은 백업은 자동 정리되지 않는다.
 - 시드 결과: 장애 1~6(상태별 예시, `docs/integration.md` 3장). 계정은 `.env`의 `DEMO_ONCALL_PASSWORD`로 처음 만들어질 때만 설정된다 — 비밀번호를 바꿨으면 `backend.db`도 백업 후 다시 시드.
 - 확인: `oncall` 로그인 → 현황 홈 목록 6건(3 → 1 → 4 → 5 → 2 → 6).
 
