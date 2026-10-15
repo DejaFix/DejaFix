@@ -1,7 +1,11 @@
-"""장애 목록·상세 성능 점검 (F3, NFR-PERF-005) — 장애 3천 건에서도 가볍게, 하위 조회가 인덱스를 타는지.
+"""장애 목록·상세 성능 점검 — 장애 3천 건에서도 가볍게, 장애마다 도는 하위 조회가 인덱스를 타는지.
 
+근거: `contracts/api.md` 1장 "응답 속도 — 프론트가 현황 홈·장애 상세를 15초마다 다시 부른다 → 1초 안에 응답".
 실측(5천 건): 목록·상세 모두 15ms 이하, 5만 건에서도 `status` 필터만 약 87ms(일치 행을 임시 정렬). 데모 규모에서는 무관해서 인덱스를 더하지 않았다.
-이 파일은 그 결론이 깨지는 것(하위 조회가 풀스캔으로 바뀌는 회귀)을 잡는다. 시간 한도는 실측의 수십 배로 넉넉히 잡아 느린 PC에서도 흔들리지 않는다.
+이 파일은 그 결론이 깨지는 것(하위 조회가 풀스캔으로 바뀌거나 기본 목록이 정렬을 하게 되는 회귀)을 잡는다.
+시간 한도는 실측의 수십 배로 넉넉히 잡아 느린 PC에서도 흔들리지 않게 했고, 첫 호출(연결·캐시 데우기)은 재지 않는다.
+
+실행 계획 줄은 SQLite 3.36 이상 형식(`SCAN i`, `SEARCH a USING INDEX`)과 이전 형식(`SCAN TABLE i`)을 모두 읽는다.
 """
 
 import re
@@ -12,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from dejafix_backend.db import split_zones
-from dejafix_backend.routers.incidents import _INCIDENT_SQL
+from dejafix_backend.routers.incidents import DETAIL_SQL, build_list_query
 
 N = 3000
 BASE = datetime(2026, 10, 1, tzinfo=timezone.utc)
@@ -75,49 +79,83 @@ def big_shared(env, helpers):
     return env.shared
 
 
-def plan(shared_path, where_and_order: str, params=()) -> list[str]:
+def explain(shared_path, sql, params) -> list[tuple[int, str]]:
+    """실행 계획 줄 [(부모 id, 설명)]. 부모가 0 인 줄이 최상위(메인 쿼리), 나머지는 장애마다 도는 하위 조회 안쪽이다."""
     conn = sqlite3.connect(":memory:")
     conn.execute("ATTACH DATABASE ? AS shared", (str(shared_path),))
-    rows = conn.execute(
-        "EXPLAIN QUERY PLAN " + _INCIDENT_SQL + where_and_order, params
-    ).fetchall()
+    rows = conn.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall()
     conn.close()
-    return [row[3] for row in rows]
+    return [(row[1], row[3]) for row in rows]
+
+
+def list_plan(shared_path, **kwargs):
+    sql, params = build_list_query(
+        kwargs.get("status"),
+        kwargs.get("severity_min"),
+        kwargs.get("after"),
+        kwargs.get("limit", 101),
+    )
+    return explain(shared_path, sql, params)  # 라우터가 실제로 만드는 SQL 그대로
 
 
 # ---------------------------------------------------------------- 실행 계획: 하위 조회는 인덱스를 탄다
 
 
-@pytest.mark.parametrize(
-    "where_and_order",
-    [
-        " ORDER BY i.started_at DESC, i.id DESC LIMIT 101",  # 기본 목록
-        " WHERE i.status = 'problem' ORDER BY i.started_at DESC, i.id DESC LIMIT 51",
-        " WHERE i.severity >= 4 ORDER BY i.started_at DESC, i.id DESC LIMIT 51",
-        " WHERE (i.started_at < '2026-10-02T00:00:00Z' OR (i.started_at = '2026-10-02T00:00:00Z' AND i.id < 5))"
-        " ORDER BY i.started_at DESC, i.id DESC LIMIT 101",  # 다음 쪽(커서)
-        " WHERE i.id = 100",  # 상세
-    ],
-    ids=["기본 목록", "status 필터", "severity 필터", "커서 다음 쪽", "상세"],
-)
-def test_per_row_subqueries_use_indexes_never_full_scans(big_shared, where_and_order):
-    lines = plan(big_shared, where_and_order)
-    scans = [line for line in lines if re.match(r"SCAN (a2?|r|p)\b", line)]
-    assert scans == [], "분석·리포트·계획 조회가 풀스캔이다:\n" + "\n".join(lines)
-    # 장애마다 도는 하위 조회마다 인덱스로 찾는다
-    searched = " ".join(lines)
-    for table_alias in ("r", "a", "p"):
-        assert re.search(rf"SEARCH {table_alias} USING (COVERING )?INDEX", searched), (
-            lines
+CASES = {
+    "기본 목록": {},
+    "status 필터": {"status": "problem", "limit": 51},
+    "severity 필터": {"severity_min": 4, "limit": 51},
+    "커서 다음 쪽": {"after": ("2026-10-01T00:30:00Z", 50)},
+}
+
+
+@pytest.mark.parametrize("kwargs", list(CASES.values()), ids=list(CASES))
+def test_list_subqueries_use_indexes_never_full_scans(big_shared, kwargs):
+    rows = list_plan(big_shared, **kwargs)
+    details = [detail for _, detail in rows]
+    scans = [d for d in details if re.match(r"SCAN (TABLE )?(a2?|r|p)\b", d)]
+    assert scans == [], "분석·리포트·계획 조회가 풀스캔이다:\n" + "\n".join(details)
+    joined = " ".join(details)
+    for alias in ("r", "a", "p"):  # 장애마다 도는 하위 조회 세 곳 모두 인덱스로 찾는다
+        assert re.search(rf"SEARCH (TABLE )?{alias} USING (COVERING )?INDEX", joined), (
+            details
         )
 
 
-def test_the_unfiltered_list_walks_the_started_index_without_sorting(big_shared):
-    """기본 목록(필터 없음)은 started_at 인덱스를 타서 전체를 정렬하지 않는다."""
-    lines = plan(big_shared, " ORDER BY i.started_at DESC, i.id DESC LIMIT 101")
-    main = lines[0]
-    assert "ix_incidents_started" in main or "ix_incidents_status" in main, lines
-    assert not any("USE TEMP B-TREE FOR ORDER BY" == line for line in lines[:1]), lines
+def test_detail_subqueries_use_indexes_never_full_scans(big_shared):
+    rows = explain(big_shared, DETAIL_SQL, (100,))
+    details = [detail for _, detail in rows]
+    assert not [d for d in details if re.match(r"SCAN (TABLE )?(a2?|r|p)\b", d)], (
+        details
+    )
+    assert any(
+        re.search(r"SEARCH (TABLE )?i USING INTEGER PRIMARY KEY", d) for d in details
+    ), details
+
+
+def test_unfiltered_list_walks_the_started_index_and_does_not_sort(big_shared):
+    """필터 없는 기본 목록은 `ix_incidents_started` 를 그대로 걸어 메인 쿼리가 정렬하지 않는다.
+
+    `USE TEMP B-TREE FOR ORDER BY` 는 하위 조회 안쪽(버전 정렬)에는 정상으로 한 줄 나온다 — 그래서 전체 줄이 아니라
+    **최상위(부모 0) 줄만** 본다. 인덱스를 지우면 최상위에 `SCAN i` 와 임시 정렬 줄이 생겨 이 테스트가 실패한다.
+    """
+    rows = list_plan(big_shared)
+    top = [detail for parent, detail in rows if parent == 0]
+    main = [d for d in top if re.match(r"(SCAN|SEARCH) (TABLE )?i\b", d)]
+    assert len(main) == 1 and "ix_incidents_started" in main[0], top
+    assert not any(d == "USE TEMP B-TREE FOR ORDER BY" for d in top), top
+
+
+def test_the_main_sort_check_really_fails_without_the_started_index(
+    env, helpers, big_shared
+):
+    """위 검사가 공허하지 않음을 확인한다: 인덱스를 지운 DB 에서는 최상위에 임시 정렬이 나타난다."""
+    conn = sqlite3.connect(big_shared)
+    conn.execute("DROP INDEX ix_incidents_started")
+    conn.commit()
+    conn.close()
+    top = [detail for parent, detail in list_plan(big_shared) if parent == 0]
+    assert "USE TEMP B-TREE FOR ORDER BY" in top, top
 
 
 # ---------------------------------------------------------------- 응답 시간 (넉넉한 상한)
@@ -145,7 +183,7 @@ def test_responses_stay_fast_with_three_thousand_incidents(
 ):
     client = make_client()
     headers = helpers.login(client, "oncall", helpers.oncall_password)
-    timed(client, headers, path)  # 첫 호출(연결·캐시 데우기)은 빼고
+    timed(client, headers, path)  # 첫 호출(연결·캐시 데우기)은 재지 않는다
     response, elapsed = timed(client, headers, path)
     assert response.status_code == 200
     assert elapsed < limit_ms, f"{path} 가 {elapsed:.0f}ms 걸렸다 (한도 {limit_ms}ms)"
@@ -156,6 +194,7 @@ def test_cursor_walk_visits_every_incident_once_and_every_page_is_fast(
 ):
     client = make_client()
     headers = helpers.login(client, "oncall", helpers.oncall_password)
+    timed(client, headers, "/api/incidents?limit=100")  # 데우기: 첫 쪽은 재지 않는다
     seen, cursor, slowest = [], None, 0.0
     while True:
         path = "/api/incidents?limit=100" + (f"&cursor={cursor}" if cursor else "")
