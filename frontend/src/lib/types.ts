@@ -163,6 +163,20 @@ export interface DeliveryLog {
 
 export type Role = 'admin' | 'operator' | 'viewer'
 
+// #1 POST /api/auth/login, #3 GET /api/auth/me (plan.md 7-1, IF-INT-BE-001·002)
+export interface AuthUser {
+  id: number
+  username: string
+  role: Role
+  display_name: string | null
+  email?: string | null
+}
+
+export interface LoginResult {
+  token: string
+  user: AuthUser
+}
+
 export interface UserAccount {
   id: string
   name: string
