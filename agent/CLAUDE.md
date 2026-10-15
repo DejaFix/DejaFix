@@ -1,5 +1,7 @@
 # agent — AI Agent (FastAPI :8100, 내부 전용)
 
+> 내 라벨: to-agent. 작업 시작 시 `gh issue list --label to-agent --state open` 부터 확인 (`docs/agent-collaboration.md`)
+
 주담당 팀장 · 부담당 DB·메일 담당. 규칙 계열(검증·티어·fallback·회귀 세트)은 DB·메일 담당, MCP 접점(클라이언트·고정 수집)은 Zabbix·MCP 담당이 나눠 짓되 PR 승인은 팀장(`docs/work-order.md` W1 Agent).
 먼저 읽을 것: 루트 `CLAUDE.md` → `docs/mvp-checklist.md` "Agent" → `contracts/agent-api.md`·`contracts/mcp-tools.md`·`contracts/db-schema.sql` → `packs/it/`.
 
