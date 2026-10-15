@@ -19,7 +19,7 @@ problems = client.call("problem.get", {"output": "extend", "recent": True})  # J
 |---|---|
 | `ZABBIX_URL` | `.../api_jsonrpc.php` 주소. 실서버 모드에서 필수 |
 | `ZABBIX_API_TOKEN` | 읽기 전용 계정의 API 토큰. 실서버 모드에서 필수(값은 `.env`에만) |
-| `ZABBIX_VERIFY_TLS` | `false`면 TLS 인증서 검사를 끈다. 기본 `true` |
+| `ZABBIX_VERIFY_TLS` | `false`·`0`·`no`·`off`면 TLS 인증서 검사를 끈다. 비워 두면 `true`(검사 켬). **모르는 값(오타)은 검사를 켠 채로 두고 `call()`이 `ZabbixError`** — `ture` 한 글자로 검사가 조용히 꺼지지 않게 한다 |
 | `ZABBIX_MOCK` | `true`면 네트워크 없이 fixture 를 돌려준다. URL·토큰이 없어도 된다 |
 
 ## 허용 메서드 (13개)
