@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dejafix/contracts/incident-v0",
+  "title": "Incident",
+  "description": "표준 Incident 형식 (기획서 5-5, DR-018). #10 목록의 항목이자 #11 상세의 incident 객체. analysis 는 저장 컬럼이 아니라 Backend 가 shared.db 를 JOIN 해 채운다.",
+  "type": "object",
+  "required": [
+    "id",
+    "source",
+    "zabbix",
+    "host",
+    "title",
+    "severity",
+    "status",
+    "started_at",
+    "resolved_at",
+    "tags",
+    "analysis"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "integer" },
+    "source": { "const": "zabbix" },
+    "zabbix": {
+      "type": "object",
+      "required": ["eventid", "triggerid", "hostid"],
+      "additionalProperties": false,
+      "properties": {
+        "eventid": { "type": "string" },
+        "triggerid": { "type": "string" },
+        "hostid": {
+          "type": ["string", "null"],
+          "description": "Scheduler 가 trigger.get 으로 호스트를 보강하기 전에는 null (db-schema.sql hostid 는 NOT NULL 아님)"
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "description": "호스트 보강 전에는 id·name 이 null 일 수 있다. 프론트는 UnknownValue 로 표시",
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] }
+      }
+    },
+    "title": { "type": "string" },
+    "severity": {
+      "type": "object",
+      "required": ["level", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "level": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "label": {
+          "enum": [
+            "Not classified",
+            "Information",
+            "Warning",
+            "Average",
+            "High",
+            "Disaster"
+          ]
+        }
+      }
+    },
+    "status": { "enum": ["problem", "resolved"] },
+    "started_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "resolved_at": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tag", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "tag": { "type": "string" },
+          "value": { "type": "string" }
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["status", "report_id", "plan_id"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["skipped", "pending", "running", "done", "fallback", "failed"] },
+        "report_id": { "type": ["integer", "null"] },
+        "plan_id": { "type": ["integer", "null"] }
+      }
+    }
+  }
+}
