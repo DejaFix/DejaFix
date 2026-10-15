@@ -1,5 +1,7 @@
 # mcp-zabbix — Zabbix 읽기 전용 MCP 서버 (streamable HTTP `:8200/mcp`, 내부 전용)
 
+> 내 라벨: to-mcp. 작업 시작 시 `gh issue list --label to-mcp --state open` 부터 확인 (`docs/agent-collaboration.md`)
+
 주담당 Zabbix·MCP 담당 · 부담당 DB·메일 담당.
 먼저 읽을 것: 루트 `CLAUDE.md` → `docs/mvp-checklist.md` "mcp-zabbix" → `contracts/mcp-tools.md` → `libs/zabbix_ro/CLAUDE.md`.
 
