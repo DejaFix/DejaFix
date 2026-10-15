@@ -342,6 +342,67 @@ def test_latest_report_version_wins(env, make_client, helpers):
     assert data["evidence"] == []  # 새 리포트의 run 에는 tool_calls 가 없다
 
 
+def _add_report_v2_and_plans(env, plans):
+    """장애 1 에 version 2 리포트(id 10)와 계획들을 넣는다. plans: [(id, report_id)]"""
+    import sqlite3
+
+    conn = sqlite3.connect(env.shared)
+    conn.execute(
+        "INSERT INTO agent_runs (id, kind, incident_id, caller, status, model,"
+        " started_at, finished_at) VALUES ('r_new', 'analyze', 1, 'backend', 'done',"
+        " NULL, '2026-10-15T02:00:00Z', '2026-10-15T02:00:30Z')"
+    )
+    conn.execute(
+        "INSERT INTO analysis_reports (id, incident_id, run_id, version, kind, summary,"
+        " created_at) VALUES (10, 1, 'r_new', 2, 'fallback', '다시 분석',"
+        " '2026-10-15T02:00:30Z')"
+    )
+    old_report = conn.execute(
+        "SELECT id FROM analysis_reports WHERE incident_id = 1 AND version = 1"
+    ).fetchone()[0]
+    for plan_id, report_id in plans:
+        conn.execute(
+            "INSERT INTO change_plans (id, incident_id, report_id, run_id, title,"
+            " max_tier, created_at) VALUES (?, 1, ?, 'r_new', ?, 'A',"
+            " '2026-10-15T02:00:40Z')",
+            (
+                plan_id,
+                old_report if report_id == "old" else report_id,
+                f"계획 {plan_id}",
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_plan_follows_the_shown_report_not_the_newest_plan_id(
+    env, make_client, helpers
+):
+    """API 11번 계획 선택 기준: change_plans.report_id = 응답의 report.id 를 우선한다."""
+    client = make_client(seeded=True)
+    # 새 리포트(10)의 계획은 50, 그보다 id 가 큰 60 은 옛 리포트의 계획
+    _add_report_v2_and_plans(env, [(50, 10), (60, "old")])
+    headers = helpers.login(client, "oncall", helpers.oncall_password)
+    data = client.get("/api/incidents/1", headers=headers).json()["data"]
+    assert data["report"]["id"] == 10
+    assert data["plan"]["id"] == 50
+    assert data["incident"]["analysis"]["plan_id"] == 50
+
+    listed = client.get("/api/incidents", headers=headers).json()["data"]
+    row = next(i for i in listed if i["id"] == 1)
+    assert row["analysis"]["plan_id"] == 50  # 목록(API 10번)도 같은 기준
+
+
+def test_plan_falls_back_to_latest_when_report_has_none(env, make_client, helpers):
+    """새 리포트에 딸린 계획이 없으면 그 장애의 최신 계획을 쓴다."""
+    client = make_client(seeded=True)
+    _add_report_v2_and_plans(env, [(60, "old")])
+    headers = helpers.login(client, "oncall", helpers.oncall_password)
+    data = client.get("/api/incidents/1", headers=headers).json()["data"]
+    assert data["report"]["id"] == 10
+    assert data["plan"]["id"] == 60
+
+
 # ---------------------------------------------------------------- 변환표 단위 검증
 
 
