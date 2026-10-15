@@ -56,7 +56,14 @@ class ZabbixRoSource:
         factory = getattr(zabbix_ro, "from_env", None)
         if factory is None:
             raise SourceUnavailable("libs/zabbix_ro 클라이언트 미구현 (T30)")
-        return cls(factory())
+        try:
+            return cls(factory())
+        except (
+            Exception
+        ) as exc:  # 설정 누락 등 — 기동은 계속하고 매 주기 error 로 남긴다
+            raise SourceUnavailable(
+                f"libs/zabbix_ro 클라이언트를 만들 수 없음: {type(exc).__name__}"
+            ) from exc
 
     def problems(self) -> list[dict[str, Any]]:
         result = self.client.call(

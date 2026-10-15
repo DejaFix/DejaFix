@@ -174,15 +174,31 @@ def test_rows_map_to_incident_schema(conn, data):
         jsonschema.validate(inc, schema)
 
 
-def test_make_source_mock_and_unavailable(tmp_path):
+@pytest.fixture
+def no_zabbix_env(monkeypatch):
+    """실서버 모드인데 URL·토큰이 비어 있는 상태."""
+    monkeypatch.setenv("ZABBIX_MOCK", "false")
+    for key in ("ZABBIX_URL", "ZABBIX_API_TOKEN"):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_make_source_mock_and_unavailable(no_zabbix_env):
     assert isinstance(make_source(True, DEFAULT_MOCK_FILE), MockSource)
-    real = make_source(
-        False, DEFAULT_MOCK_FILE
-    )  # libs/zabbix_ro 미구현이면 Unavailable
-    try:
+    real = make_source(False, DEFAULT_MOCK_FILE)  # 만들 때는 예외 없이 돌아와야 한다
+    # libs/zabbix_ro 미구현이면 SourceUnavailable, 구현 후(PR #64) 설정이 비면 zabbix_ro 오류.
+    # 어느 쪽이든 폴링 한 주기가 잡아 error 로 남긴다 (아래 테스트).
+    with pytest.raises(Exception):
         real.problems()
-    except SourceUnavailable:
-        pass
+
+
+def test_real_mode_without_config_keeps_running(conn, no_zabbix_env):
+    # FR-SCH-004: 실서버 설정이 비어 있어도 죽지 않고 error 를 남긴 뒤 다음 주기로 간다
+    src = make_source(False, DEFAULT_MOCK_FILE)
+    r1 = poll_once(conn, src, NOW)
+    r2 = poll_once(conn, src, NOW.replace(second=59))
+    assert not r1.ok and not r2.ok
+    _, last_ok, status, message = job(conn)
+    assert status == "error" and last_ok is None and message
 
 
 def test_run_applies_schema_and_writes_job(tmp_path):
