@@ -17,7 +17,10 @@ export function EChart({ option, tall = false }: { option: EChartsCoreOption; ta
     chart.setOption(option)
     const ro = new ResizeObserver(() => chart.resize())
     ro.observe(el)
-    return () => { ro.disconnect(); chart.dispose() }
+    return () => {
+      ro.disconnect()
+      chart.dispose()
+    }
   }, [option])
   return <div ref={ref} className={`chart ${tall ? 'tall' : ''}`} />
 }

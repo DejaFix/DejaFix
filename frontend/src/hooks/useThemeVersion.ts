@@ -9,7 +9,10 @@ export function useThemeVersion(): number {
     mq.addEventListener('change', bump)
     const mo = new MutationObserver(bump)
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => { mq.removeEventListener('change', bump); mo.disconnect() }
+    return () => {
+      mq.removeEventListener('change', bump)
+      mo.disconnect()
+    }
   }, [])
   return version
 }

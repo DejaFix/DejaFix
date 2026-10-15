@@ -16,7 +16,8 @@ export function EvidenceTrace({ calls }: { calls: EvidenceCall[] }) {
         <div className="evidence-body">
           {calls.map((c, i) => (
             <div className="evidence-item" key={i}>
-              <strong>{c.tool}</strong><span className="evidence-ms">{c.ms}ms</span>
+              <strong>{c.tool}</strong>
+              <span className="evidence-ms">{c.ms}ms</span>
               <code className="evidence-cmd">{c.command}</code>
               <div className="evidence-result">{c.result}</div>
             </div>

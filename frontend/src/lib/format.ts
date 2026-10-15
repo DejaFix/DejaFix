@@ -1,6 +1,12 @@
 import type { Risk, Role, Severity, Verdict } from './types'
 
-export const severityLabel: Record<Severity, string> = { info: '정보', warning: '경고', average: '보통', high: '높음', disaster: '심각' }
+export const severityLabel: Record<Severity, string> = {
+  info: '정보',
+  warning: '경고',
+  average: '보통',
+  high: '높음',
+  disaster: '심각',
+}
 export const riskLabel: Record<Risk, string> = { low: '낮음', medium: '보통', high: '높음' }
 export const verdictLabel: Record<Verdict, string> = { confirmed: '확인됨', refuted: '반증됨', unknown: '판단 불가' }
 

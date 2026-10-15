@@ -1,0 +1,5 @@
+# git blame에서 건너뛸 포맷 전용 커밋 (GitHub blame은 자동 적용)
+# 로컬: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(frontend): prettier로 frontend/src 일괄 포맷 (로직 변경 없음)
+9c811ef2d8006756f9907679799dd94ca95273fb
