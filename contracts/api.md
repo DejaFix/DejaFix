@@ -105,13 +105,14 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
   "data": {
     "zabbix": "ok", "agent": "ok", "mcp_zabbix": "down",
     "shared_db": "waiting", "backend_db": "ok",
-    "scheduler_last_ok": "2026-10-16T01:20:30Z"
+    "scheduler": "ok", "scheduler_last_ok": "2026-10-16T01:20:30Z"
   },
   "meta": { "checked_at": "2026-10-16T01:20:41Z" }
 }
 ```
-- 값은 `"ok" | "down"`. `shared_db` 만 `"waiting"` 이 더해진다(shared.db 파일이 아직 없음, 요청마다 재시도).
+- 값은 `"ok" | "down"`. `shared_db` 만 `"waiting"`(shared.db 파일이 아직 없음, 요청마다 재시도), `scheduler` 만 `"stale"` 이 더해진다.
 - `scheduler_last_ok` = `shared.scheduler_jobs` 의 `job='poll_problems'` `last_ok_at`. 기록이 없거나 shared.db 가 없으면 `null`.
+- `scheduler` = 수집기가 살아 있는지의 판정. 응답을 만드는 시각과 `scheduler_last_ok` 의 차이가 **`SCHEDULER_STALE_SEC` 이내면 `"ok"`**, 그보다 오래됐으면 `"stale"`(수집이 멈춘 것으로 본다), `scheduler_last_ok` 가 `null` 이면 `"down"`. `SCHEDULER_STALE_SEC` 기본값은 **90**(폴링 주기 `INCIDENT_POLL_SEC=30` × 3)이다. 화면은 이 값으로 "수집 중단" 배너를 띄운다.
 
 ### #5 `GET /api/dashboard/summary`
 
@@ -178,10 +179,12 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
       "analysis": { "status": "done", "report_id": 31, "plan_id": 18 }
     }
   ],
-  "meta": { "next_cursor": null }
+  "meta": { "next_cursor": null, "data_as_of": "2026-10-16T01:20:30Z", "stale": false }
 }
 ```
 - `status` = `problem | resolved`, `severity_min` 0~5. 잘못된 `cursor` → 422.
+- `meta.data_as_of` = 이 목록의 원천인 마지막 수집 성공 시각(#4 의 `scheduler_last_ok` 와 같은 값, 기록이 없으면 `null`). 화면은 "n초 전 갱신"으로 보여 준다.
+- `meta.stale` = `true` 면 마지막 수집이 `SCHEDULER_STALE_SEC`(#4 참조)보다 오래됐거나 기록이 없다(= #4 의 `scheduler` 가 `"ok"` 가 아님). 목록 자체는 그대로 내려가며, 화면이 "수집 중단" 배너를 붙인다. 두 필드는 모든 쪽(`cursor` 로 넘긴 다음 쪽 포함)에 들어간다.
 - 장애는 `shared.incidents`, `analysis` 는 장애마다 **가장 최근 `kind='analyze'` run** 과 **최신 version 리포트**, 그 리포트의 계획(아래 #11 계획 선택 기준)을 JOIN 해 채운다. `report_id`·`plan_id` 가 없으면 `null`.
 - 호스트 보강(Scheduler 의 `trigger.get selectHosts`, FR-SCH-003) 전에는 `host.id`·`host.name`·`zabbix.hostid` 가 `null` 일 수 있다. 프론트는 `UnknownValue` 로 표시한다.
 
