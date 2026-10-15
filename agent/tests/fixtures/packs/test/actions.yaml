@@ -1,0 +1,23 @@
+default_tier: C
+actions:
+  - id: t_look
+    title: 시험 조회
+    tier: A
+    command_preview: {default: "look"}
+  - id: t_tweak
+    title: 시험 변경
+    tier: B
+    command_preview: {default: "tweak"}
+    precheck: 시험 사전 확인
+    rollback: 시험 되돌리기
+  - id: t_tweak_norollback
+    title: 롤백 없는 시험 변경
+    tier: B
+    command_preview: {default: "tweak2"}
+    precheck: 시험 사전 확인
+  - id: t_smash
+    title: 시험 금지 동작
+    tier: C
+    command_preview: {default: "smash"}
+fallback_plans:
+  heat: [t_look, t_tweak]

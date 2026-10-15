@@ -17,6 +17,24 @@ members = [
 name = "agent"
 version = "0.1.0"
 source = { editable = "agent" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "jsonschema" },
+    { name = "pyyaml" },
+    { name = "shared-db" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.143.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "shared-db", editable = "libs/shared_db" },
+    { name = "uvicorn", specifier = ">=0.54.0" },
+]
 
 [[package]]
 name = "annotated-doc"
