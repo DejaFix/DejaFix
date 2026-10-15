@@ -228,11 +228,36 @@ def test_token_is_not_in_error_messages():
 
 
 @pytest.mark.parametrize("missing", ["ZABBIX_URL", "ZABBIX_API_TOKEN"])
-def test_real_mode_requires_url_and_token(missing):
+def test_missing_url_or_token_fails_at_call_not_at_creation(missing):
+    """Issue #52: Scheduler 는 호출 오류를 잡아 다음 주기에 재시도한다. 만들 때 죽으면 안 된다."""
     env = {"ZABBIX_URL": URL, "ZABBIX_API_TOKEN": TOKEN, "ZABBIX_MOCK": "false"}
     env[missing] = ""
+    rec = Recorder()
+    client = from_env(env, transport=rec.transport())  # 예외 없이 만들어진다
+    assert client.configured is False
     with pytest.raises(ZabbixError, match=missing):
-        from_env(env)
+        client.call("problem.get", {})
+    assert rec.requests == []  # 요청은 나가지 않았다
+
+
+def test_empty_environment_creates_client_without_raising():
+    client = from_env({})
+    assert client.mock is False and client.configured is False
+    with pytest.raises(ZabbixRoError):
+        client.call("problem.get", {})
+
+
+@pytest.mark.safety_regression
+def test_allowlist_is_checked_before_missing_config():
+    """설정이 비어 있어도 쓰기 메서드는 MethodNotAllowed 가 먼저다."""
+    with pytest.raises(MethodNotAllowed):
+        from_env({}).call("host.update", {})
+
+
+def test_configured_flag():
+    assert from_env({"ZABBIX_MOCK": "true"}).configured is True
+    full = {"ZABBIX_URL": URL, "ZABBIX_API_TOKEN": TOKEN}
+    assert from_env(full, transport=Recorder().transport()).configured is True
 
 
 def test_mock_mode_needs_no_url_or_token():

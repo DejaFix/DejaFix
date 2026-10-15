@@ -34,6 +34,8 @@ problems = client.call("problem.get", {"output": "extend", "recent": True})  # J
 |---|---|
 | `zabbix_ro.MethodNotAllowed` | 허용 목록 밖 메서드 (요청 전) |
 | `zabbix_ro.ZabbixError` | URL·토큰 누락, 연결 실패, 타임아웃, HTTP 오류, JSON-RPC `error` 응답 (`.code`·`.data`) |
+
+- `from_env()`는 **항상 예외 없이** 클라이언트를 만든다. 실서버 모드에서 URL·토큰이 비어 있으면 `call()`이 요청을 보내기 전에 `ZabbixError`를 던진다. 그래서 Scheduler처럼 호출 오류를 잡아 다음 주기에 재시도하는 쪽은 토큰이 오기 전에도 죽지 않는다(Issue #52). 설정 여부는 `client.configured`로 확인할 수 있다.
 | `zabbix_ro.ZabbixRoError` | 위 둘의 부모. 한 번에 잡을 때 |
 
 ## 목 모드 (fixture)

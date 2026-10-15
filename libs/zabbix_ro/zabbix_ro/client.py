@@ -65,16 +65,17 @@ class ZabbixRoClient:
         self._token = token
         self._ids = itertools.count(1)
         self._http: httpx.Client | None = None
-        if not mock:
-            if not url:
-                raise ZabbixError("ZABBIX_URL 이 비어 있습니다 (ZABBIX_MOCK=false)")
-            if not token:
-                raise ZabbixError(
-                    "ZABBIX_API_TOKEN 이 비어 있습니다 (ZABBIX_MOCK=false)"
-                )
+        # URL·토큰이 비어 있어도 만들기는 성공한다. 호출 시점에 ZabbixError 를 던져
+        # 호출자(Scheduler 폴링 등)가 그 주기를 오류로 기록하고 다음 주기에 다시 시도할 수 있게 한다.
+        if not mock and url and token:
             self._http = httpx.Client(
                 verify=verify_tls, timeout=timeout, transport=transport
             )
+
+    @property
+    def configured(self) -> bool:
+        """목 모드이거나 URL·토큰이 모두 있으면 True."""
+        return self.mock or self._http is not None
 
     def call(self, method: str, params: Mapping[str, Any] | None = None) -> Any:
         if method not in ALLOWED_METHODS:
@@ -82,6 +83,10 @@ class ZabbixRoClient:
         params = dict(params or {})
         if self.mock:
             return mock_result(method, params)
+        if not self.url:
+            raise ZabbixError("ZABBIX_URL 이 비어 있습니다 (ZABBIX_MOCK=false)")
+        if not self._token:
+            raise ZabbixError("ZABBIX_API_TOKEN 이 비어 있습니다 (ZABBIX_MOCK=false)")
         return self._request(method, params)
 
     def _request(self, method: str, params: dict[str, Any]) -> Any:
@@ -140,7 +145,7 @@ def from_env(
 ) -> ZabbixRoClient:
     """ZABBIX_URL·ZABBIX_API_TOKEN·ZABBIX_VERIFY_TLS·ZABBIX_MOCK 로 클라이언트를 만든다.
 
-    ZABBIX_MOCK=true 면 URL·토큰 없이도 만들어진다. 아니면 둘 다 있어야 하고, 없으면 ZabbixError.
+    항상 만들어진다(예외 없음). 실서버 모드에서 URL·토큰이 비어 있으면 call() 이 요청 전에 ZabbixError 를 던진다.
     """
     env = os.environ if env is None else env
     return ZabbixRoClient(
