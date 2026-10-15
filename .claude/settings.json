@@ -18,7 +18,13 @@
       "Bash(git push origin feat/*)",
       "Bash(docker compose * ps)",
       "Bash(docker compose * logs *)",
-      "Bash(docker compose * build *)"
+      "Bash(docker compose * build *)",
+      "Bash(gh issue list*)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue edit * --add-label *)",
+      "Bash(gh label list*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -31,7 +37,10 @@
       "Bash(git push origin dev*)",
       "Bash(git reset --hard*)",
       "Bash(rm -rf*)",
-      "Bash(docker system prune*)"
+      "Bash(docker system prune*)",
+      "Bash(gh issue close*)",
+      "Bash(gh issue delete*)",
+      "Bash(gh issue edit *--remove-label*needs-human*)"
     ]
   },
   "hooks": {
