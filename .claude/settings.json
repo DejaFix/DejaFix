@@ -24,7 +24,9 @@
       "Bash(gh issue comment *)",
       "Bash(gh issue create *)",
       "Bash(gh issue edit * --add-label *)",
-      "Bash(gh label list*)"
+      "Bash(gh label list*)",
+      "Bash(gh pr review *)",
+      "Bash(gh pr merge * --auto --squash*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -40,7 +42,8 @@
       "Bash(docker system prune*)",
       "Bash(gh issue close*)",
       "Bash(gh issue delete*)",
-      "Bash(gh issue edit *--remove-label*needs-human*)"
+      "Bash(gh issue edit *--remove-label*needs-human*)",
+      "Bash(gh pr merge *--admin*)"
     ]
   },
   "hooks": {
@@ -49,6 +52,12 @@
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-env.mjs\"", "timeout": 10 }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-merge.mjs\"", "timeout": 30 }
         ]
       }
     ],
