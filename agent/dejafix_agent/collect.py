@@ -73,6 +73,16 @@ def _new_ev() -> str:
     return "ev_" + uuid.uuid4().hex[:10]
 
 
+def _result_count(data: Any) -> int:
+    """요약에 쓰는 결과 건수. 목록은 길이, 이력 객체({points: [...]})는 점 개수,
+    그 밖의 단건 객체는 1 (contracts/mcp-tools.md 3-5: get_history data 는 객체)."""
+    if isinstance(data, list):
+        return len(data)
+    if isinstance(data, dict) and isinstance(data.get("points"), list):
+        return len(data["points"])
+    return 1 if data else 0
+
+
 def _call(client: ToolClient, seq: int, tool: str, args: dict[str, Any]) -> ToolCall:
     called_at = iso(utcnow())
     start = time.monotonic()
@@ -84,8 +94,7 @@ def _call(client: ToolClient, seq: int, tool: str, args: dict[str, Any]) -> Tool
     ok = bool(result.get("ok"))
     data = result.get("data")
     if ok:
-        count = len(data) if isinstance(data, list) else (1 if data else 0)
-        summary = f"{tool} 성공, 결과 {count}건"
+        summary = f"{tool} 성공, 결과 {_result_count(data)}건"
         if result.get("truncated"):
             summary += " (잘림)"
     else:
