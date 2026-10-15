@@ -55,11 +55,11 @@ def test_insert_new_problems_with_host_in_same_cycle(conn, data):
     r = poll_once(conn, MockSource(data), NOW)
     assert r.ok and r.inserted == 2
     got = {row[0]: row for row in rows(conn)}
-    cpu = got["90001"]
+    cpu = got["30001"]
     assert cpu[1] == "problem" and cpu[5] is None
     assert (cpu[2], cpu[3]) == (
-        "10601",
-        "MOCK-PC-01",
+        "10001",
+        "demo-host",
     )  # FR-SCH-003: 같은 주기에 호스트 채움
     assert cpu[4] == "2026-10-15T01:20:00Z" and cpu[6] == 4
     assert json.loads(cpu[7]) == [{"tag": "scope", "value": "performance"}]
@@ -89,7 +89,7 @@ def test_problem_becomes_resolved(conn, data):
     later["problems"][0]["r_clock"] = "1792027500"
     r = poll_once(conn, MockSource(later), NOW)
     assert r.resolved == 1
-    cpu = {row[0]: row for row in rows(conn)}["90001"]
+    cpu = {row[0]: row for row in rows(conn)}["30001"]
     assert cpu[1] == "resolved" and cpu[5] == "2026-10-15T01:25:00Z"  # FR-SCH-002
 
 
