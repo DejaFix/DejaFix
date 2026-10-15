@@ -24,8 +24,16 @@ export default function Admin() {
   if (role !== 'admin') {
     return (
       <div className="page">
-        <div className="page-head"><h1 className="page-title">관리자</h1></div>
-        <div className="card empty"><div style={{ marginBottom: 12 }}><Icon name="admin" size={32} /></div><h2>관리자만 볼 수 있습니다</h2><p>사용자와 권한은 관리자 역할로 로그인했을 때만 열립니다.</p></div>
+        <div className="page-head">
+          <h1 className="page-title">관리자</h1>
+        </div>
+        <div className="card empty">
+          <div style={{ marginBottom: 12 }}>
+            <Icon name="admin" size={32} />
+          </div>
+          <h2>관리자만 볼 수 있습니다</h2>
+          <p>사용자와 권한은 관리자 역할로 로그인했을 때만 열립니다.</p>
+        </div>
       </div>
     )
   }
@@ -34,27 +42,65 @@ export default function Admin() {
 
   return (
     <div className="page">
-      <div className="page-head"><h1 className="page-title">관리자</h1><p className="page-sub">사용자의 역할과 상태를 확인합니다.</p></div>
-      <div className="note warn" style={{ marginBottom: 16 }}><Icon name="admin" size={16} />역할과 상태 변경은 이 화면에서만 반영되는 목업입니다. 실제 변경은 Backend 인증 API 연결 후 가능합니다.</div>
+      <div className="page-head">
+        <h1 className="page-title">관리자</h1>
+        <p className="page-sub">사용자의 역할과 상태를 확인합니다.</p>
+      </div>
+      <div className="note warn" style={{ marginBottom: 16 }}>
+        <Icon name="admin" size={16} />
+        역할과 상태 변경은 이 화면에서만 반영되는 목업입니다. 실제 변경은 Backend 인증 API 연결 후 가능합니다.
+      </div>
 
       <section className="card">
-        <div className="card-head"><h2 className="card-title">사용자</h2><span className="card-sub">{users.data?.length ?? 0}명</span></div>
-        {!users.data ? <div className="skeleton" /> : (
+        <div className="card-head">
+          <h2 className="card-title">사용자</h2>
+          <span className="card-sub">{users.data?.length ?? 0}명</span>
+        </div>
+        {!users.data ? (
+          <div className="skeleton" />
+        ) : (
           <div className="table-wrap">
             <table className="data">
-              <thead><tr><th>이름</th><th>아이디</th><th>역할</th><th>마지막 접속</th><th>상태</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>아이디</th>
+                  <th>역할</th>
+                  <th>마지막 접속</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
               <tbody>
                 {users.data.map((u) => (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.name}</td>
                     <td className="mono">{u.id}</td>
                     <td>
-                      <select className="select" aria-label={`${u.name} 역할`} value={roles[u.id] ?? u.role} onChange={(e) => setRoles((r) => ({ ...r, [u.id]: e.target.value as Role }))}>
-                        {(Object.keys(roleLabel) as Role[]).map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}
+                      <select
+                        className="select"
+                        aria-label={`${u.name} 역할`}
+                        value={roles[u.id] ?? u.role}
+                        onChange={(e) => setRoles((r) => ({ ...r, [u.id]: e.target.value as Role }))}
+                      >
+                        {(Object.keys(roleLabel) as Role[]).map((r) => (
+                          <option key={r} value={r}>
+                            {roleLabel[r]}
+                          </option>
+                        ))}
                       </select>
                     </td>
-                    <td className="mono" style={{ whiteSpace: 'nowrap' }}>{u.lastLogin}</td>
-                    <td><button className="switch" role="switch" aria-checked={active[u.id] ?? u.active} aria-label={`${u.name} 사용`} onClick={() => setActive((a) => ({ ...a, [u.id]: !(a[u.id] ?? u.active) }))} /></td>
+                    <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                      {u.lastLogin}
+                    </td>
+                    <td>
+                      <button
+                        className="switch"
+                        role="switch"
+                        aria-checked={active[u.id] ?? u.active}
+                        aria-label={`${u.name} 사용`}
+                        onClick={() => setActive((a) => ({ ...a, [u.id]: !(a[u.id] ?? u.active) }))}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -64,11 +110,29 @@ export default function Admin() {
       </section>
 
       <section className="card">
-        <div className="card-head"><h2 className="card-title">역할별 권한</h2></div>
+        <div className="card-head">
+          <h2 className="card-title">역할별 권한</h2>
+        </div>
         <div className="table-wrap">
           <table className="data">
-            <thead><tr><th>기능</th><th>{roleLabel.admin}</th><th>{roleLabel.operator}</th><th>{roleLabel.viewer}</th></tr></thead>
-            <tbody>{perms.map(([name, a, o, v]) => <tr key={name}><td>{name}</td><td>{mark(a)}</td><td>{mark(o)}</td><td>{mark(v)}</td></tr>)}</tbody>
+            <thead>
+              <tr>
+                <th>기능</th>
+                <th>{roleLabel.admin}</th>
+                <th>{roleLabel.operator}</th>
+                <th>{roleLabel.viewer}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {perms.map(([name, a, o, v]) => (
+                <tr key={name}>
+                  <td>{name}</td>
+                  <td>{mark(a)}</td>
+                  <td>{mark(o)}</td>
+                  <td>{mark(v)}</td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </section>

@@ -15,8 +15,18 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     setMessages((m) => [...m, { id: ++seq.current, role: 'user', text }])
     setPending(true)
     askAssistant(text)
-      .then((r) => setMessages((m) => [...m, { id: ++seq.current, role: 'ai', text: r.text, evidence: r.evidence, unknowns: r.unknowns }]))
-      .catch(() => setMessages((m) => [...m, { id: ++seq.current, role: 'ai', text: '응답을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.' }]))
+      .then((r) =>
+        setMessages((m) => [
+          ...m,
+          { id: ++seq.current, role: 'ai', text: r.text, evidence: r.evidence, unknowns: r.unknowns },
+        ]),
+      )
+      .catch(() =>
+        setMessages((m) => [
+          ...m,
+          { id: ++seq.current, role: 'ai', text: '응답을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.' },
+        ]),
+      )
       .finally(() => setPending(false))
   }, [])
 
