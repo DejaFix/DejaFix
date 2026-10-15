@@ -1,4 +1,4 @@
-"""요청 ID(`X-Request-Id`)와 접근 로그 — 모든 응답에 붙고, 로그에 비밀이 남지 않는다 (NFR-OBS-002)."""
+"""접근 로그 — 요청마다 한 줄, 비밀이 남지 않고, 응답 모양은 바뀌지 않는다 (NFR-OBS-003)."""
 
 import logging
 import re
@@ -14,50 +14,70 @@ def access_lines(caplog) -> list[str]:
     return [r.getMessage() for r in caplog.records if r.name == ACCESS]
 
 
-# ---------------------------------------------------------------- 응답 헤더
+def request_id_of(line: str) -> str:
+    return re.search(r"request_id=(\S+)", line).group(1)
 
 
-def test_every_kind_of_response_has_a_request_id(client, oncall):
-    responses = [
-        client.get("/healthz"),  # 200
-        client.get("/api/health", headers=oncall),  # 200
-        client.get("/api/health"),  # 401
-        client.get("/api/no-such-route", headers=oncall),  # 404
-        client.get("/api/incidents?limit=0", headers=oncall),  # 422
-        client.post("/api/auth/login", json={"username": "x", "password": "y"}),  # 401
-    ]
-    for response in responses:
-        assert ID_PATTERN.match(response.headers["x-request-id"]), response.status_code
+# ---------------------------------------------------------------- 접근 로그 한 줄
 
 
-def test_ids_differ_between_requests(client):
-    first = client.get("/healthz").headers["x-request-id"]
-    second = client.get("/healthz").headers["x-request-id"]
-    assert first != second
+def test_access_log_line_has_id_method_path_status_and_time(client, oncall, caplog):
+    caplog.set_level(logging.INFO, logger=ACCESS)
+    client.get("/api/health", headers=oncall)
+    lines = [line for line in access_lines(caplog) if "path=/api/health " in line]
+    assert len(lines) == 1
+    assert re.fullmatch(
+        r"access request_id=[0-9a-f]{32} method=GET path=/api/health status=200 ms=\d+",
+        lines[0],
+    )
 
 
-def test_sse_stream_response_has_a_request_id(client, oncall):
-    """Agent 가 없어 AGENT_UNAVAILABLE 오류 스트림이 나가는 경우에도 헤더가 붙는다."""
+def test_every_request_gets_its_own_id(client, caplog):
+    caplog.set_level(logging.INFO, logger=ACCESS)
+    client.get("/healthz")
+    client.get("/healthz")
+    ids = [request_id_of(line) for line in access_lines(caplog)]
+    assert len(ids) == 2 and ids[0] != ids[1]
+    assert all(ID_PATTERN.match(i) for i in ids)
+
+
+@pytest.mark.parametrize("url", ["/api/health", "/api/no-such-route"])
+def test_failed_requests_are_logged_with_their_real_status(client, caplog, url):
+    """토큰 없음(401)·없는 경로 같은 실패도 응답의 실제 상태 코드로 남는다."""
+    caplog.set_level(logging.INFO, logger=ACCESS)
+    response = client.get(url)
+    assert response.status_code >= 400
+    lines = [line for line in access_lines(caplog) if f"path={url} " in line]
+    assert len(lines) == 1 and f"status={response.status_code} " in lines[0]
+
+
+def test_sse_chat_is_logged_when_the_stream_ends(client, oncall, caplog):
+    """Agent 가 없어 오류 스트림이 나가는 경우에도 접근 로그가 남는다 (스트림 버퍼링 없이)."""
+    caplog.set_level(logging.INFO, logger=ACCESS)
     response = client.post("/api/chat", headers=oncall, json={"message": "안녕"})
     assert response.headers["content-type"].startswith("text/event-stream")
-    assert ID_PATTERN.match(response.headers["x-request-id"])
+    assert any("path=/api/chat status=200" in line for line in access_lines(caplog))
 
 
-def test_a_safe_incoming_id_is_kept(client):
-    response = client.get("/healthz", headers={"X-Request-Id": "demo-rehearsal_01.a"})
-    assert response.headers["x-request-id"] == "demo-rehearsal_01.a"
+# ---------------------------------------------------------------- 응답은 바뀌지 않는다
 
 
-@pytest.mark.parametrize(
-    "bad", ["has space", "x" * 65, "<script>alert(1)</script>", "a,b"]
-)
-def test_an_unsafe_incoming_id_is_replaced(client, bad):
-    response = client.get("/healthz", headers={"X-Request-Id": bad})
-    assert response.headers["x-request-id"] != bad
-    assert ID_PATTERN.match(response.headers["x-request-id"])
+def test_responses_do_not_carry_a_request_id_header_or_cors_exposure(client):
+    """요청 ID 는 로그 안에서만 쓴다 — 계약에 없는 응답 헤더·CORS 노출을 만들지 않는다."""
+    response = client.get("/healthz", headers={"Origin": "http://localhost:5173"})
+    assert "x-request-id" not in response.headers
+    assert (
+        "x-request-id"
+        not in response.headers.get("access-control-expose-headers", "").lower()
+    )
 
 
-def test_unhandled_error_is_500_without_details_but_with_the_id(client, caplog):
+# ---------------------------------------------------------------- 처리 안 된 오류 (500)
+
+
+def test_unhandled_error_is_500_without_details_and_its_log_lines_pair_up(
+    client, caplog
+):
     def boom():
         raise RuntimeError("secret-stack-detail")
 
@@ -68,48 +88,19 @@ def test_unhandled_error_is_500_without_details_but_with_the_id(client, caplog):
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "INTERNAL_ERROR"
     assert "secret-stack-detail" not in response.text  # 스택·예외 내용은 응답에 없다
-    request_id = response.headers["x-request-id"]
-    assert ID_PATTERN.match(request_id)
-    lines = access_lines(caplog)
+    assert "x-request-id" not in response.headers
+
+    boom_lines = [line for line in access_lines(caplog) if "path=/__boom" in line]
+    assert len(boom_lines) == 1 and "status=500" in boom_lines[0]
+    request_id = request_id_of(boom_lines[0])
+    # 서버 오류 로그의 같은 ID 로 짝을 찾을 수 있다
     assert any(
-        f"request_id={request_id}" in line and "status=500" in line for line in lines
-    )
-    # 서버 로그의 오류 줄에서 같은 ID 로 찾을 수 있다
-    assert any(
-        f"request_id={request_id}" in r.getMessage() and r.name == "dejafix.backend"
+        r.name == "dejafix.backend" and f"request_id={request_id}" in r.getMessage()
         for r in caplog.records
     )
 
 
-def test_cors_exposes_the_request_id_header_to_the_browser(client):
-    response = client.get("/healthz", headers={"Origin": "http://localhost:5173"})
-    assert "x-request-id" in response.headers["access-control-expose-headers"].lower()
-
-
-def test_cors_preflight_also_carries_the_id(client):
-    response = client.options(
-        "/api/health",
-        headers={
-            "Origin": "http://localhost:5173",
-            "Access-Control-Request-Method": "GET",
-            "Access-Control-Request-Headers": "authorization",
-        },
-    )
-    assert ID_PATTERN.match(response.headers["x-request-id"])
-
-
-# ---------------------------------------------------------------- 접근 로그
-
-
-def test_access_log_line_has_id_method_path_status_and_time(client, oncall, caplog):
-    caplog.set_level(logging.INFO, logger=ACCESS)
-    response = client.get("/api/health", headers=oncall)
-    request_id = response.headers["x-request-id"]
-    line = next(text for text in access_lines(caplog) if request_id in text)
-    assert re.fullmatch(
-        rf"access request_id={request_id} method=GET path=/api/health status=200 ms=\d+",
-        line,
-    )
+# ---------------------------------------------------------------- 비밀은 로그에 남지 않는다
 
 
 @pytest.mark.safety_regression
@@ -147,7 +138,7 @@ def test_control_characters_in_the_path_cannot_forge_log_lines(client, caplog):
     assert not any(line.startswith("access request_id=forged") for line in lines)
 
 
-def test_failed_request_is_logged_with_its_status(client, caplog):
-    caplog.set_level(logging.INFO, logger=ACCESS)
-    client.get("/api/health")  # 토큰 없음
-    assert any("path=/api/health status=401" in line for line in access_lines(caplog))
+@pytest.mark.safety_regression
+def test_uvicorn_access_log_that_prints_the_query_string_is_switched_off(client):
+    """uvicorn 기본 access log 는 `GET /path?cursor=… HTTP/1.1` 처럼 쿼리를 그대로 찍는다 — 앱이 끈다."""
+    assert logging.getLogger("uvicorn.access").disabled is True
