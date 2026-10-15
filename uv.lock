@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.12.*"
 
 [manifest]
@@ -21,6 +21,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "jsonschema" },
+    { name = "mcp" },
     { name = "pyyaml" },
     { name = "shared-db" },
     { name = "uvicorn" },
@@ -31,6 +32,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.143.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsonschema", specifier = ">=4.26.0" },
+    { name = "mcp", specifier = ">=2.3.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "shared-db", editable = "libs/shared_db" },
     { name = "uvicorn", specifier = ">=0.54.0" },
