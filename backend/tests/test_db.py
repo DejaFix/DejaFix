@@ -2,8 +2,8 @@ import sqlite3
 
 import pytest
 
-from dejafix_backend.config import get_settings
-from dejafix_backend.db import init_backend_db, open_db, split_zones
+from dejafix_backend.config import ROOT, Settings, get_settings
+from dejafix_backend.db import db_file, init_backend_db, open_db, split_zones
 
 
 def test_attach_write_is_rejected(env, helpers):
@@ -100,3 +100,28 @@ def test_split_zones_matches_team_schema(helpers):
     assert "CREATE TABLE IF NOT EXISTS incidents" in zones["shared"]
     assert "CREATE TABLE IF NOT EXISTS users" in zones["backend"]
     assert "CREATE TABLE IF NOT EXISTS incidents" not in zones["backend"]
+
+
+def test_relative_db_path_is_repo_root_not_cwd(tmp_path, monkeypatch):
+    """#75: 상대 DB 경로는 실행 위치(cwd)와 무관하게 저장소 루트 기준."""
+    monkeypatch.chdir(tmp_path)
+    assert db_file("data/backend.db") == (ROOT / "data" / "backend.db").resolve()
+    monkeypatch.chdir(ROOT / "backend")
+    assert db_file("data/backend.db") == (ROOT / "data" / "backend.db").resolve()
+
+
+def test_env_file_is_repo_root():
+    """#75: backend/ 에서 실행해도 루트 .env 를 읽는다."""
+    assert Settings.model_config["env_file"] == ROOT / ".env"
+
+
+def test_missing_absolute_db_folder_fails_without_creating(env, monkeypatch, tmp_path):
+    """#75: 절대 경로의 부모 폴더가 없으면 빈 DB 를 만들지 않고 경로를 알리며 실패."""
+    missing = tmp_path / "nope" / "backend.db"
+    monkeypatch.setenv("BACKEND_DB_PATH", str(missing))
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="backend.db 폴더가 없습니다"):
+        open_db(get_settings())
+    with pytest.raises(RuntimeError, match="nope"):
+        init_backend_db(get_settings())
+    assert not missing.parent.exists()

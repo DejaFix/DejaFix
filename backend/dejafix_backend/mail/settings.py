@@ -2,11 +2,13 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from dejafix_backend.config import ROOT
+
 MAX_ATTEMPTS = 3  # FR-MAIL-004: 3회 재시도 후 failed
 
 
 class MailSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
 
     # DB 경로는 Backend 설정(dejafix_backend.config)을 그대로 쓴다.
     mail_provider: str = "console"  # console | smtp | sendgrid
