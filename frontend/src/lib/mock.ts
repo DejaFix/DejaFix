@@ -992,7 +992,7 @@ export const incidentDetails: Record<number, IncidentDetail> = {
       impact: {
         hosts: ['LAB-PC-08'],
         services: [],
-        user_impact: '확인할 수 없음',
+        user_impact: null,
         evidence_ids: ['ev_b1'],
       },
       causes: [],

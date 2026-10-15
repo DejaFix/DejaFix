@@ -24,7 +24,8 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler
 }
 
-function handleUnauthorized(): void {
+/** 인증이 필요한 요청이 401을 받았을 때 토큰을 지우고 로그아웃한다. 채팅 스트림(lib/chat.ts)도 쓴다. */
+export function handleUnauthorized(): void {
   // 여러 요청이 동시에 401을 받아도 로그아웃은 한 번만: 이미 토큰이 지워졌으면 아무것도 하지 않는다.
   if (!tokenStorage.get()) return
   tokenStorage.clear()
