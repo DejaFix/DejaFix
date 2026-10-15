@@ -71,7 +71,10 @@ export function Layout() {
           <span className="brand-mark">
             <Icon name="logo" size={18} />
           </span>
-          DejaFix
+          <span>
+            DejaFix
+            <small className="brand-sub">Zabbix AI</small>
+          </span>
         </div>
         {items.map((n) => (
           <NavLink

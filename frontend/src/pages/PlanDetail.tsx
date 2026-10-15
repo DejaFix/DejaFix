@@ -6,7 +6,7 @@ import type { PlanStatus } from '../lib/types'
 import { RiskBadge } from '../components/Chips'
 import { Icon } from '../components/Icon'
 import { useAuth } from '../state/auth'
-import { statusText } from './Plans'
+import { statusText } from '../lib/planStatus'
 
 export default function PlanDetail() {
   const { id = '' } = useParams()
