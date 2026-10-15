@@ -26,6 +26,10 @@ class Settings(BaseSettings):
 
     # 외부 서비스
     zabbix_mock: bool = True
+    # ZABBIX_MOCK=false 일 때 libs/zabbix_ro 가 쓴다. 토큰은 .env 에만 둔다(코드·로그·응답에 쓰지 않음)
+    zabbix_url: str = ""
+    zabbix_api_token: str = ""
+    zabbix_verify_tls: str = ""
     agent_url: str = "http://agent:8100"
     mcp_zabbix_url: str = "http://mcp-zabbix:8200/mcp"
     internal_token: str = ""

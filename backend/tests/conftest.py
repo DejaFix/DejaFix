@@ -83,6 +83,10 @@ def env(tmp_path, monkeypatch):
         "SHARED_DB_PATH": str(tmp_path / "shared.db"),
         "DB_SCHEMA_PATH": str(SCHEMA),
         "ZABBIX_MOCK": "true",
+        # 저장소 루트의 로컬 .env 에 실서버 값이 있어도 테스트가 실제 Zabbix 를 부르지 않게 비워 둔다
+        "ZABBIX_URL": "",
+        "ZABBIX_API_TOKEN": "",
+        "ZABBIX_VERIFY_TLS": "",
         "AGENT_URL": "http://127.0.0.1:9",
         "MCP_ZABBIX_URL": "http://127.0.0.1:9/mcp",
         "INTERNAL_TOKEN": "",

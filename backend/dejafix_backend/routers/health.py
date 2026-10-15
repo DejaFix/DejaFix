@@ -1,7 +1,8 @@
 """#4 GET /api/health  (T31)
 
 구성요소가 죽어도 200 으로 상태만 알려 준다. 값은 "ok" | "down", shared_db 만 "waiting" 이 추가된다.
-zabbix 는 libs/zabbix_ro(T30) 연결 전까지 ZABBIX_MOCK 값으로만 판단한다. (TODO: T30 에서 apiinfo.version 로 교체)
+zabbix 는 ZABBIX_MOCK=true 면 "ok", 아니면 libs/zabbix_ro 로 apiinfo.version 을 불러 본다.
+Zabbix 가 느려도 health 가 같이 느려지지 않도록 3초 안에 답이 없으면 "down" 이다.
 """
 
 import asyncio
@@ -10,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
+import zabbix_ro
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 
@@ -20,6 +22,8 @@ from dejafix_backend.envelope import ok
 from dejafix_backend.timeutil import utc_now_iso
 
 router = APIRouter(tags=["health"])
+
+ZABBIX_HEALTH_TIMEOUT_SEC = 3.0
 
 
 def _db_status(settings: Settings) -> dict[str, Any]:
@@ -52,6 +56,36 @@ def _db_status(settings: Settings) -> dict[str, Any]:
     return result
 
 
+def _zabbix_status(settings: Settings) -> str:
+    """apiinfo.version 한 번(인증 없는 읽기). 토큰·URL 은 응답·로그에 남기지 않는다."""
+    if settings.zabbix_mock:
+        return "ok"
+    client = zabbix_ro.from_env(
+        {
+            "ZABBIX_MOCK": "false",
+            "ZABBIX_URL": settings.zabbix_url,
+            "ZABBIX_API_TOKEN": settings.zabbix_api_token,
+            "ZABBIX_VERIFY_TLS": settings.zabbix_verify_tls,
+        }
+    )
+    try:
+        with client:
+            version = client.call("apiinfo.version", {})
+    except zabbix_ro.ZabbixRoError:
+        return "down"
+    return "ok" if isinstance(version, str) and version else "down"
+
+
+async def _zabbix_probe(settings: Settings) -> str:
+    try:
+        return await asyncio.wait_for(
+            run_in_threadpool(_zabbix_status, settings),
+            timeout=ZABBIX_HEALTH_TIMEOUT_SEC,
+        )
+    except TimeoutError:
+        return "down"
+
+
 def _origin(url: str) -> str:
     """http://mcp-zabbix:8200/mcp -> http://mcp-zabbix:8200"""
     parts = urlsplit(url)
@@ -72,13 +106,14 @@ async def health(
     settings: Settings = Depends(get_settings),
 ):
     async with httpx.AsyncClient(timeout=1.0) as client:
-        agent, mcp, db_part = await asyncio.gather(
+        zabbix, agent, mcp, db_part = await asyncio.gather(
+            _zabbix_probe(settings),
             _probe(client, f"{_origin(settings.agent_url)}/healthz"),
             _probe(client, f"{_origin(settings.mcp_zabbix_url)}/healthz"),
             run_in_threadpool(_db_status, settings),
         )
     data = {
-        "zabbix": "ok" if settings.zabbix_mock else "down",
+        "zabbix": zabbix,
         "agent": agent,
         "mcp_zabbix": mcp,
         **db_part,
