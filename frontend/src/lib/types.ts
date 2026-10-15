@@ -154,7 +154,7 @@ export interface Cause {
 export interface ReportImpact {
   hosts: string[]
   services: string[]
-  user_impact: string
+  user_impact: string | null // fallback 리포트는 null일 수 있다(agent-api.md 리포트 스키마, db-schema.sql impact_json)
   evidence_ids: string[]
 }
 
