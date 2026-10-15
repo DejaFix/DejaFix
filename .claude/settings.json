@@ -26,6 +26,7 @@
       "Bash(gh issue edit * --add-label *)",
       "Bash(gh label list*)",
       "Bash(gh pr review *)",
+      "Bash(gh pr edit * --add-reviewer *)",
       "Bash(gh pr merge * --auto --squash*)"
     ],
     "deny": [

@@ -24,6 +24,7 @@
   - 훅(`guard-merge.mjs`)이 승인 부족으로 막으면 그대로 두고 다음 회차에 다시 본다. 우회하지 않는다.
 
 ## 3. 리뷰 요청된 PR — 직접 빌드·테스트 후 판정
+- 리뷰어가 없는 새 dev PR(`gh pr list --base dev --state open --json number,author,reviewRequests,reviews,files`)은 바뀐 경로 기준으로 담당자를 리뷰어로 배정한다(`gh pr edit <번호> --add-reviewer <계정>`, 작성자 본인 제외, `contracts/`는 소유자+소비자 1명) — `frontend/src/pages`·`components`·`styles`→bxbae, `backend/`·`libs/zabbix_ro/`·`contracts/api.md`·`incident.schema.json`→manjo2828-blip, `agent/`·`scheduler/`·`packs/it/actions.yaml`·`prompts/`·`contracts/db-schema.sql`·`agent-api.md`→NYejin, `mcp-zabbix/`·`infra/zabbix/`·`infra/scripts/`·`packs/it/metrics.yaml`·`contracts/mcp-tools.md`→2taeyoon·areatmadm, 루트·`.claude/`·`.github/`·`docs/`·`frontend/src/lib`·`state`·`mocks`→JangJaehyeonn(본인 PR이면 부담당 manjo2828-blip)
 - `gh pr list --search "review-requested:@me" --base dev --state open`
 - 내가 작성한 PR은 리뷰하지 않는다. `contracts/` PR은 계약 소유자이거나 소비자 파트일 때만 승인한다.
 - 하던 브랜치를 건드리지 않게 worktree에서 받는다.
