@@ -24,6 +24,25 @@ def test_classify_key(test_pack):
     assert test_pack.classify_key("unknown.key") is None
 
 
+def test_match_key_ranks(test_pack):
+    # 팩 키 probe.db[mic1]: 똑같으면 0, 이름만 같으면 2
+    assert test_pack.match_key("probe.db[mic1]") == ("noise", 0)
+    assert test_pack.match_key("probe.db[mic2]") == ("noise", 2)
+    assert test_pack.match_key("probe.temp") == ("heat", 0)
+    assert test_pack.match_key("unknown.key") is None
+
+
+def test_match_key_same_params_but_first(tmp_path):
+    from dejafix_agent.packs import _key_rank
+
+    # 첫 매개변수(드라이브·인터페이스 등)만 다르면 1, 뒤 매개변수가 다르면 2
+    assert _key_rank("m.size[D:,pused]", "m.size[C:,pused]") == 1
+    assert _key_rank("m.size[C:,free]", "m.size[C:,pused]") == 2
+    assert _key_rank("m.in[eth0]", "m.in") == 2
+    assert _key_rank("m.in", "m.in") == 0
+    assert _key_rank("other[C:,pused]", "m.size[C:,pused]") is None
+
+
 def test_allowed_actions_text_lists_ids(test_pack):
     text = test_pack.allowed_actions_text()
     assert "t_look" in text and "tier A" in text
