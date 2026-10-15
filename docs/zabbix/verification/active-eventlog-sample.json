@@ -1,0 +1,86 @@
+{
+ "note": "로컬 모의 수신기(scripts/zabbix/mock_active_server.py)가 실제 Agent 2 7.0.31에서 받은 액티브 데이터. Zabbix 서버 응답이 아님.",
+ "values_by_key": {
+  "eventlog[System,,\"Warning|Error|Critical\"]": 74,
+  "eventlog[Application,,\"Error|Critical\"]": 7,
+  "system.cpu.util": 19,
+  "vm.memory.size[pavailable]": 19,
+  "vfs.fs.size[C:,pused]": 19,
+  "agent.ping": 19,
+  "eventlog.count[System,,\"Warning|Error|Critical\"]": 6,
+  "system.uptime": 6,
+  "service.info[EventLog]": 6
+ },
+ "eventlog_crosscheck": {
+  "System Warning|Error|Critical (최근 300개 레코드)": {
+   "powershell_get_winevent": 74,
+   "agent_sent": 74
+  },
+  "Application Error|Critical (최근 300개 레코드)": {
+   "powershell_get_winevent_at_baseline": 5,
+   "agent_sent_with_value": 6,
+   "agent_sent_position_only": 1,
+   "explanation": "기준 측정 뒤 에이전트 시작 시각에 PerfNet 2004 오류 1건이 새로 기록됨"
+  },
+  "severity_mapping": {
+   "Windows Level 3 (Warning)": 2,
+   "Windows Level 2 (Error)": 4
+  },
+  "eventid_and_source_match": "74/74"
+ },
+ "samples": {
+  "active_checks_request": {
+   "request": "active checks",
+   "host": "dejafix-local-test",
+   "version": "7.0.31",
+   "variant": 2,
+   "config_revision": 0,
+   "ip": "127.0.0.1"
+  },
+  "heartbeat": {
+   "request": "active check heartbeat",
+   "host": "dejafix-local-test",
+   "heartbeat_freq": 60,
+   "version": "7.0.31",
+   "variant": 2
+  },
+  "eventlog_value": {
+   "key": "eventlog[System,,\"Warning|Error|Critical\"]",
+   "id": 1,
+   "itemid": 1000,
+   "lastlogsize": 1743,
+   "value": "<이벤트 메시지 본문 생략: 원문에 사용자 계정명·SID가 포함됨>",
+   "source": "Microsoft-Windows-DistributedCOM",
+   "eventid": 10016,
+   "severity": 2,
+   "timestamp": 1791683162,
+   "clock": 1791963690,
+   "ns": 153205200
+  },
+  "eventlog_position_only": {
+   "key": "eventlog[Application,,\"Error|Critical\"]",
+   "id": 81,
+   "itemid": 1001,
+   "lastlogsize": 2307,
+   "clock": 1791963691,
+   "ns": 770988400
+  },
+  "eventlog_count_value": {
+   "key": "eventlog.count[System,,\"Warning|Error|Critical\"]",
+   "id": 86,
+   "itemid": 1002,
+   "lastlogsize": 2036,
+   "value": "74",
+   "clock": 1791963702,
+   "ns": 15652600
+  },
+  "numeric_value": {
+   "key": "system.cpu.util",
+   "id": 82,
+   "itemid": 1003,
+   "value": "9.131499",
+   "clock": 1791963693,
+   "ns": 2064200
+  }
+ }
+}
