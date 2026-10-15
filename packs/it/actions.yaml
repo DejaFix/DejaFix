@@ -1,0 +1,73 @@
+# IT 도메인 팩 — 동작·티어 허용 목록 + fallback 계획 (기획서 6-3, DR-021)
+# 실행 여부·티어는 이 파일과 코드가 정한다. LLM은 정하지 않는다 (SAFE-06).
+# MVP는 미리보기만: 여기 적힌 명령은 화면에 보여 주기만 하고 실행하지 않는다 (SAFE-04).
+#
+# tier: A 조회·안전 / B 변경·승인 필요(미구현, precheck·rollback 필수) / C 금지·사람이 판단
+# 목록에 없는 동작은 default_tier(C)로 처리한다.
+
+default_tier: C
+
+actions:
+  - id: check_top_process
+    title: CPU·메모리 상위 프로세스 확인
+    tier: A
+    command_preview:
+      windows: 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name,Id,CPU,WS'
+      linux: 'ps aux --sort=-%cpu | head -n 10'
+    expected_effect: 부하를 일으키는 프로세스 확인
+    risk: 없음 (조회)
+
+  - id: check_disk_usage
+    title: 디스크 사용량 확인
+    tier: A
+    command_preview:
+      windows: 'Get-PSDrive -PSProvider FileSystem'
+      linux: 'df -h'
+    expected_effect: 드라이브별 사용량 확인
+    risk: 없음 (조회)
+
+  - id: clean_temp_files
+    title: 임시 파일을 격리 폴더로 이동
+    tier: B
+    command_preview:
+      windows: 'Move-Item -Path "$env:TEMP\*" -Destination "$env:TEMP\..\dejafix-quarantine" -ErrorAction SilentlyContinue'
+      linux: 'mkdir -p /var/tmp/dejafix-quarantine && mv /tmp/* /var/tmp/dejafix-quarantine/'
+    precheck: 임시 폴더 크기와 사용 중인 파일을 확인한다
+    rollback: 격리 폴더의 파일을 원래 위치로 다시 옮긴다
+    expected_effect: 디스크 여유 공간 확보
+    risk: 사용 중인 파일을 옮기면 해당 프로그램에 오류가 날 수 있음
+
+  - id: restart_service
+    title: 문제 서비스 재시작
+    tier: B
+    command_preview:
+      windows: 'Restart-Service -Name <서비스 이름>'
+      linux: 'systemctl restart <서비스 이름>'
+    precheck: 서비스 이름과 현재 상태, 의존 서비스를 확인한다
+    rollback: 재시작 실패 시 이전 상태로 서비스를 다시 시작하고 로그를 확인한다
+    expected_effect: 과다 사용 중인 서비스의 자원 해제
+    risk: 재시작하는 동안 서비스가 잠시 중단됨
+
+  - id: reboot_host
+    title: 서버 재부팅
+    tier: C
+    command_preview:
+      windows: 'Restart-Computer'
+      linux: 'reboot'
+    risk: 모든 서비스 중단
+
+  - id: delete_recursive
+    title: 폴더 통째로 삭제
+    tier: C
+    command_preview:
+      windows: 'Remove-Item -Recurse -Force <경로>'
+      linux: 'rm -rf <경로>'
+    risk: 되돌릴 수 없는 데이터 손실
+
+# LLM 없이 만드는 계획 (FR-AG-023). 키는 metrics.yaml 의 지표 별칭.
+# 목록이 없는 유형(net 등)은 Agent가 A 단계만 만든다.
+# cpu 끝에 reboot_host(C)를 시연용으로 넣을지는 (TODO: 추후결정 — 결정자 팀장, FR-AG-026)
+fallback_plans:
+  cpu: [check_top_process, restart_service]
+  mem: [check_top_process, restart_service]
+  disk: [check_disk_usage, clean_temp_files]
