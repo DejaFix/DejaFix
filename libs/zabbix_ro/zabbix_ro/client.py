@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError
-from zabbix_ro.mock import mock_result
+from zabbix_ro.mock import SCENARIOS, mock_result
 
 ALLOWED_METHODS = frozenset(
     {
@@ -90,12 +90,16 @@ class ZabbixRoClient:
         timeout: float = DEFAULT_TIMEOUT_SEC,
         transport: httpx.BaseTransport | None = None,
         config_error: str | None = None,
+        mock_scenario: str = "default",
+        scenario_error: str | None = None,
     ):
         self.url = url
         self.mock = mock
+        self.mock_scenario = mock_scenario
         self.verify_tls = verify_tls
         self._token = token
         self._config_error = config_error
+        self._scenario_error = scenario_error
         self._ids = itertools.count(1)
         self._http: httpx.Client | None = None
         # URL·토큰이 비어 있어도 만들기는 성공한다. 호출 시점에 ZabbixError 를 던져
@@ -114,7 +118,11 @@ class ZabbixRoClient:
         _check_allowed(method)  # 요청 전에 막는다 (SAFE-02)
         params = dict(params or {})
         if self.mock:
-            return mock_result(method, params)
+            if (
+                self._scenario_error
+            ):  # 오타가 조용히 default 로 바뀌지 않게 호출 때 알린다
+                raise ZabbixError(self._scenario_error)
+            return mock_result(method, params, self.mock_scenario)
         if self._config_error:
             raise ZabbixError(self._config_error)
         if not self.url:
@@ -184,6 +192,14 @@ def from_env(
     """
     env = os.environ if env is None else env
     verify_tls, config_error = _verify_tls_flag(env.get("ZABBIX_VERIFY_TLS"))
+    scenario = (env.get("ZABBIX_MOCK_SCENARIO") or "").strip().lower() or "default"
+    scenario_error = None
+    if scenario not in SCENARIOS:
+        scenario_error = (
+            f"ZABBIX_MOCK_SCENARIO 값을 알 수 없습니다: {scenario!r} "
+            f"({' / '.join(SCENARIOS)} 중 하나)"
+        )
+        scenario = "default"
     return ZabbixRoClient(
         url=env.get("ZABBIX_URL") or None,
         token=env.get("ZABBIX_API_TOKEN") or None,
@@ -191,4 +207,6 @@ def from_env(
         mock=_flag(env.get("ZABBIX_MOCK"), default=False),
         transport=transport,
         config_error=config_error,
+        mock_scenario=scenario,
+        scenario_error=scenario_error,
     )

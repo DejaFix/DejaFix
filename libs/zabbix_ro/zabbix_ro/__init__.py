@@ -7,10 +7,12 @@ problems = client.call("problem.get", {...})   # JSON-RPC result 를 그대로 �
 
 from zabbix_ro.client import ALLOWED_METHODS, ZabbixRoClient, from_env
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError, ZabbixRoError
+from zabbix_ro.mock import SCENARIOS
 
 __all__ = [
     "ALLOWED_METHODS",
     "MethodNotAllowed",
+    "SCENARIOS",
     "ZabbixError",
     "ZabbixRoClient",
     "ZabbixRoError",
