@@ -11,7 +11,7 @@ import { Collapsible } from '../components/Collapsible'
 import { UnknownValue } from '../components/Chips'
 import { EChart } from '../components/EChart'
 import { Icon } from '../components/Icon'
-import { AnalysisBadge, SeverityInfoChip } from '../components/IncidentParts'
+import { AnalysisBadge, SeverityInfoChip, Unknown } from '../components/IncidentParts'
 import { kstShort } from '../components/incidentFormat'
 
 function Kpi({
@@ -58,7 +58,7 @@ function IncidentRow({ i }: { i: Incident }) {
       <div className="alert-main">
         <div className="alert-name">{i.title}</div>
         <div className="alert-meta">
-          <span className="mono">{i.host.name}</span>
+          <span className="mono">{i.host.name ?? <Unknown reason="NOT_COLLECTED" />}</span>
           {i.status === 'resolved' && <span className="repeat">해결됨</span>}
         </div>
       </div>
