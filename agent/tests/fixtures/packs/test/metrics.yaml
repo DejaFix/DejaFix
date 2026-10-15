@@ -1,0 +1,6 @@
+# 시험 팩 (FR-AG-025): 엔진이 IT 값 없이 팩만으로 동작하는지 확인용. 키·ID는 일부러 IT와 다르다.
+metrics:
+  heat:
+    keys: [probe.temp]
+  noise:
+    keys: ["probe.db[mic1]"]
