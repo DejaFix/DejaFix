@@ -22,7 +22,7 @@ $Marker = 'DEJAFIX_INJECT_CPU'   # cleanup.ps1 이 이 표식으로 부하 프�
 $MaxMinutes = 10
 
 if ($Minutes -lt 1 -or $Minutes -gt $MaxMinutes) {
-    Write-Error "-Minutes 는 1~$MaxMinutes 사이여야 합니다 (입력: $Minutes)."
+    [Console]::Error.WriteLine("[inject-cpu] -Minutes 는 1~$MaxMinutes 사이여야 합니다 (입력: $Minutes).")
     exit 2
 }
 
@@ -33,7 +33,7 @@ function Get-InjectProcess {
 
 $running = @(Get-InjectProcess)
 if ($running.Count -gt 0) {
-    Write-Error "이미 주입 중인 부하 프로세스가 $($running.Count)개 있습니다. 끝나길 기다리거나 cleanup.ps1 을 먼저 실행하세요."
+    [Console]::Error.WriteLine("[inject-cpu] 이미 주입 중인 부하 프로세스가 $($running.Count)개 있습니다. 끝나길 기다리거나 cleanup.ps1 을 먼저 실행하세요.")
     exit 3
 }
 
