@@ -70,7 +70,7 @@ Zabbix 알람이 뜨면 AI가 **조회만으로** 원인 후보·영향 범위�
 - `contracts/`(`api.md`, `agent-api.md`, `mcp-tools.md`, `db-schema.sql`, `incident.schema.json`)가 파트 간 유일한 약속이다.
 - 계약 변경은 **계약 PR → 구현 PR** 순서. 계약 PR은 **2인 승인**(계약 소유자 + 소비자 파트 1명).
 - 계약을 바꾼 PR에서 `docs/plan.md`의 해당 절도 함께 고친다.
-- Claude Code는 `contracts/`를 직접 편집하지 않는다(훅으로 차단). 필요하면 계약 변경 제안을 쓴다.
+- `contracts/` 보호는 이 PR 규칙으로 한다(훅으로 막지 않음). 계약 소유자가 아니면 `contracts/`를 고치지 말고 계약 변경 제안을 쓴다.
 
 ## ⑤ 명명 규칙
 | 대상 | 규칙 | 예 |
