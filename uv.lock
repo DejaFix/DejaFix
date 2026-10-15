@@ -704,3 +704,9 @@ wheels = [
 name = "zabbix-ro"
 version = "0.1.0"
 source = { editable = "libs/zabbix_ro" }
+dependencies = [
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "httpx", specifier = ">=0.27" }]
