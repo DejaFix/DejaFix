@@ -28,6 +28,7 @@ export interface CrossServerGroup {
   id: string
   name: string
   serverCount: number
+  hosts: string[]
 }
 
 export interface BaselineItem {
@@ -110,4 +111,62 @@ export interface AssistantReply {
   text: string
   evidence: EvidenceCall[]
   unknowns: string[]
+}
+
+export interface ServerMetric {
+  host: string
+  project: string
+  cpu: number | null
+  cpuBaselineMax: number | null
+  memory: number | null
+  disk: number | null
+  swap: number | null
+  ioMs: number | null
+  openAlerts: number
+  collectedAt: string
+  cpuSeries: (number | null)[]
+}
+
+export interface CostItem {
+  id: string
+  host: string
+  currentType: string
+  avgCpu: number | null
+  p95Cpu: number | null
+  avgMemory: number | null
+  recommendedType: string | null
+  currentMonthly: number
+  recommendedMonthly: number | null
+  risk: Risk | null
+  note: string
+  evidence: EvidenceCall[]
+}
+
+export type DeliveryStatus = 'sent' | 'failed' | 'pending'
+
+export interface NotificationRule {
+  id: string
+  name: string
+  condition: string
+  recipients: string
+  enabled: boolean
+}
+
+export interface DeliveryLog {
+  id: string
+  at: string
+  rule: string
+  recipient: string
+  status: DeliveryStatus
+  detail: string
+}
+
+export type Role = 'admin' | 'operator' | 'viewer'
+
+export interface UserAccount {
+  id: string
+  name: string
+  role: Role
+  active: boolean
+  lastLogin: string
 }

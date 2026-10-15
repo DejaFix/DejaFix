@@ -5,12 +5,15 @@ import { api } from '../lib/api'
 import type { PlanStatus } from '../lib/types'
 import { RiskBadge } from '../components/Chips'
 import { Icon } from '../components/Icon'
+import { useAuth } from '../state/auth'
 import { statusText } from './Plans'
 
 export default function PlanDetail() {
   const { id = '' } = useParams()
   const { data, isLoading } = useQuery({ queryKey: ['plan', id], queryFn: () => api.plan(id) })
   const [override, setOverride] = useState<PlanStatus | null>(null)
+  const { role } = useAuth()
+  const canReview = role !== 'viewer'
 
   if (isLoading) return <div className="page"><div className="skeleton" /></div>
   if (!data) return <div className="page"><div className="empty"><h2>계획을 찾을 수 없습니다</h2><Link className="btn" to="/plans">목록으로</Link></div></div>
@@ -46,10 +49,10 @@ export default function PlanDetail() {
           </section>
           <section className="card">
             <div className="card-head"><h2 className="card-title">검토</h2></div>
-            <p className="card-sub" style={{ marginBottom: 12 }}>{data.risk === 'high' ? '위험 등급이 높음이라 승인자 2명이 필요합니다.' : '승인자 1명이 검토합니다.'}</p>
+            <p className="card-sub" style={{ marginBottom: 12 }}>{!canReview ? '조회자 권한은 계획을 볼 수만 있습니다. 검토는 운영자 이상만 할 수 있습니다.' : data.risk === 'high' ? '위험 등급이 높음이라 승인자 2명이 필요합니다.' : '승인자 1명이 검토합니다.'}</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn primary" disabled={status !== 'draft'} onClick={() => setOverride('reviewed')}>검토 완료로 표시</button>
-              <button className="btn" disabled={status === 'discarded'} onClick={() => setOverride('discarded')}>폐기</button>
+              <button className="btn primary" disabled={!canReview || status !== 'draft'} onClick={() => setOverride('reviewed')}>검토 완료로 표시</button>
+              <button className="btn" disabled={!canReview || status === 'discarded'} onClick={() => setOverride('discarded')}>폐기</button>
             </div>
             <p className="assistant-note">상태 변경은 이 화면에서만 반영되는 목업입니다.</p>
           </section>

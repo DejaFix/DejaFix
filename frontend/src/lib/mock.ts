@@ -1,5 +1,5 @@
 import type {
-  AlertItem, BaselineItem, CrossServerGroup, DiskForecast, Incident, Plan, Report, Severity, Summary, TrendDay,
+  AlertItem, BaselineItem, CostItem, CrossServerGroup, DeliveryLog, DiskForecast, Incident, NotificationRule, Plan, Report, ServerMetric, Severity, Summary, TrendDay, UserAccount,
 } from './types'
 
 // 목업 데이터. 백엔드 API가 준비되면 api.ts의 호출만 교체한다.
@@ -28,10 +28,10 @@ export const summary: Summary = {
 }
 
 export const crossGroups: CrossServerGroup[] = [
-  { id: 'g1', name: 'Operating system description has changed', serverCount: 7 },
-  { id: 'g2', name: 'High memory utilization (>95% for 5m)', serverCount: 4 },
-  { id: 'g3', name: 'High swap space usage (less than 20% free)', serverCount: 4 },
-  { id: 'g4', name: 'FS [/data]: Space is critically low (used > 95%)', serverCount: 3 },
+  { id: 'g1', name: 'Operating system description has changed', serverCount: 7, hosts: ['app-web-01', 'app-web-02', 'app-web-03', 'batch-01', 'batch-02', 'edge-01', 'edge-04'] },
+  { id: 'g2', name: 'High memory utilization (>95% for 5m)', serverCount: 4, hosts: ['app-web-01', 'app-web-02', 'app-web-03', 'batch-02'] },
+  { id: 'g3', name: 'High swap space usage (less than 20% free)', serverCount: 4, hosts: ['app-web-03', 'db-win-01', 'ml-gpu-04', 'ml-gpu-07'] },
+  { id: 'g4', name: 'FS [/data]: Space is critically low (used > 95%)', serverCount: 3, hosts: ['batch-02', 'ml-gpu-04', 'legacy-nas'] },
 ]
 
 export const baselines: BaselineItem[] = [
@@ -149,4 +149,74 @@ export const reports: Report[] = [
       { heading: '권고', body: '체크포인트 저장 간격을 15분에서 30분으로 늘리는 변경 계획을 검토하세요(실행은 승인 후 담당자가 수행).' },
     ],
   },
+]
+
+
+// ---------- 서버 비교 ----------
+const serverRows: [string, string, number | null, number | null, number | null, number | null, number | null, number | null, number][] = [
+  // host, project, cpu, cpuBaselineMax, mem, disk, swap, ioMs, openAlerts
+  ['app-web-01', 'web', 53.4, 41.1, 78, 61, 22, 4, 2],
+  ['app-web-02', 'web', 44.8, 41.1, 81, 58, 18, 3, 1],
+  ['app-web-03', 'web', 54.4, 41.1, 96, 91, 41, 6, 3],
+  ['db-win-01', 'db', 100, 5.5, 74, 83, 35, 9, 2],
+  ['db-win-02', 'db', 12.3, 18, 71, 66, 9, 5, 1],
+  ['batch-01', 'batch', 9.1, 30, 20, 72, 4, 3, 1],
+  ['batch-02', 'batch', 22.5, 30, 94, 96, 15, 5, 3],
+  ['ml-gpu-02', 'ml', 33.0, 40.6, 61, 75, 12, 11, 1],
+  ['ml-gpu-04', 'ml', 47.2, 40.6, 69, 97, 38, 8, 2],
+  ['ml-gpu-07', 'ml', 51.9, 40.6, 66, 82, 33, 24, 2],
+  ['edge-01', 'edge', 6.0, 15, 33, 54, 2, 2, 1],
+  ['edge-04', 'edge', 8.4, 15, 36, 78, 3, 2, 1],
+  ['legacy-nas', 'infra', null, null, 58, 99, null, null, 3],
+]
+export const servers: ServerMetric[] = serverRows.map(([host, project, cpu, cpuBaselineMax, memory, disk, swap, ioMs, openAlerts], i) => ({
+  host, project, cpu, cpuBaselineMax, memory, disk, swap, ioMs, openAlerts, collectedAt: BASE_TIME_KST,
+  cpuSeries: cpu === null ? Array(24).fill(null) : Array.from({ length: 24 }, (_, h) => {
+    const wave = Math.sin((h + i) / 3.2) * 6 + (h > 8 && h < 19 ? 8 : 0)
+    return Math.max(1, Math.min(100, Math.round((cpu * 0.7 + wave + ((h * 7 + i * 3) % 5)) * 10) / 10))
+  }),
+}))
+
+// ---------- 비용 절감 (단가는 목업) ----------
+export const costItems: CostItem[] = [
+  { id: 'c1', host: 'app-web-01', currentType: 'm5.2xlarge', avgCpu: 31, p95Cpu: 58, avgMemory: 52, recommendedType: 'm5.xlarge', currentMonthly: 410000, recommendedMonthly: 205000, risk: 'medium', note: '최대 사용률이 58%라 반으로 줄여도 여유가 있지만, 트래픽이 갑자기 늘면 CPU가 80%를 넘을 수 있습니다.',
+    evidence: [{ tool: 'aws.cloudwatch', command: 'metric=CPUUtilization stat=p95 period=30d', result: '평균 31%, p95 58%', ms: 340 }, { tool: 'aws.pricing', command: 'type=m5.2xlarge→m5.xlarge', result: '월 410,000원 → 205,000원 (목업 단가)', ms: 120 }] },
+  { id: 'c2', host: 'app-web-02', currentType: 'm5.2xlarge', avgCpu: 14, p95Cpu: 31, avgMemory: 38, recommendedType: 'm5.xlarge', currentMonthly: 410000, recommendedMonthly: 205000, risk: 'low', note: '30일 동안 CPU 최대 31%, 메모리 최대 52%라 한 단계 줄여도 안전합니다.',
+    evidence: [{ tool: 'aws.cloudwatch', command: 'metric=CPUUtilization stat=p95 period=30d', result: '평균 14%, p95 31%', ms: 310 }, { tool: 'aws.cloudwatch', command: 'metric=mem_used_percent stat=max period=30d', result: '평균 38%, 최대 52%', ms: 290 }] },
+  { id: 'c3', host: 'batch-01', currentType: 'c5.4xlarge', avgCpu: 9, p95Cpu: 41, avgMemory: 20, recommendedType: 'c5.2xlarge', currentMonthly: 520000, recommendedMonthly: 260000, risk: 'medium', note: '평소 사용률은 낮지만 새벽 배치 시간에 CPU가 최대 78%까지 오릅니다. 배치 소요 시간이 늘 수 있습니다.',
+    evidence: [{ tool: 'aws.cloudwatch', command: 'metric=CPUUtilization stat=max period=30d', result: '최대 78% (새벽 02~04시)', ms: 360 }] },
+  { id: 'c4', host: 'edge-01', currentType: 't3.large', avgCpu: 6, p95Cpu: 15, avgMemory: 33, recommendedType: 't3.medium', currentMonthly: 92000, recommendedMonthly: 46000, risk: 'low', note: 'CPU와 메모리 사용률이 모두 낮습니다.',
+    evidence: [{ tool: 'aws.cloudwatch', command: 'metric=CPUUtilization stat=p95 period=30d', result: '평균 6%, p95 15%', ms: 280 }] },
+  { id: 'c5', host: 'ml-gpu-04', currentType: 'g5.2xlarge', avgCpu: 47, p95Cpu: 88, avgMemory: 69, recommendedType: null, currentMonthly: 1180000, recommendedMonthly: null, risk: null, note: '권고 없음. GPU 사용률이 평균 83%로 높아 유형을 줄이면 학습 시간이 늘어납니다.',
+    evidence: [{ tool: 'aws.cloudwatch', command: 'metric=gpu_utilization period=30d', result: '평균 83%', ms: 330 }] },
+  { id: 'c6', host: 'db-win-02', currentType: 'r5.2xlarge', avgCpu: 18, p95Cpu: 44, avgMemory: 71, recommendedType: null, currentMonthly: 620000, recommendedMonthly: null, risk: null, note: '권고 없음. CPU는 낮지만 메모리 사용률이 71%라 한 단계 줄이면 부족해질 수 있습니다.',
+    evidence: [{ tool: 'aws.cloudwatch', command: 'metric=mem_used_percent period=30d', result: '평균 71%', ms: 300 }] },
+  { id: 'c7', host: 'legacy-nas', currentType: 'm5.large', avgCpu: null, p95Cpu: null, avgMemory: null, recommendedType: null, currentMonthly: 205000, recommendedMonthly: null, risk: null, note: '확인할 수 없음. 에이전트가 CPU·메모리 지표를 수집하지 않았습니다.', evidence: [] },
+  { id: 'c8', host: 'ml-gpu-02', currentType: 'g5.xlarge', avgCpu: 33, p95Cpu: 62, avgMemory: 61, recommendedType: null, currentMonthly: 880000, recommendedMonthly: null, risk: null, note: '확인할 수 없음. GPU 사용률 지표가 수집되지 않아 판단할 수 없습니다.', evidence: [{ tool: 'aws.cloudwatch', command: 'metric=gpu_utilization period=30d', result: '조회 결과 없음', ms: 180 }] },
+]
+
+// ---------- 알림 ----------
+export const notificationRules: NotificationRule[] = [
+  { id: 'n1', name: '높음 이상 장애 즉시 알림', condition: '심각도 높음 이상이 새로 열릴 때', recipients: 'ops-team@example.com', enabled: true },
+  { id: 'n2', name: '디스크 고갈 임박', condition: '디스크가 7일 안에 가득 찰 것으로 예측될 때', recipients: 'infra@example.com', enabled: true },
+  { id: 'n3', name: '반복 알림 일일 요약', condition: '매일 09:00, 24시간 3회 이상 반복된 알림', recipients: 'ops-team@example.com', enabled: false },
+  { id: 'n4', name: '변경 계획 검토 요청', condition: '새 변경 계획이 작성될 때', recipients: 'reviewers@example.com', enabled: true },
+]
+
+export const deliveries: DeliveryLog[] = [
+  { id: 'd1', at: '2026-10-14 14:31', rule: '디스크 고갈 임박', recipient: 'infra@example.com', status: 'sent', detail: '발송 완료' },
+  { id: 'd2', at: '2026-10-14 14:28', rule: '변경 계획 검토 요청', recipient: 'reviewers@example.com', status: 'sent', detail: '발송 완료' },
+  { id: 'd3', at: '2026-10-14 14:05', rule: '높음 이상 장애 즉시 알림', recipient: 'ops-team@example.com', status: 'failed', detail: '메일 서버 연결 시간 초과. 5분 뒤 다시 시도합니다.' },
+  { id: 'd4', at: '2026-10-14 14:10', rule: '높음 이상 장애 즉시 알림', recipient: 'ops-team@example.com', status: 'pending', detail: '재시도 대기 중' },
+  { id: 'd5', at: '2026-10-14 09:00', rule: '반복 알림 일일 요약', recipient: 'ops-team@example.com', status: 'sent', detail: '발송 완료' },
+]
+
+// ---------- 관리자 ----------
+export const users: UserAccount[] = [
+  { id: 'byunghwan', name: '배병환', role: 'admin', active: true, lastLogin: '2026-10-14 14:20' },
+  { id: 'jaehyun', name: '재현', role: 'operator', active: true, lastLogin: '2026-10-14 13:02' },
+  { id: 'yejin', name: '예진', role: 'operator', active: true, lastLogin: '2026-10-13 18:40' },
+  { id: 'junha', name: '준하', role: 'operator', active: true, lastLogin: '2026-10-13 17:55' },
+  { id: 'taeyun', name: '태윤', role: 'viewer', active: true, lastLogin: '2026-10-12 11:10' },
+  { id: 'guest01', name: '외부 검토자', role: 'viewer', active: false, lastLogin: '2026-09-30 10:05' },
 ]

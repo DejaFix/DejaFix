@@ -1,4 +1,4 @@
-import { alerts, baselines, crossGroups, diskForecasts, heatmap, heatProjects, incidents, oldAlerts, plans, reports, summary, trend } from './mock'
+import { alerts, baselines, costItems, crossGroups, deliveries, diskForecasts, heatmap, heatProjects, incidents, notificationRules, oldAlerts, plans, reports, servers, summary, trend, users } from './mock'
 import type { AssistantReply, EvidenceCall } from './types'
 
 // 백엔드(BFF) API가 준비되면 이 파일의 함수 내부만 fetch로 바꾼다. 화면 코드는 그대로 둔다.
@@ -16,6 +16,11 @@ export const api = {
   plans: () => wait(plans),
   plan: (id: string) => wait(plans.find((p) => p.id === id) ?? null),
   reports: () => wait(reports),
+  servers: () => wait(servers),
+  costItems: () => wait(costItems),
+  notificationRules: () => wait(notificationRules),
+  deliveries: () => wait(deliveries),
+  users: () => wait(users),
 }
 
 const tool = (name: string, command: string, result: string, ms: number): EvidenceCall => ({ tool: name, command, result, ms })

@@ -2,22 +2,23 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { chartGrid, chartText, sevColor } from '../lib/colors'
+import { cssVar, sevCss } from '../lib/colors'
+import { useThemeVersion } from '../hooks/useThemeVersion'
 import { openedAgo, severityLabel, shortAgo } from '../lib/format'
 import type { AlertItem, Severity } from '../lib/types'
 import { Collapsible } from '../components/Collapsible'
 import { SeverityChip, UnknownValue } from '../components/Chips'
 import { EChart } from '../components/EChart'
 import { Icon } from '../components/Icon'
-import { useAssistant } from '../state/assistant'
 
-function Kpi({ label, value, unit, hint, color, href }: { label: string; value: number | null; unit: string; hint: string; color: string; href: string }) {
+function Kpi({ label, value, unit, hint, color, target }: { label: string; value: number | null; unit: string; hint: string; color: string; target: string }) {
+  const go = () => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   return (
-    <a className="card kpi-card" href={href}>
+    <button type="button" className="card kpi-card" onClick={go}>
       <div className="kpi-label"><span className="dot" style={{ background: color }} />{label}</div>
       <div className="kpi-value">{value === null ? <UnknownValue /> : <>{value}<small>{unit}</small></>}</div>
       <div className="kpi-hint">{hint}</div>
-    </a>
+    </button>
   )
 }
 
@@ -39,11 +40,11 @@ function AlertRow({ a }: { a: AlertItem }) {
 function DiskForecast() {
   const { data } = useQuery({ queryKey: ['disk'], queryFn: api.diskForecasts })
   if (!data) return <div className="skeleton" />
-  const color = (d: number) => (d <= 7 ? sevColor.high : d <= 30 ? sevColor.warning : sevColor.info)
+  const color = (d: number) => (d <= 7 ? sevCss.high : d <= 30 ? sevCss.warning : sevCss.info)
   return (
     <>
       <div className="card-head"><h2 className="card-title">디스크 고갈 예측</h2><span className="card-sub">100%에 닿기까지 남은 일수</span>
-        <span className="legend"><span><i style={{ background: sevColor.high }} />7일</span><span><i style={{ background: sevColor.warning }} />30일</span><span><i style={{ background: sevColor.info }} />이후</span></span></div>
+        <span className="legend"><span><i style={{ background: sevCss.high }} />7일</span><span><i style={{ background: sevCss.warning }} />30일</span><span><i style={{ background: sevCss.info }} />이후</span></span></div>
       {data.map((d) => (
         <div className="bar-row" key={d.host}>
           <span className="mono">{d.host}</span>
@@ -57,17 +58,20 @@ function DiskForecast() {
 
 function TrendChart() {
   const { data } = useQuery({ queryKey: ['trend'], queryFn: api.trend })
+  const theme = useThemeVersion()
   const option = useMemo(() => {
     if (!data) return null
+    void theme
+    const text = cssVar('--chart-text')
     const sev: Severity[] = ['disaster', 'high', 'average', 'warning', 'info']
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: cssVar('--surface'), borderColor: cssVar('--border-strong'), textStyle: { color: cssVar('--text') } },
       grid: { left: 40, right: 8, top: 12, bottom: 28 },
-      xAxis: { type: 'category', data: data.map((d) => d.label), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: chartText } },
-      yAxis: { type: 'value', axisLabel: { color: chartText }, splitLine: { lineStyle: { color: chartGrid } } },
-      series: sev.map((s) => ({ name: severityLabel[s], type: 'bar', stack: 'total', itemStyle: { color: sevColor[s] }, data: data.map((d) => d.counts[s]) })),
+      xAxis: { type: 'category', data: data.map((d) => d.label), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: text } },
+      yAxis: { type: 'value', axisLabel: { color: text }, splitLine: { lineStyle: { color: cssVar('--chart-grid') } } },
+      series: sev.map((s) => ({ name: severityLabel[s], type: 'bar', stack: 'total', itemStyle: { color: cssVar(`--sev-${s}`) }, data: data.map((d) => d.counts[s]) })),
     }
-  }, [data])
+  }, [data, theme])
   return (
     <>
       <div className="card-head"><h2 className="card-title">하루에 알림이 열린 횟수</h2><span className="card-sub">최근 14일 · 심각도별</span></div>
@@ -78,17 +82,20 @@ function TrendChart() {
 
 function Heatmap() {
   const { data } = useQuery({ queryKey: ['heat'], queryFn: api.heatmap })
+  const theme = useThemeVersion()
   const option = useMemo(() => {
     if (!data) return null
+    void theme
+    const chartText = cssVar('--chart-text')
     return {
-      tooltip: { formatter: (p: { value: number[] }) => `${data.projects[p.value[1]]} · ${p.value[0]}시 · ${p.value[2]}건` },
+      tooltip: { backgroundColor: cssVar('--surface'), borderColor: cssVar('--border-strong'), textStyle: { color: cssVar('--text') }, formatter: (p: { value: number[] }) => `${data.projects[p.value[1]]} · ${p.value[0]}시 · ${p.value[2]}건` },
       grid: { left: 56, right: 16, top: 8, bottom: 52 },
       xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, h) => `${h}시`), splitArea: { show: false }, axisLabel: { color: chartText, interval: 2 }, axisLine: { show: false }, axisTick: { show: false } },
       yAxis: { type: 'category', inverse: true, data: data.projects, axisLabel: { color: chartText }, axisLine: { show: false }, axisTick: { show: false } },
-      visualMap: { min: 0, max: 60, orient: 'horizontal', left: 'center', bottom: 0, itemWidth: 12, itemHeight: 120, text: ['많음', '적음'], textStyle: { color: chartText }, inRange: { color: ['#f0f0f2', '#f3c9c4', '#d13f36', '#8f1d1d'] } },
-      series: [{ type: 'heatmap', data: data.cells, itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 4 } }],
+      visualMap: { min: 0, max: 60, orient: 'horizontal', left: 'center', bottom: 0, itemWidth: 12, itemHeight: 120, text: ['많음', '적음'], textStyle: { color: chartText }, inRange: { color: [cssVar('--heat-0'), cssVar('--heat-1'), cssVar('--heat-2'), cssVar('--heat-3')] } },
+      series: [{ type: 'heatmap', data: data.cells, itemStyle: { borderColor: cssVar('--surface'), borderWidth: 2, borderRadius: 4 } }],
     }
-  }, [data])
+  }, [data, theme])
   return (
     <>
       <div className="card-head"><h2 className="card-title">언제 · 어디서 장애가 났나</h2><span className="card-sub">최근 24시간 · 프로젝트별 알림 열린 횟수</span></div>
@@ -98,7 +105,6 @@ function Heatmap() {
 }
 
 export default function Dashboard() {
-  const { ask } = useAssistant()
   const summary = useQuery({ queryKey: ['summary'], queryFn: api.summary })
   const alerts = useQuery({ queryKey: ['alerts'], queryFn: api.alerts })
   const groups = useQuery({ queryKey: ['groups'], queryFn: api.crossGroups })
@@ -116,10 +122,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid kpi">
-        <Kpi label="새로 열린 장애" value={s?.newOpen ?? null} unit="건" hint="최근 24시간 안 · 높음 이상 0건" color={sevColor.high} href="#sec-new" />
-        <Kpi label="반복해서 열리는 알림" value={s?.repeating ?? null} unit="건" hint="24시간에 3번 이상 열렸다 닫힘" color={sevColor.warning} href="#sec-new" />
-        <Kpi label="오래 열려 있는 장애" value={s?.longOpen ?? null} unit="건" hint="가장 오래된 것 746일째" color={sevColor.info} href="#sec-old" />
-        <Kpi label="30일 안에 가득 찰 디스크(예상)" value={s?.diskFullSoon ?? null} unit="대" hint="증가 속도가 그대로라면 · 지금 가득 찬 서버는 아님" color={sevColor.average} href="#sec-disk" />
+        <Kpi label="새로 열린 장애" value={s?.newOpen ?? null} unit="건" hint="최근 24시간 안 · 높음 이상 0건" color={sevCss.high} target="sec-new" />
+        <Kpi label="반복해서 열리는 알림" value={s?.repeating ?? null} unit="건" hint="24시간에 3번 이상 열렸다 닫힘" color={sevCss.warning} target="sec-new" />
+        <Kpi label="오래 열려 있는 장애" value={s?.longOpen ?? null} unit="건" hint="가장 오래된 것 746일째" color={sevCss.info} target="sec-old" />
+        <Kpi label="30일 안에 가득 찰 디스크(예상)" value={s?.diskFullSoon ?? null} unit="대" hint="증가 속도가 그대로라면 · 지금 가득 찬 서버는 아님" color={sevCss.average} target="sec-disk" />
       </div>
 
       <section className="card">
@@ -144,7 +150,7 @@ export default function Dashboard() {
             <div className="group-row" key={g.id}>
               <span className="count-pill">{g.serverCount}대</span>
               <span style={{ flex: 1, minWidth: 0 }}>{g.name}</span>
-              <button className="btn small" onClick={() => ask(`${g.name} 알림이 ${g.serverCount}대에서 동시에 났어. 공통 원인이 뭐야?`)}>이 서버들 비교</button>
+              <Link className="btn small" to={`/compare?group=${g.id}`}>이 서버들 비교</Link>
             </div>
           ))}
         </section>

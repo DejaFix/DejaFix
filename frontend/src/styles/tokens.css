@@ -1,50 +1,69 @@
+/* 레이아웃: 좌측 메뉴 + 상단 바 + 본문, 우측에 AI 패널이 밀고 들어오는 관리형 대시보드.
+   색은 모두 토큰으로만 쓴다. 라이트가 기본이고, 다크는 같은 이름의 토큰을 다시 정의한다. */
 :root {
-  /* 색상 토큰: 공통으로 쓰는 값은 여기서만 정의한다 */
-  --bg: #f5f5f7;
+  --bg: #f5f6f6;
   --surface: #ffffff;
-  --surface-2: #fafafc;
-  --text: #1d1d1f;
-  --text-2: #515154;
-  --text-3: #86868b;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.14);
+  --surface-2: #fafbfb;
+  --text: #1c2120;
+  --text-2: #4f5755;
+  --text-3: #818a88;
+  --border: rgba(20, 40, 36, 0.09);
+  --border-strong: rgba(20, 40, 36, 0.16);
+  --hover: rgba(20, 40, 36, 0.045);
+  --track: rgba(20, 40, 36, 0.07);
 
   --primary: #0f5e54;
   --primary-hover: #0b4a42;
-  --primary-soft: #e6f1ef;
-  --accent: #b07a1f;
-  --accent-soft: #f7efdf;
+  --primary-soft: #e4f0ee;
+  --on-primary: #ffffff;
+  --accent: #a8731a;
+  --accent-soft: #f6eedd;
+
+  --sidebar-bg: rgba(255, 255, 255, 0.8);
+  --topbar-bg: rgba(245, 246, 246, 0.84);
+  --code-bg: #1c2120;
+  --code-fg: #f1f4f3;
+  --chip-neutral-bg: rgba(20, 40, 36, 0.07);
+  --skeleton-a: #e9eceb;
+  --skeleton-b: #f4f6f5;
 
   /* 심각도 */
   --sev-info: #3c6e9e;
-  --sev-info-soft: #e8f0f7;
-  --sev-warning: #b8860b;
-  --sev-warning-soft: #fbf3dc;
-  --sev-average: #d9701c;
-  --sev-average-soft: #fcece0;
-  --sev-high: #d13f36;
-  --sev-high-soft: #fbe8e6;
+  --sev-info-soft: #e7eff7;
+  --sev-warning: #a87a0a;
+  --sev-warning-soft: #faf1d8;
+  --sev-average: #d06a1a;
+  --sev-average-soft: #fbebdf;
+  --sev-high: #cf3d34;
+  --sev-high-soft: #fbe7e5;
   --sev-disaster: #8f1d1d;
   --sev-disaster-soft: #f3dcdc;
 
   /* 조치 위험 등급 */
   --risk-low: #2f7d4f;
-  --risk-low-soft: #e5f3ea;
-  --risk-medium: #b8860b;
-  --risk-medium-soft: #fbf3dc;
-  --risk-high: #d13f36;
-  --risk-high-soft: #fbe8e6;
+  --risk-low-soft: #e4f2e9;
+  --risk-medium: #a87a0a;
+  --risk-medium-soft: #faf1d8;
+  --risk-high: #cf3d34;
+  --risk-high-soft: #fbe7e5;
 
-  /* 검증 결과 */
-  --verdict-confirmed: #2f7d4f;
-  --verdict-refuted: #86868b;
-  --verdict-unknown: #b8860b;
+  /* 차트 */
+  --chart-text: #818a88;
+  --chart-grid: rgba(20, 40, 36, 0.07);
+  --series-1: #0f6e62;
+  --series-2: #c9811f;
+  --series-3: #3c6e9e;
+  --series-4: #b1495a;
+  --heat-0: #eef0ef;
+  --heat-1: #f3c9c4;
+  --heat-2: #d13f36;
+  --heat-3: #8f1d1d;
 
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.12);
 
   --font: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', 'Segoe UI', sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -52,4 +71,116 @@
   --sidebar-w: 232px;
   --panel-w: 400px;
   --topbar-h: 60px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0e1312;
+    --surface: #161c1b;
+    --surface-2: #1b2322;
+    --text: #edf1f0;
+    --text-2: #b4bebb;
+    --text-3: #8a9693;
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.17);
+    --hover: rgba(255, 255, 255, 0.06);
+    --track: rgba(255, 255, 255, 0.1);
+    --primary: #3fae9c;
+    --primary-hover: #55c0ae;
+    --primary-soft: rgba(63, 174, 156, 0.16);
+    --on-primary: #04201b;
+    --accent: #d9a441;
+    --accent-soft: rgba(217, 164, 65, 0.16);
+    --sidebar-bg: rgba(22, 28, 27, 0.82);
+    --topbar-bg: rgba(14, 19, 18, 0.84);
+    --code-bg: #0a0e0d;
+    --code-fg: #e3eae8;
+    --chip-neutral-bg: rgba(255, 255, 255, 0.1);
+    --skeleton-a: #1b2322;
+    --skeleton-b: #232d2b;
+    --sev-info: #7fb0dc;
+    --sev-info-soft: rgba(127, 176, 220, 0.16);
+    --sev-warning: #dcae45;
+    --sev-warning-soft: rgba(220, 174, 69, 0.16);
+    --sev-average: #f19245;
+    --sev-average-soft: rgba(241, 146, 69, 0.16);
+    --sev-high: #f0746a;
+    --sev-high-soft: rgba(240, 116, 106, 0.16);
+    --sev-disaster: #ee8c86;
+    --sev-disaster-soft: rgba(238, 140, 134, 0.16);
+    --risk-low: #5fc084;
+    --risk-low-soft: rgba(95, 192, 132, 0.16);
+    --risk-medium: #dcae45;
+    --risk-medium-soft: rgba(220, 174, 69, 0.16);
+    --risk-high: #f0746a;
+    --risk-high-soft: rgba(240, 116, 106, 0.16);
+    --chart-text: #8a9693;
+    --chart-grid: rgba(255, 255, 255, 0.08);
+    --series-1: #4cc3b0;
+    --series-2: #e0ab55;
+    --series-3: #7fb0dc;
+    --series-4: #e0828f;
+    --heat-0: #1f2827;
+    --heat-1: #5a3a3a;
+    --heat-2: #d9544a;
+    --heat-3: #ff8f86;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e1312;
+  --surface: #161c1b;
+  --surface-2: #1b2322;
+  --text: #edf1f0;
+  --text-2: #b4bebb;
+  --text-3: #8a9693;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.17);
+  --hover: rgba(255, 255, 255, 0.06);
+  --track: rgba(255, 255, 255, 0.1);
+  --primary: #3fae9c;
+  --primary-hover: #55c0ae;
+  --primary-soft: rgba(63, 174, 156, 0.16);
+  --on-primary: #04201b;
+  --accent: #d9a441;
+  --accent-soft: rgba(217, 164, 65, 0.16);
+  --sidebar-bg: rgba(22, 28, 27, 0.82);
+  --topbar-bg: rgba(14, 19, 18, 0.84);
+  --code-bg: #0a0e0d;
+  --code-fg: #e3eae8;
+  --chip-neutral-bg: rgba(255, 255, 255, 0.1);
+  --skeleton-a: #1b2322;
+  --skeleton-b: #232d2b;
+  --sev-info: #7fb0dc;
+  --sev-info-soft: rgba(127, 176, 220, 0.16);
+  --sev-warning: #dcae45;
+  --sev-warning-soft: rgba(220, 174, 69, 0.16);
+  --sev-average: #f19245;
+  --sev-average-soft: rgba(241, 146, 69, 0.16);
+  --sev-high: #f0746a;
+  --sev-high-soft: rgba(240, 116, 106, 0.16);
+  --sev-disaster: #ee8c86;
+  --sev-disaster-soft: rgba(238, 140, 134, 0.16);
+  --risk-low: #5fc084;
+  --risk-low-soft: rgba(95, 192, 132, 0.16);
+  --risk-medium: #dcae45;
+  --risk-medium-soft: rgba(220, 174, 69, 0.16);
+  --risk-high: #f0746a;
+  --risk-high-soft: rgba(240, 116, 106, 0.16);
+  --chart-text: #8a9693;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --series-1: #4cc3b0;
+  --series-2: #e0ab55;
+  --series-3: #7fb0dc;
+  --series-4: #e0828f;
+  --heat-0: #1f2827;
+  --heat-1: #5a3a3a;
+  --heat-2: #d9544a;
+  --heat-3: #ff8f86;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
 }

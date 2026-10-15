@@ -1,4 +1,16 @@
-// 차트(ECharts)는 CSS 변수를 못 읽으므로 tokens.css와 같은 값을 여기에 둔다.
-export const sevColor = { info: '#3c6e9e', warning: '#b8860b', average: '#d9701c', high: '#d13f36', disaster: '#8f1d1d' } as const
-export const chartText = '#86868b'
-export const chartGrid = 'rgba(0,0,0,0.06)'
+// DOM에서는 var(--토큰)을 그대로 쓰고, 차트(ECharts)는 현재 테마의 실제 값을 읽어서 쓴다.
+export const sevCss = {
+  info: 'var(--sev-info)',
+  warning: 'var(--sev-warning)',
+  average: 'var(--sev-average)',
+  high: 'var(--sev-high)',
+  disaster: 'var(--sev-disaster)',
+} as const
+
+export function cssVar(name: string): string {
+  try {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  } catch {
+    return ''
+  }
+}

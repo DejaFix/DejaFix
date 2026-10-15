@@ -1,8 +1,10 @@
 import { createContext, useContext } from 'react'
+import type { Role } from '../lib/types'
 
 export interface AuthState {
   user: string | null
-  login: (id: string) => void
+  role: Role
+  login: (id: string, role: Role) => void
   logout: () => void
 }
 
