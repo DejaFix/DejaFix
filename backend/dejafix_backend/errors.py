@@ -51,6 +51,13 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def _unhandled(_: Request, exc: Exception):
-        log.exception("unhandled error", exc_info=exc)
-        return error_response(500, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다")
+    async def _unhandled(request: Request, exc: Exception):
+        # 이 핸들러는 요청 ID 미들웨어보다 바깥(ServerErrorMiddleware)에서 돌기 때문에 헤더를 직접 붙인다
+        request_id = getattr(request.state, "request_id", None)
+        log.exception("unhandled error request_id=%s", request_id, exc_info=exc)
+        response = error_response(
+            500, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다"
+        )
+        if request_id:
+            response.headers["X-Request-Id"] = request_id
+        return response
