@@ -64,7 +64,7 @@ export function Layout() {
     if (e.key !== 'Enter' || !query.trim()) return
     const q = query.trim().toLowerCase()
     const hit = incidents.data?.data.find(
-      (i) => i.host.name.toLowerCase().includes(q) || i.title.toLowerCase().includes(q),
+      (i) => (i.host.name ?? '').toLowerCase().includes(q) || i.title.toLowerCase().includes(q),
     )
     if (hit) navigate(`/incidents/${hit.id}`)
     else setMessage('일치하는 호스트·장애가 없습니다')
