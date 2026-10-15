@@ -91,7 +91,7 @@ export function Layout() {
           (변경 계획은 승인까지만)
           <br />
           <br />
-          {user} · {roleLabel[role]}
+          {user?.display_name ?? user?.username} · {roleLabel[role]}
         </div>
       </aside>
       <div className={`main ${open ? 'panel-open' : ''}`}>
