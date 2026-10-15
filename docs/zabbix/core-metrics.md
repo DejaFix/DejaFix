@@ -8,11 +8,11 @@
 
 | 방법 | 실행 | 보이는 것 |
 |---|---|---|
-| **대시보드 (권장)** | `powershell -ExecutionPolicy Bypass -File infra\zabbix\tools\start_dashboard.ps1` → 브라우저 http://127.0.0.1:8090 | CPU/MEM/DISK/NET 4칸: 현재 값, 최근 1시간 그래프와 템플릿 기준선, 보조 지표, 상태(정상/기준 초과/장애/값 없음), 열린 장애. 30초마다 갱신 |
+| **대시보드 (권장)** | `powershell -ExecutionPolicy Bypass -File infra\zabbix\tools\start_dashboard.ps1` → 브라우저 http://127.0.0.1:18090. 팀 서버를 바로 보려면 `-Remote <API URL>` (`infra/zabbix/README.md` "대시보드 보기") | CPU/MEM/DISK/NET 4칸: 현재 값, 최근 1시간 그래프와 템플릿 기준선, 보조 지표, 상태(정상/기준 초과/장애/값 없음), 열린 장애. 30초마다 갱신 |
 | 점검 스크립트 | `powershell -ExecutionPolicy Bypass -File infra\zabbix\tools\check_zabbix.ps1` | 서버 컨테이너·에이전트·API·연결을 `[OK]/[FAIL]`로, 이어서 핵심 지표 최신 값 |
-| Zabbix 웹 | http://127.0.0.1:8080 (Admin, 비밀번호는 `C:\Users\403\host-setup\zabbix-secrets.json`) → Monitoring › Latest data / Problems | Zabbix 원래 화면 — 대시보드 값과 같은지 대조 |
+| Zabbix 웹 | 로컬 서버 http://127.0.0.1:18080 (Admin, 비밀번호는 `setup_local_server.py`의 `--secrets` 파일) 또는 팀 서버 웹 → Monitoring › Latest data / Problems | Zabbix 원래 화면 — 대시보드 값과 같은지 대조 |
 
-데이터 경로: 이 PC → 수집용 Agent 2 7.0.31(사용자 모드, 127.0.0.1) → 로컬 Docker Zabbix 7.0.31 → API(읽기 전용 토큰) → 대시보드 서버(127.0.0.1:8090, 토큰은 브라우저로 안 보냄). 설치된 "Zabbix Agent" 7.0.31 서비스(구형 에이전트, 10050)는 팀 서버용이라 이 경로와 별개다.
+데이터 경로: 이 PC → 수집용 Agent 2 7.0.31(사용자 모드, 127.0.0.1) → 로컬 Docker Zabbix 7.0.31 → API(읽기 전용 토큰) → 대시보드 서버(127.0.0.1:18090, 토큰은 브라우저로 안 보냄). 설치된 "Zabbix Agent" 7.0.31 서비스(구형 에이전트, 10050)는 팀 서버용이라 이 경로와 별개다.
 
 ## 한눈에
 
