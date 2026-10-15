@@ -4,15 +4,17 @@ The browser never sees the API token; this server calls the Zabbix API (read-onl
 summary JSON at /api/core. The page (index.html, same folder) polls it every 30 s.
 
 usage:
-  python server.py [--url http://127.0.0.1:8080/api_jsonrpc.php] [--host DESKTOP-4V9JO99]
-                   [--secrets C:\\Users\\403\\host-setup\\zabbix-secrets.json] [--port 8090]
-  token: env ZABBIX_API_TOKEN, else "api_token" in --secrets
+  python server.py [--url <Zabbix API URL>] [--host <host name in Zabbix>] [--secrets <json>] [--port 18090]
+  url:   --url, else env ZABBIX_URL, else the local dev server http://127.0.0.1:18080/api_jsonrpc.php
+  host:  --host, else this PC's name (COMPUTERNAME)
+  token: env ZABBIX_API_TOKEN, else "api_token" in --secrets (read-only token; never sent to the browser)
 """
 
 import argparse
 import json
 import os
 import pathlib
+import socket
 import sys
 import threading
 import time
@@ -366,16 +368,33 @@ def build_summary(zbx, host_name):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--url", default="http://127.0.0.1:8080/api_jsonrpc.php")
-    ap.add_argument("--host", default="DESKTOP-4V9JO99")
-    ap.add_argument("--secrets", default=r"C:\Users\403\host-setup\zabbix-secrets.json")
-    ap.add_argument("--port", type=int, default=8090)
+    ap.add_argument(
+        "--url",
+        default=os.environ.get("ZABBIX_URL")
+        or "http://127.0.0.1:18080/api_jsonrpc.php",
+        help="Zabbix API URL (default: env ZABBIX_URL, else the local dev server)",
+    )
+    ap.add_argument(
+        "--host",
+        default=os.environ.get("COMPUTERNAME") or socket.gethostname(),
+        help="technical host name in Zabbix (default: this PC's name)",
+    )
+    ap.add_argument(
+        "--secrets",
+        help='JSON file with "api_token" (used only when ZABBIX_API_TOKEN is not set)',
+    )
+    ap.add_argument("--port", type=int, default=18090)
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
-    token = (
-        os.environ.get("ZABBIX_API_TOKEN")
-        or json.loads(pathlib.Path(a.secrets).read_text(encoding="utf-8"))["api_token"]
-    )
+    token = os.environ.get("ZABBIX_API_TOKEN")
+    if not token and a.secrets:
+        token = json.loads(pathlib.Path(a.secrets).read_text(encoding="utf-8"))[
+            "api_token"
+        ]
+    if not token:
+        sys.exit(
+            "read-only API token missing: set ZABBIX_API_TOKEN (or pass --secrets <json>)"
+        )
     zbx = Zabbix(a.url, token)
     cache = {"t": 0, "body": b""}
     lock = threading.Lock()

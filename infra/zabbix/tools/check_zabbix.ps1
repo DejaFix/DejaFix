@@ -1,12 +1,21 @@
-﻿# DejaFix Zabbix 점검 - 더블클릭이 아니라 PowerShell에서 실행:
-#   powershell -ExecutionPolicy Bypass -File C:\Users\403\Documents\DejaFix\infra\zabbix\tools\check_zabbix.ps1
+﻿# DejaFix Zabbix 점검 - 저장소 루트에서 PowerShell로 실행:
+#   powershell -ExecutionPolicy Bypass -File infra\zabbix\tools\check_zabbix.ps1 [-HostName <Zabbix 호스트 이름>] [-Secrets <json>] [-WebPort 18080]
 # 확인 순서: Docker 컨테이너 -> 에이전트 서비스 -> 서버 API -> 에이전트 연결 + CPU/MEM/DISK/NET 최신 값 -> 열린 장애
+# 토큰: 환경 변수 ZABBIX_API_TOKEN, 없으면 -Secrets 파일("api_token"). 기본 -Secrets 는 $HOME\host-setup\zabbix-secrets.json
+param(
+  [string]$HostName = $env:COMPUTERNAME,
+  [string]$Secrets = (Join-Path $HOME 'host-setup\zabbix-secrets.json'),
+  [string]$Python = 'python',
+  [int]$WebPort = 18080
+)
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $env:PYTHONIOENCODING = 'utf-8'
-$hostName = 'DESKTOP-4V9JO99'
-$secrets = 'C:\Users\403\host-setup\zabbix-secrets.json'
-$py = 'C:\Users\403\miniforge3\envs\dev\python.exe'
-$docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
+$hostName = $HostName
+$secrets = $Secrets
+$py = $Python
+$api = "http://127.0.0.1:$WebPort/api_jsonrpc.php"
+$docker = (Get-Command docker -ErrorAction SilentlyContinue).Source
+if (-not $docker) { $docker = Join-Path $env:ProgramFiles 'Docker\Docker\resources\bin\docker.exe' }
 function Show($ok, $msg) { if ($ok) { Write-Host "[OK]   $msg" -ForegroundColor Green } else { Write-Host "[FAIL] $msg" -ForegroundColor Red } }
 
 Write-Host "== 1. Zabbix 서버 컨테이너 (Docker)"
@@ -51,11 +60,12 @@ $dash = [bool](Get-NetTCPConnection -State Listen -LocalPort 10060 -ErrorAction 
 Show $dash "대시보드 수집용 Agent 2 (127.0.0.1:10060) 실행 = $dash  (꺼져 있으면 start_dashboard.ps1)"
 Write-Host "== 3. 서버 API"
 try {
-  $v = (Invoke-RestMethod -Uri http://127.0.0.1:8080/api_jsonrpc.php -Method Post -ContentType 'application/json-rpc' -Body '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}' -TimeoutSec 10).result
+  $v = (Invoke-RestMethod -Uri $api -Method Post -ContentType 'application/json-rpc' -Body '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}' -TimeoutSec 10).result
   Show ([bool]$v) "apiinfo.version = $v"
 } catch { Show $false "API 응답 없음: $($_.Exception.Message)" }
 
 Write-Host "== 4. 에이전트 연결 + 핵심 지표 (Zabbix API, 읽기 전용 토큰)"
-$tmp = Join-Path $env:TEMP "dejafix-core-metrics.txt"; cmd /c "`"$py`" -I `"$(Join-Path $PSScriptRoot "core_metrics.py")`" --host $hostName --secrets `"$secrets`" > `"$tmp`" 2>&1"; Get-Content $tmp -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+$secArg = if (Test-Path $secrets) { "--secrets `"$secrets`"" } else { '' }
+$tmp = Join-Path $env:TEMP "dejafix-core-metrics.txt"; cmd /c "`"$py`" -I `"$(Join-Path $PSScriptRoot "core_metrics.py")`" --host $hostName --url $api $secArg > `"$tmp`" 2>&1"; Get-Content $tmp -Encoding UTF8 | ForEach-Object { Write-Host $_ }
 Write-Host ""
-Write-Host "웹에서 보기: http://127.0.0.1:8080 -> Monitoring > Latest data -> Hosts: $hostName (Admin 비밀번호는 $secrets)"
+Write-Host "웹에서 보기: http://127.0.0.1:$WebPort -> Monitoring > Latest data -> Hosts: $hostName"

@@ -1,6 +1,6 @@
 """Print the latest CPU / MEM / DISK / NET values of one host from the Zabbix API (read-only).
 
-usage: python core_metrics.py --host DESKTOP-4V9JO99 [--url http://127.0.0.1:8080/api_jsonrpc.php]
+usage: python core_metrics.py --host <host name in Zabbix> [--url <Zabbix API URL, default: env ZABBIX_URL or http://127.0.0.1:18080/api_jsonrpc.php>]
 token: env ZABBIX_API_TOKEN, or --secrets <json with "api_token">
 """
 
@@ -53,7 +53,11 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", required=True)
-    ap.add_argument("--url", default="http://127.0.0.1:8080/api_jsonrpc.php")
+    ap.add_argument(
+        "--url",
+        default=os.environ.get("ZABBIX_URL")
+        or "http://127.0.0.1:18080/api_jsonrpc.php",
+    )
     ap.add_argument("--secrets")
     a = ap.parse_args()
     token = (
