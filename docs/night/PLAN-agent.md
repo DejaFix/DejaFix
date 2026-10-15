@@ -6,7 +6,7 @@
 - 낮에 사람 셋이 나눠 짓는 부분(`docs/work-order.md` W1 Agent)과 겹치지 않게, 루프는 **사람이 끝내지 못한 항목만** 큐에 남긴다. 퇴근 전 큐를 정리할 것
 
 ## 작업 큐
-- [ ] **1. 팩 파일 초안** (DR-021, 기획서 6-3·7-3): `packs/it/metrics.yaml`(cpu·mem·disk·net 별칭, 실제 키는 팀장 확정 전까지 후보값 + 주석 `(TODO: 추후결정)` 아님 — 기술 확인 항목이라 후보 키 기입), `packs/it/actions.yaml`(6-3 초안 그대로: B 동작에 precheck·rollback, `default_tier: C`, `fallback_plans` cpu/mem/disk), `packs/it/prompts/`(analyze·chat 시스템 프롬프트, 허용 동작 목록 삽입 자리). YAML 파싱·`fallback_plans` ID 존재 테스트
+- [ ] **1. 팩 파일 초안** (DR-021, 기획서 6-3·7-3): `packs/it/metrics.yaml`(cpu·mem·disk·net 별칭. 실제 키는 기술 확인 항목(G2)이라 Windows 템플릿 후보 키를 적고, 팀장이 데모 PC에서 확인한 값으로 교체), `packs/it/actions.yaml`(6-3 초안 그대로: B 동작에 precheck·rollback, `default_tier: C`, `fallback_plans` cpu/mem/disk), `packs/it/prompts/`(analyze·chat 시스템 프롬프트, 허용 동작 목록 삽입 자리). YAML 파싱·`fallback_plans` ID 존재 테스트
 - [ ] **2. 골격·팩 로더** (FR-AG-025, NFR-EXT-001·002, IF-INT-AG-001): FastAPI 앱, `GET /healthz`, `packs/${DOMAIN_PACK}/` 로더(없으면 기동 실패 + 사유). **테스트: `packs/test/` 시험 팩으로 분석 → 시험 팩의 `action_id`·키 사용, 팩 없음 → 비정상 종료**
 - [ ] **3. 공유 스키마 적용·DB 접근**: `contracts/db-schema.sql` 멱등 적용(Scheduler와 같은 모듈), WAL·busy_timeout·foreign_keys, Agent 소유 7테이블 쓰기 함수
 - [ ] **4. MCP 클라이언트·도구 목록 검사** (FR-AG-010, SAFE-03·05): streamable HTTP로 `tools/list` → 허용 목록 **명시 집합 12개**와 대조, 밖의 도구가 있으면 기동 실패. LLM 도구 정의 변환. **테스트: 목 MCP에 `zabbix_update_host` 포함 → 종료 코드·사유 로그; 5개만이면 기동**

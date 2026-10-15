@@ -15,5 +15,5 @@
 - [ ] **7. 수신자·dedup·재시도** (FR-MAIL-002·003·004, SAFE-16): 수신자는 `MAIL_RECIPIENTS`만, `dedup_key='auto:'+report_id+':'+recipient` UNIQUE, 실패 3회 후 `failed`+`attempts`+`error`, 워커 지속. **테스트: 같은 리포트에 워커 3회 → 수신자당 1행(머지 조건), SMTP 차단 → `attempts=3`·`failed`**
 - [ ] **8. 메일 제목·본문 템플릿** (FR-MAIL-005): 제목 `[DejaFix][<심각도>] <host_name> - <제목>`, 평문 본문 7항목(종류·요약·원인 TOP3·확인할 수 없음·계획 단계 수·최고 티어+"미리보기 — 실행되지 않음"·`APP_BASE_URL/incidents/{id}`·시각 KST). 값은 저장된 리포트·계획에서 그대로(문장 생성 금지)
 - [ ] **9. SMTP·SendGrid 공급자** (FR-MAIL-006, [선택] FR-MAIL-008): `smtp.gmail.com:587` STARTTLS + 앱 비밀번호 구현(실발송은 낮에 사람이), `sendgrid`는 스위치 자리만. 발신 계정 `(TODO: 추후결정)`
-- [ ] **10. `infra/scripts/backup-db.ps1`** (FR-INF-006, DR-020): SQLite 백업 API로 `shared.db`·`backend.db` → `backups/<name>-<ts>.db`, 최근 5개 보관, 복원 절차 주석. (`infra/scripts/`는 Zabbix·MCP 담당 폴더 — 이 파일 1개만 DB·메일 담당 소유로 합의됨, 10-1)
+- [ ] **10. `infra/scripts/backup-db.ps1`** (FR-INF-006, DR-020): SQLite 백업 API로 `shared.db`·`backend.db` → `backups/<name>-<ts>.db`, 최근 5개 보관, 복원 절차 주석. (`infra/scripts/`는 Zabbix·MCP 담당 폴더이지만 이 스크립트의 담당은 기획서 11-3·FR-INF-006에 따라 DB·메일 담당)
 - [ ] **11. 마무리**: Scheduler 코드에 `agent_runs` 등 타 테이블 INSERT 없음(`rg`), 엔진 하드코딩 0건, 시각이 전부 UTC ISO8601 — LOG 기록
