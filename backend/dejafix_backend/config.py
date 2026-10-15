@@ -1,12 +1,16 @@
 """환경 변수 설정. 비밀값은 코드에 쓰지 않고 .env / 환경 변수로만 받는다."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# backend/dejafix_backend/config.py -> 저장소 루트. .env·상대 DB 경로는 실행 위치(cwd)가 아니라 여기 기준.
+ROOT = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
 
     # 인증
     jwt_secret: str = ""
