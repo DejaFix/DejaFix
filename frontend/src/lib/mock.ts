@@ -1,25 +1,36 @@
 import type {
-  AlertItem,
+  LegacyAlertItem,
   BaselineItem,
   CostItem,
   CrossServerGroup,
   DeliveryLog,
   DiskForecast,
-  Incident,
+  LegacyIncident,
   NotificationRule,
-  Plan,
-  Report,
+  LegacyPlan,
+  LegacyReport,
   ServerMetric,
-  Severity,
-  Summary,
+  LegacySeverity,
+  LegacySummary,
   TrendDay,
   UserAccount,
+  ChatEvent,
+  ChatReply,
+  DashboardSummary,
+  Health,
+  Incident,
+  IncidentDetail,
+  Problem,
 } from './types'
 
 // 목업 데이터. 백엔드 API가 준비되면 api.ts의 호출만 교체한다.
+// - legacy*: 지금 화면(목업)이 쓰는 옛 형식. 화면 이전이 끝나면 지운다.
+// - 파일 맨 아래 "API 계약 형식" 구역: 새 타입(types.ts 1구역) 기준 목. 노션 요청서 3장 예시 JSON 기준.
+// - 그 밖(crossGroups·baselines·diskForecasts·trend·heatmap·servers·costItems·notificationRules·deliveries·users): 범위 밖 화면용, 그대로 둔다.
 export const BASE_TIME_KST = '2026-10-14 14:39'
 
-export const alerts: AlertItem[] = [
+/** @deprecated 옛 현황 홈 새 장애 목업. 새 코드는 `incidentList`·`problems`(#10·#6)를 쓴다. */
+export const legacyAlerts: LegacyAlertItem[] = [
   {
     id: 'a1',
     name: 'High memory utilization (>95% for 5m)',
@@ -62,7 +73,8 @@ export const alerts: AlertItem[] = [
   },
 ]
 
-export const oldAlerts: AlertItem[] = Array.from({ length: 6 }, (_, i) => ({
+/** @deprecated 옛 현황 홈 오래된 장애 목업. 새 코드는 `incidentList`(#10)를 쓴다. */
+export const legacyOldAlerts: LegacyAlertItem[] = Array.from({ length: 6 }, (_, i) => ({
   id: `o${i + 1}`,
   name: [
     'FS [/var]: Space is low (used > 90%)',
@@ -74,13 +86,14 @@ export const oldAlerts: AlertItem[] = Array.from({ length: 6 }, (_, i) => ({
   ][i],
   host: ['app-web-01', 'app-web-02', 'batch-01', 'db-win-02', 'edge-04', 'ml-gpu-02'][i],
   project: ['web', 'web', 'batch', 'db', 'edge', 'ml'][i],
-  severity: (['warning', 'average', 'high', 'average', 'info', 'warning'] as Severity[])[i],
+  severity: (['warning', 'average', 'high', 'average', 'info', 'warning'] as LegacySeverity[])[i],
   minutesOpen: 1440 * (2 + i * 4),
   repeat24h: null,
   group: 'old' as const,
 }))
 
-export const summary: Summary = {
+/** @deprecated 옛 KPI 목업. 새 코드는 `dashboardSummary`(#5)를 쓴다. */
+export const legacySummary: LegacySummary = {
   newOpen: 4,
   repeating: 3,
   longOpen: 48,
@@ -178,9 +191,10 @@ export const heatmap: [number, number, number][] = heatProjects.flatMap((_, y) =
   }),
 )
 
-export const incidents: Record<string, Incident> = {
+/** @deprecated 옛 장애 상세 목업. 새 코드는 `incidentDetails`(#11)를 쓴다. */
+export const legacyIncidents: Record<string, LegacyIncident> = {
   a1: {
-    alert: alerts[0],
+    alert: legacyAlerts[0],
     summary: 'app-web-03의 메모리 사용률이 95%를 넘는 상태가 5분 이상 이어졌고, 최근 24시간 동안 12번 반복되었습니다.',
     impact: ['web-front (고객 주문 화면) 응답 지연 가능', '같은 서버군(web)의 app-web-01도 CPU가 평소보다 높음'],
     timeline: [
@@ -237,7 +251,7 @@ export const incidents: Record<string, Incident> = {
     planId: 'p1',
   },
   a2: {
-    alert: alerts[1],
+    alert: legacyAlerts[1],
     summary:
       'db-win-01의 CPU 권한 시간(privileged time)이 30%를 넘는 상태가 이어지고 있습니다. 평소 범위는 0~5.5%입니다.',
     impact: ['주문 DB 응답 지연 가능', '결제 API는 현재 확인된 영향이 없음'],
@@ -268,7 +282,7 @@ export const incidents: Record<string, Incident> = {
     planId: null,
   },
   a3: {
-    alert: alerts[2],
+    alert: legacyAlerts[2],
     summary: 'batch-02에 설치된 패키지 수가 변경되었습니다. 정보성 변화일 가능성이 높습니다.',
     impact: ['확인된 서비스 영향 없음'],
     timeline: [{ at: '09:39', text: '설치 패키지 수 변경 감지' }],
@@ -285,7 +299,7 @@ export const incidents: Record<string, Incident> = {
     planId: null,
   },
   a4: {
-    alert: alerts[3],
+    alert: legacyAlerts[3],
     summary: 'ml-gpu-07의 nvme4n1 디스크 응답 시간이 20ms를 넘었습니다. 학습 작업 중 체크포인트 저장 시간과 겹칩니다.',
     impact: ['학습 작업 속도 저하 가능'],
     timeline: [
@@ -321,7 +335,8 @@ export const incidents: Record<string, Incident> = {
   },
 }
 
-export const plans: Plan[] = [
+/** @deprecated 옛 변경 계획 목업([선택] 화면 /plans). 계약 형식은 `incidentDetails`의 plan·steps. */
+export const legacyPlans: LegacyPlan[] = [
   {
     id: 'p1',
     incidentId: 'a1',
@@ -365,7 +380,8 @@ export const plans: Plan[] = [
   },
 ]
 
-export const reports: Report[] = [
+/** @deprecated 옛 리포트 목업([선택] 화면 /reports). 계약 형식은 `incidentDetails`의 report. */
+export const legacyReports: LegacyReport[] = [
   {
     id: 'r1',
     incidentId: 'a4',
@@ -681,3 +697,485 @@ export const users: UserAccount[] = [
   { id: 'taeyun', name: '태윤', role: 'viewer', active: true, lastLogin: '2026-10-12 11:10' },
   { id: 'guest01', name: '외부 검토자', role: 'viewer', active: false, lastLogin: '2026-09-30 10:05' },
 ]
+
+/** @deprecated `legacyAlerts` 별칭. components/Layout.tsx가 import한다. */
+export const alerts = legacyAlerts
+/** @deprecated `legacyOldAlerts` 별칭. components/Layout.tsx가 import한다. */
+export const oldAlerts = legacyOldAlerts
+
+// ============================================================================
+// API 계약 형식 목 — types.ts 1구역 기준. 노션 프론트 API 요청서 3장 예시 JSON을 옮기고,
+// FR-FE-015가 요구하는 경우(unknown:true, fallback 리포트, A·B·C 단계, failed 메일, 리포트 없음)를 더했다.
+// 동작 ID·아이템 키는 목 데이터(fixture)라서 쓴다. 화면 코드에는 쓰지 않는다(NFR-EXT-001).
+// ============================================================================
+
+// #4 GET /api/health
+export const health: Health = {
+  zabbix: 'ok',
+  agent: 'ok',
+  mcp_zabbix: 'ok',
+  shared_db: 'ok',
+  backend_db: 'ok',
+  scheduler_last_ok: '2026-10-16T01:20:30Z',
+}
+
+/** 연결 상태 경고 배너 확인용(요청서 #4 예시 그대로). */
+export const healthDegraded: Health = {
+  zabbix: 'ok',
+  agent: 'ok',
+  mcp_zabbix: 'down',
+  shared_db: 'waiting',
+  backend_db: 'ok',
+  scheduler_last_ok: '2026-10-16T01:20:30Z',
+}
+
+// #5 GET /api/dashboard/summary
+export const dashboardSummary: DashboardSummary = {
+  active_incidents: { value: 2, unit: '건', collected_at: '2026-10-16T01:20:30Z', unknown: false },
+  high_incidents: { value: 2, unit: '건', collected_at: '2026-10-16T01:20:30Z', unknown: false },
+  hosts: {
+    ok: { value: 2, unit: '대', collected_at: '2026-10-16T01:20:35Z', unknown: false },
+    total: { value: 3, unit: '대', collected_at: '2026-10-16T01:20:35Z', unknown: false },
+    unknown: { value: 1, unit: '대', collected_at: '2026-10-16T01:20:35Z', unknown: false },
+  },
+  reports_today: { value: 2, unit: '건', collected_at: '2026-10-16T01:20:40Z', unknown: false },
+  avg_analysis_sec: {
+    value: null,
+    unit: 's',
+    collected_at: '2026-10-16T01:20:40Z',
+    unknown: true,
+    unknown_reason: 'NO_DATA',
+  },
+  llm_usage_today: null,
+}
+
+// #6 GET /api/problems
+export const problems: Problem[] = [
+  {
+    eventid: '40230',
+    name: 'High CPU utilization (over 85% for 1m)',
+    severity: { level: 4, label: 'High' },
+    clock: '2026-10-16T01:24:00Z',
+    host: { id: '10585', name: 'LAB-PC-08' },
+    tags: [{ tag: 'component', value: 'cpu' }],
+    incident_id: 13,
+  },
+  {
+    eventid: '40211',
+    name: 'Disk space is critically low (used > 90%) on C:',
+    severity: { level: 4, label: 'High' },
+    clock: '2026-10-16T01:20:00Z',
+    host: { id: '10584', name: 'LAB-PC-07' },
+    tags: [{ tag: 'component', value: 'storage' }],
+    incident_id: 12,
+  },
+  {
+    eventid: '40219',
+    name: 'High CPU utilization (over 90% for 5m)',
+    severity: { level: 3, label: 'Average' },
+    clock: '2026-10-16T01:21:10Z',
+    host: { id: '10585', name: 'LAB-PC-08' },
+    tags: [],
+    incident_id: null, // 아직 DejaFix가 수집하지 않음("수집 대기")
+  },
+]
+
+// #10 GET /api/incidents — 상세(#11)와 같은 객체를 쓰도록 하나씩 정의한다(함수 호출 없이 두어야 운영 번들에서 빠진다)
+const incident13: Incident = {
+  id: 13,
+  source: 'zabbix',
+  zabbix: { eventid: '40230', triggerid: '23520', hostid: '10585' },
+  host: { id: '10585', name: 'LAB-PC-08' },
+  title: 'High CPU utilization (over 85% for 1m)',
+  severity: { level: 4, label: 'High' },
+  status: 'problem',
+  started_at: '2026-10-16T01:24:00Z',
+  resolved_at: null,
+  tags: [{ tag: 'component', value: 'cpu' }],
+  analysis: { status: 'fallback', report_id: 32, plan_id: 19 },
+}
+
+const incident12: Incident = {
+  id: 12,
+  source: 'zabbix',
+  zabbix: { eventid: '40211', triggerid: '23512', hostid: '10584' },
+  host: { id: '10584', name: 'LAB-PC-07' },
+  title: 'Disk space is critically low (used > 90%) on C:',
+  severity: { level: 4, label: 'High' },
+  status: 'problem',
+  started_at: '2026-10-16T01:20:00Z',
+  resolved_at: null,
+  tags: [{ tag: 'component', value: 'storage' }],
+  analysis: { status: 'done', report_id: 31, plan_id: 18 },
+}
+
+const incident9: Incident = {
+  id: 9,
+  source: 'zabbix',
+  zabbix: { eventid: '40102', triggerid: '23490', hostid: '10584' },
+  host: { id: '10584', name: 'LAB-PC-07' },
+  title: 'Operating system description has changed',
+  severity: { level: 1, label: 'Information' },
+  status: 'resolved',
+  started_at: '2026-10-15T23:02:00Z',
+  resolved_at: '2026-10-15T23:40:00Z',
+  tags: [],
+  analysis: { status: 'skipped', report_id: null, plan_id: null }, // ANALYZE_MIN_SEVERITY(2) 미만
+}
+
+// started_at 내림차순
+export const incidentList: Incident[] = [incident13, incident12, incident9]
+
+// #11 GET /api/incidents/{id}
+export const incidentDetails: Record<number, IncidentDetail> = {
+  // 요청서 #11 예시 그대로: LLM 리포트, A·B·C 단계, STALE 값, 메일 sent
+  12: {
+    incident: incident12,
+    report: {
+      id: 31,
+      version: 1,
+      kind: 'llm',
+      summary: 'LAB-PC-07의 C: 드라이브 사용률이 96.1%로 임계값(90%)을 넘었습니다.',
+      impact: {
+        hosts: ['LAB-PC-07'],
+        services: [],
+        user_impact: '디스크가 가득 차면 실습 프로그램 저장이 실패할 수 있음',
+        evidence_ids: ['ev_a1'],
+      },
+      causes: [
+        {
+          rank: 1,
+          title: '임시 파일 누적',
+          confidence: 'medium',
+          reasoning: '최근 1시간 사용률이 꾸준히 증가했습니다.',
+          evidence_ids: ['ev_a1', 'ev_a2'],
+          verify: '임시 폴더 크기 확인',
+        },
+        {
+          rank: 2,
+          title: '백업 작업으로 인한 일시 증가',
+          confidence: 'low',
+          reasoning: '백업 작업 여부는 수집되지 않아 판단 근거가 부족합니다.',
+          evidence_ids: [],
+          verify: '백업 스케줄 확인',
+        },
+      ],
+      facts: [
+        {
+          label: 'C: 사용률',
+          value: 96.1,
+          unit: '%',
+          unknown_reason: null,
+          evidence_ids: ['ev_a1'],
+          collected_at: '2026-10-16T01:19:30Z',
+        },
+        {
+          label: '메모리 사용률',
+          value: null,
+          unit: '%',
+          unknown_reason: 'STALE',
+          evidence_ids: ['ev_a3'],
+          collected_at: '2026-10-16T00:40:00Z',
+        },
+      ],
+      unknowns: [{ label: '백업 작업 여부', reason: 'NOT_COLLECTED' }],
+      next_checks: ['임시 폴더 크기와 사용 중인 파일 확인'],
+      created_at: '2026-10-16T01:20:52Z',
+    },
+    evidence: [
+      {
+        id: 'ev_a1',
+        tool: 'zabbix_get_history',
+        args: { itemid: '45123', time_from: '2026-10-16T00:20:00Z' },
+        ok: true,
+        duration_ms: 412,
+        result_summary: '최근 1시간 C: 사용률 최대 96.1%',
+        data_clock: '2026-10-16T01:19:30Z',
+        called_at: '2026-10-16T01:20:41Z',
+      },
+      {
+        id: 'ev_a2',
+        tool: 'zabbix_list_items',
+        args: { hostid: '10584', key_search: 'vfs.fs' },
+        ok: true,
+        duration_ms: 205,
+        result_summary: 'C: 사용 중 공간 1시간 동안 4.2GB 증가',
+        data_clock: '2026-10-16T01:19:30Z',
+        called_at: '2026-10-16T01:20:42Z',
+      },
+      {
+        id: 'ev_a3',
+        tool: 'zabbix_list_items',
+        args: { hostid: '10584', key_search: 'vm.memory' },
+        ok: true,
+        duration_ms: 188,
+        result_summary: '메모리 값이 40분 전 이후 갱신 안 됨 (stale)',
+        data_clock: '2026-10-16T00:40:00Z',
+        called_at: '2026-10-16T01:20:43Z',
+      },
+    ],
+    plan: {
+      id: 18,
+      title: 'LAB-PC-07 C: 드라이브 정리 계획',
+      goal: 'C: 사용률을 90% 아래로',
+      mode: 'preview',
+      max_tier: 'C',
+      assumptions: ['임시 폴더 파일은 업무 데이터가 아님'],
+    },
+    steps: [
+      {
+        seq: 1,
+        action_id: 'check_disk_usage',
+        title: '디스크 사용량 확인',
+        target: 'LAB-PC-07 C:',
+        command_preview: 'Get-PSDrive C',
+        tier: 'A',
+        rationale: '규칙: packs/it/actions.yaml check_disk_usage',
+        precheck: null,
+        expected_effect: '현재 사용량 확인',
+        risk: '없음 (조회)',
+        rollback: null,
+        evidence_ids: ['ev_a1'],
+      },
+      {
+        seq: 2,
+        action_id: 'clean_temp_files',
+        title: '임시 파일 정리',
+        target: 'LAB-PC-07 %TEMP%',
+        command_preview: 'Move-Item $env:TEMP\\* (Join-Path $env:TEMP ..\\dejafix-quarantine)',
+        tier: 'B',
+        rationale: '규칙: packs/it/actions.yaml clean_temp_files',
+        precheck: '임시 폴더 크기와 사용 중인 파일 확인',
+        expected_effect: '수 GB 확보 예상',
+        risk: '사용 중인 파일 이동 시 프로그램 오류 가능',
+        rollback: '격리 폴더의 파일을 원래 위치로 다시 이동',
+        evidence_ids: ['ev_a1'],
+      },
+      {
+        seq: 3,
+        action_id: null,
+        title: '서버 재부팅',
+        target: 'LAB-PC-07',
+        command_preview: 'Restart-Computer',
+        tier: 'C',
+        rationale: 'actions.yaml 미등록 동작 → C로 지정 (SAFE-06)',
+        precheck: null,
+        expected_effect: null,
+        risk: '서비스 중단',
+        rollback: null,
+        evidence_ids: [],
+      },
+    ],
+    mail_logs: [
+      {
+        id: 7,
+        kind: 'incident_report',
+        recipient: 'oncall@example.com',
+        status: 'sent',
+        attempts: 1,
+        error: null,
+        created_at: '2026-10-16T01:20:55Z',
+        sent_at: '2026-10-16T01:20:58Z',
+      },
+    ],
+  },
+
+  // LLM 미연결 데모 기본 경로: fallback 리포트(원인 확인할 수 없음) + fallback 계획(A·B), 메일 failed
+  13: {
+    incident: incident13,
+    report: {
+      id: 32,
+      version: 1,
+      kind: 'fallback',
+      summary:
+        'LAB-PC-08의 CPU 사용률이 1분 평균 97.2%로 임계값(85%)을 넘었습니다. LLM이 연결되지 않아 수집한 사실만 정리했습니다.',
+      impact: {
+        hosts: ['LAB-PC-08'],
+        services: [],
+        user_impact: '확인할 수 없음',
+        evidence_ids: ['ev_b1'],
+      },
+      causes: [],
+      facts: [
+        {
+          label: 'CPU 사용률(1분 평균)',
+          value: 97.2,
+          unit: '%',
+          unknown_reason: null,
+          evidence_ids: ['ev_b2'],
+          collected_at: '2026-10-16T01:24:30Z',
+        },
+        {
+          label: '유지보수 여부',
+          value: null,
+          unit: null,
+          unknown_reason: 'TOOL_ERROR',
+          evidence_ids: ['ev_b3'],
+          collected_at: null,
+        },
+      ],
+      unknowns: [
+        { label: '원인 후보', reason: 'NOT_COLLECTED' },
+        { label: '같은 트리거 최근 7일 발생 횟수', reason: 'NOT_COLLECTED' },
+      ],
+      next_checks: ['부하 상위 프로세스 확인'],
+      created_at: '2026-10-16T01:25:05Z',
+    },
+    evidence: [
+      {
+        id: 'ev_b1',
+        tool: 'zabbix_get_problem',
+        args: { eventid: '40230' },
+        ok: true,
+        duration_ms: 230,
+        result_summary: '트리거 avg(system.cpu.util,1m)>85, 심각도 High',
+        data_clock: '2026-10-16T01:24:00Z',
+        called_at: '2026-10-16T01:24:58Z',
+      },
+      {
+        id: 'ev_b2',
+        tool: 'zabbix_get_history',
+        args: { itemid: '45201', time_from: '2026-10-16T00:24:00Z' },
+        ok: true,
+        duration_ms: 398,
+        result_summary: '최근 1시간 CPU 최대 99.1%, 1분 평균 97.2%',
+        data_clock: '2026-10-16T01:24:30Z',
+        called_at: '2026-10-16T01:24:59Z',
+      },
+      {
+        id: 'ev_b3',
+        tool: 'zabbix_get_host',
+        args: { hostid: '10585' },
+        ok: false,
+        duration_ms: 5000,
+        result_summary: 'ZABBIX_ERROR: 응답 시간 초과',
+        data_clock: null,
+        called_at: '2026-10-16T01:25:00Z',
+      },
+    ],
+    plan: {
+      id: 19,
+      title: 'LAB-PC-08 CPU 과부하 확인 계획 (규칙 기반)',
+      goal: null,
+      mode: 'preview',
+      max_tier: 'B',
+      assumptions: [],
+    },
+    steps: [
+      {
+        seq: 1,
+        action_id: 'check_top_process',
+        title: '부하 상위 프로세스 확인',
+        target: 'LAB-PC-08',
+        command_preview: 'Get-Process | Sort-Object CPU -Descending | Select-Object -First 10',
+        tier: 'A',
+        rationale: '규칙: packs/it/actions.yaml fallback_plans.cpu',
+        precheck: null,
+        expected_effect: '부하 원인 프로세스 확인',
+        risk: '없음 (조회)',
+        rollback: null,
+        evidence_ids: [],
+      },
+      {
+        seq: 2,
+        action_id: 'restart_service',
+        title: '서비스 재시작',
+        target: 'LAB-PC-08 <서비스 이름>',
+        command_preview: 'Restart-Service -Name <서비스 이름>',
+        tier: 'B',
+        rationale: '규칙: packs/it/actions.yaml fallback_plans.cpu',
+        precheck: '부하 상위 프로세스가 해당 서비스인지, 서비스 상태 확인 (Get-Service -Name <서비스 이름>)',
+        expected_effect: 'CPU 사용률 하락',
+        risk: '재시작 동안 해당 서비스 응답 없음',
+        rollback: '서비스가 다시 뜨지 않으면 시작 (Start-Service -Name <서비스 이름>)',
+        evidence_ids: [],
+      },
+    ],
+    mail_logs: [
+      {
+        id: 8,
+        kind: 'incident_report',
+        recipient: 'oncall@example.com',
+        status: 'failed',
+        attempts: 3,
+        error: 'SMTP 연결 시간 초과 (smtp.gmail.com:587)',
+        created_at: '2026-10-16T01:25:10Z',
+        sent_at: null,
+      },
+    ],
+  },
+
+  // 분석 대상이 아니라 리포트가 없는 장애(요청서 확인 요청 8 형태)
+  9: {
+    incident: incident9,
+    report: null,
+    evidence: [],
+    plan: null,
+    steps: [],
+    mail_logs: [],
+  },
+}
+
+// #18 POST /api/chat — SSE 이벤트 순서(요청서 #18 예시 그대로)
+export const chatEvents: ChatEvent[] = [
+  { event: 'meta', data: { conversation_id: 'c_7f3a', run_id: 'r_91b2', message_id: 101 } },
+  {
+    event: 'tool_call',
+    data: { id: 'ev_c1', tool: 'zabbix_get_history', args: { itemid: '45123' }, started_at: '2026-10-16T01:25:02Z' },
+  },
+  {
+    event: 'tool_result',
+    data: {
+      id: 'ev_c1',
+      ok: true,
+      duration_ms: 412,
+      summary: '최근 1시간 C: 사용률 최대 96.1%',
+      data_clock: '2026-10-16T01:24:30Z',
+    },
+  },
+  { event: 'token', data: { text: '백업 작업 여부는 ' } },
+  { event: 'token', data: { text: '수집되지 않아 확인할 수 없습니다.' } },
+  {
+    event: 'final',
+    data: {
+      message_id: 102,
+      content: '백업 작업 여부는 수집되지 않아 확인할 수 없습니다. 최근 1시간 C: 사용률은 최대 96.1%입니다.',
+      evidence_ids: ['ev_c1'],
+      unknowns: [{ label: '백업 작업 여부', reason: 'NOT_COLLECTED' }],
+    },
+  },
+]
+
+/** LLM 미연결 규칙 기반 답변: meta → final만 온다. */
+export const chatEventsRuleBased: ChatEvent[] = [
+  { event: 'meta', data: { conversation_id: 'c_8a01', run_id: 'r_92c4', message_id: 103 } },
+  {
+    event: 'final',
+    data: {
+      message_id: 104,
+      content: '이 서버의 백업 작업 정보는 수집 대상이 아니라 확인할 수 없습니다.',
+      evidence_ids: [],
+      unknowns: [{ label: '백업 작업 여부', reason: 'NOT_COLLECTED' }],
+    },
+  },
+]
+
+// #18 비스트리밍 대체 응답(탈출 규칙 1)
+export const chatReply: ChatReply = {
+  conversation_id: 'c_7f3a',
+  message_id: 102,
+  content: '백업 작업 여부는 수집되지 않아 확인할 수 없습니다. 최근 1시간 C: 사용률은 최대 96.1%입니다.',
+  evidence_ids: ['ev_c1'],
+  unknowns: [{ label: '백업 작업 여부', reason: 'NOT_COLLECTED' }],
+  tool_calls: [
+    {
+      id: 'ev_c1',
+      tool: 'zabbix_get_history',
+      args: { itemid: '45123' },
+      ok: true,
+      duration_ms: 412,
+      summary: '최근 1시간 C: 사용률 최대 96.1%',
+      data_clock: '2026-10-16T01:24:30Z',
+    },
+  ],
+}

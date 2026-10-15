@@ -1,5 +1,4 @@
 import {
-  alerts,
   baselines,
   costItems,
   crossGroups,
@@ -7,33 +6,35 @@ import {
   diskForecasts,
   heatmap,
   heatProjects,
-  incidents,
+  legacyAlerts,
+  legacyIncidents,
+  legacyOldAlerts,
+  legacyPlans,
+  legacyReports,
+  legacySummary,
   notificationRules,
-  oldAlerts,
-  plans,
-  reports,
   servers,
-  summary,
   trend,
   users,
 } from './mock'
-import type { AssistantReply, EvidenceCall } from './types'
+import type { LegacyAssistantReply, LegacyEvidenceCall } from './types'
 
 // 백엔드(BFF) API가 준비되면 이 파일의 함수 내부만 fetch로 바꾼다. 화면 코드는 그대로 둔다.
+// 지금 함수들은 옛 목업 형식(legacy*)을 돌려준다. 계약 형식 목(health·dashboardSummary·incidentDetails 등)은 mock.ts 맨 아래.
 const wait = <T>(value: T, ms = 220): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms))
 
 export const api = {
-  summary: () => wait(summary),
-  alerts: () => wait({ fresh: alerts, old: oldAlerts }),
+  summary: () => wait(legacySummary),
+  alerts: () => wait({ fresh: legacyAlerts, old: legacyOldAlerts }),
   crossGroups: () => wait(crossGroups),
   baselines: () => wait(baselines),
   diskForecasts: () => wait(diskForecasts),
   trend: () => wait(trend),
   heatmap: () => wait({ projects: heatProjects, cells: heatmap }),
-  incident: (id: string) => wait(incidents[id] ?? null),
-  plans: () => wait(plans),
-  plan: (id: string) => wait(plans.find((p) => p.id === id) ?? null),
-  reports: () => wait(reports),
+  incident: (id: string) => wait(legacyIncidents[id] ?? null),
+  plans: () => wait(legacyPlans),
+  plan: (id: string) => wait(legacyPlans.find((p) => p.id === id) ?? null),
+  reports: () => wait(legacyReports),
   servers: () => wait(servers),
   costItems: () => wait(costItems),
   notificationRules: () => wait(notificationRules),
@@ -41,14 +42,14 @@ export const api = {
   users: () => wait(users),
 }
 
-const tool = (name: string, command: string, result: string, ms: number): EvidenceCall => ({
+const tool = (name: string, command: string, result: string, ms: number): LegacyEvidenceCall => ({
   tool: name,
   command,
   result,
   ms,
 })
 
-export async function askAssistant(question: string): Promise<AssistantReply> {
+export async function askAssistant(question: string): Promise<LegacyAssistantReply> {
   const q = question.toLowerCase()
   await wait(null, 650)
   if (q.includes('확인') || q.includes('장애')) {

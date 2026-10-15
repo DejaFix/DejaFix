@@ -1,11 +1,11 @@
 import { createContext, useContext } from 'react'
-import type { EvidenceCall } from '../lib/types'
+import type { LegacyEvidenceCall } from '../lib/types'
 
 export interface ChatMessage {
   id: number
   role: 'user' | 'ai'
   text: string
-  evidence?: EvidenceCall[]
+  evidence?: LegacyEvidenceCall[]
   unknowns?: string[]
 }
 
