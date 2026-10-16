@@ -193,6 +193,7 @@ def test_detail_report(api):
     assert {u["reason"] for u in report["unknowns"]} == {"NOT_COLLECTED"}
 
 
+@pytest.mark.safety_regression
 def test_every_evidence_id_in_the_response_exists_in_evidence(api):
     """수용 기준: report.causes[].evidence_ids 의 모든 ID 가 evidence[] 에 존재."""
     for incident_id in (1, 2):
@@ -235,6 +236,7 @@ def test_failed_tool_call_is_kept_with_ok_false(api):
     assert failed[0]["data_clock"] is None
 
 
+@pytest.mark.safety_regression
 def test_plan_is_preview_only_with_tiered_steps(api):
     data = api.get("/api/incidents/1").json()["data"]
     assert data["plan"]["mode"] == "preview"
@@ -248,6 +250,7 @@ def test_plan_is_preview_only_with_tiered_steps(api):
     assert steps[2]["action_id"] is None  # 미등록 동작 → C
 
 
+@pytest.mark.safety_regression
 def test_no_execute_or_run_fields_anywhere(api):
     """SAFE-04: 응답 어디에도 실행 필드가 없다."""
     for incident_id in (1, 2, 3, 5, 6):
