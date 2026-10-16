@@ -63,6 +63,12 @@
 
 > 통합 에이전트(재현) 세션에서만 돈다. 다른 파트 세션은 이 절을 실행하지 않는다. 위 1~5를 돈 뒤 같은 회차에 이어서 한다.
 
+## D0. 실행 계정 확인 — 아니면 이 절 전체를 건너뛴다
+- 회차마다 먼저 `gh api user --jq .login`으로 로그인 계정을 확인한다.
+- 결과가 **`JangJaehyeonn`이 아니면** D1~D3을 실행하지 않고 회차를 끝낸다(닥터 보고 줄도 쓰지 않는다).
+- 명령이 실패하거나 결과가 비어 있어도 건너뛴다(확인 못 하면 실행하지 않음).
+- 담당자가 바뀌면(로테이션, 기획서 10-2) 이 계정 이름과 `docs/agent-collaboration.md` 1장 표를 같이 바꾼다.
+
 ## D1. 매 회차 — dev가 초록인지 직접 확인
 - 전용 worktree에서 최신 dev를 받는다: `git worktree add .claude/worktrees/doctor origin/dev`(처음 한 번), 이후 `git -C .claude/worktrees/doctor fetch origin && git -C .claude/worktrees/doctor checkout --detach origin/dev`
 - CI와 **같은 검사**를 돌린다(`.github/workflows/ci.yml`과 같은 명령):
