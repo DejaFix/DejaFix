@@ -20,6 +20,7 @@ from typing import Any
 import yaml
 
 from .config import KbSettings
+from .redact import redact, redact_value
 
 
 def now_iso() -> str:
@@ -176,9 +177,17 @@ def pack_docs(root: Path, domain_pack: str | None) -> list[SourceDoc]:
 
 
 def collect(settings: KbSettings) -> list[SourceDoc]:
-    """출처 전부. 순서: 장애 → 런북 → 팩 동작."""
-    return (
+    """출처 전부. 순서: 장애 → 런북 → 팩 동작.
+
+    색인에 넣기 전에 제목·본문·meta 의 IP·비밀값을 가린다(NFR-RAG-001). 원본은 바꾸지 않는다.
+    """
+    docs = (
         incident_docs(settings.path(settings.shared_db_path))
         + runbook_docs(settings.root, settings.doc_dirs)
         + pack_docs(settings.root, settings.domain_pack)
     )
+    for d in docs:
+        d.title = redact(d.title)
+        d.text = redact(d.text)
+        d.meta = redact_value(d.meta)
+    return docs
