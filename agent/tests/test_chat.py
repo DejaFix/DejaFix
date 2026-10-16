@@ -375,3 +375,39 @@ def test_chat_without_kb_has_no_tool_events(seeded, packs_dir):
             )
         ]
     assert "tool_call" not in kinds
+
+
+def test_incident_question_keeps_report_answer_and_appends_kb(seeded, packs_dir):
+    """장애 맥락이 있으면 리포트 답이 먼저, 과거 사례는 덧붙인다 (FR-AG-009 회귀 방지)."""
+    with kb_client_for(seeded, packs_dir, _Kb([HIT])) as c:
+        events = parse(
+            post(
+                c,
+                {"message": "CPU 사용률 어떻게 확인해?", "context": {"incident_id": 1}},
+            ).text
+        )
+    final = events[-1][1]
+    content = final["content"]
+    assert content.startswith("LAB-PC-07")  # 리포트 기반 답이 먼저
+    assert content.index("96.1") < content.index("kb_0123456789ab")  # 과거 사례는 뒤에
+    assert events[1][1]["id"] in final["evidence_ids"]
+
+
+def test_llm_evidence_only_when_chunk_cited(seeded, packs_dir, monkeypatch):
+    monkeypatch.setattr(
+        chat, "complete_text", lambda s, p: "과거 사례는 참고만 하세요."
+    )
+    with kb_client_for(real(seeded), packs_dir, _Kb([HIT])) as c:
+        final = parse(
+            post(c, {"message": "절차 알려줘", "context": {"incident_id": 1}}).text
+        )[-1][1]
+    assert final["evidence_ids"] == []
+
+
+def test_history_words_come_from_pack(test_pack):
+    assert "전에" in test_pack.history_words
+    from dejafix_agent.chat import _asks_history
+    from dataclasses import replace
+
+    assert _asks_history("전에 어떻게 했어?", test_pack)
+    assert not _asks_history("전에 어떻게 했어?", replace(test_pack, history_words=()))
