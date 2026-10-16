@@ -1,0 +1,1173 @@
+{
+ "meta": {
+  "started": "2026-10-14T16:41:37+09:00",
+  "agent": "127.0.0.1",
+  "port": 10050,
+  "warmup_s": 65,
+  "keys": 116,
+  "ok": 106,
+  "note": "300자 넘는 값은 요약으로 대체(실행 중인 프로그램 목록 등 개인 정보 제외)"
+ },
+ "items": [
+  {
+   "category": "agent",
+   "key": "agent.ping",
+   "source": "template",
+   "ok": true,
+   "ms": 15,
+   "value": "1",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "agent",
+   "key": "agent.version",
+   "source": "template",
+   "ok": true,
+   "ms": 10,
+   "value": "7.0.31",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "agent",
+   "key": "agent.variant",
+   "source": "extra",
+   "ok": true,
+   "ms": 10,
+   "value": "2",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "agent",
+   "key": "agent.hostname",
+   "source": "template",
+   "ok": true,
+   "ms": 10,
+   "value": "dejafix-local-test",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.hostname",
+   "source": "template",
+   "ok": true,
+   "ms": 10,
+   "value": "DESKTOP-4V9JO99",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.hostname[fqdn]",
+   "source": "extra",
+   "ok": true,
+   "ms": 10,
+   "value": "DESKTOP-4V9JO99",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.uname",
+   "source": "template",
+   "ok": true,
+   "ms": 43,
+   "value": "Windows DESKTOP-4V9JO99 10.0.19045 Microsoft Windows 10 Pro x64",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.sw.os",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "Windows 10 Pro 19041.1.amd64fre.vb_release.191206-1406 Build 19045.6466",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.sw.os.get",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "<JSON 객체, 키: ['os_type', 'product_name', 'architecture', 'build_number', 'build_revision', 'build', 'edition', 'composition', 'display_version', 'version', 'version_pretty', 'version_full']> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.sw.arch",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "x64",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.uptime",
+   "source": "template",
+   "ok": true,
+   "ms": 12,
+   "value": "265717",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.localtime",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "1791963765",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "system.boottime",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Unknown metric system.boottime",
+   "first_pass": "Unknown metric system.boottime"
+  },
+  {
+   "category": "system",
+   "key": "system.users.num",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "1",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "wmi.get[root\\cimv2,\"select LastBootUpTime from Win32_OperatingSystem\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 30,
+   "value": "20261011145408.503145+540",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "system",
+   "key": "registry.data[\"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\",DisplayVersion]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "22H2",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.util",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "10.951853",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.util[,system]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "10.951853",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.util[0]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "24.272750",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.util[,user]",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 10,
+   "value": "",
+   "error": "Invalid second parameter.",
+   "first_pass": "Invalid second parameter."
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.util[,,avg5]",
+   "source": "expect-unsupported",
+   "ok": true,
+   "ms": 9,
+   "value": "11.498184",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.load",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.load[percpu,avg1]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.load[all,avg5]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.num",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "12",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "system.cpu.discovery",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "<JSON 배열 12개, 항목 키: ['{#CPU.NUMBER}', '{#CPU.STATUS}']> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "wmi.get[root/cimv2,\"Select NumberOfLogicalProcessors from Win32_ComputerSystem\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 33,
+   "value": "12",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\Processor Information(_total)\\% Processor Time\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "2.986834",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\Processor Information(_total)\\% Processor Utility\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "5.836891",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\Processor Information(_total)\\% User Time\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "1.434343",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\Processor Information(_total)\\% Privileged Time\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "2.738270",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\Processor Information(_total)\\% Interrupt Time\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.521573",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\Processor Information(_total)\\% DPC Time\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\System\\Processor Queue Length\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter_en[\"\\System\\Context Switches/sec\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "12276.015311",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "cpu",
+   "key": "perf_counter[\"\\Processor(_Total)\\% Processor Time\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "2.978604",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.size[total]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "17111175168",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.size[used]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "9190973440",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.size[available]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "7919960064",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.size[free]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "7919603712",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.size[pused]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "53.721084",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.size[pavailable]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "46.276475",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.memory.util",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Unknown metric vm.memory.util",
+   "first_pass": "Unknown metric vm.memory.util"
+  },
+  {
+   "category": "memory",
+   "key": "vm.vmemory.size[total]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "20198182912",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.vmemory.size[used]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "12718604288",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.vmemory.size[available]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "7480905728",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "vm.vmemory.size[pused]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "62.967065",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "system.swap.size[,total]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "3087007744",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "system.swap.size[,free]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "system.swap.size[,pfree]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "system.swap.size[,pused]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "100.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Paging file(_Total)\\% Usage\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "5.887504",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\Cache Bytes\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "527872000.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\Free System Page Table Entries\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "12507286.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\Page Faults/sec\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "34261.652523",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\Pages/sec\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\Pool Nonpaged Bytes\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "503599104.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\Available MBytes\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "7549.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "memory",
+   "key": "perf_counter_en[\"\\Memory\\% Committed Bytes In Use\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "62.965645",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.discovery",
+   "source": "extra",
+   "ok": true,
+   "ms": 13,
+   "value": "[{\"{#FSNAME}\":\"C:\",\"{#FSTYPE}\":\"NTFS\",\"{#FSLABEL}\":\"\",\"{#FSDRIVETYPE}\":\"fixed\"}]",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.get",
+   "source": "template",
+   "ok": true,
+   "ms": 14,
+   "value": "[{\"fsname\":\"C:\",\"fstype\":\"NTFS\",\"fslabel\":\"\",\"fsdrivetype\":\"fixed\",\"bytes\":{\"total\":119325487104,\"free\":9713893376,\"used\":109611593728,\"pfree\":8.140669367252366,\"pused\":91.85933063274763},\"options\":null}]",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.size[C:,total]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "119325487104",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.size[C:,used]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "109611593728",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.size[C:,free]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "9713893376",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.size[C:,pused]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "91.859331",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.size[C:,pfree]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "8.140669",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.fs.inode[C:,pfree]",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Unknown metric vfs.fs.inode",
+   "first_pass": "Unknown metric vfs.fs.inode"
+  },
+  {
+   "category": "disk",
+   "key": "perf_instance_en.discovery[PhysicalDisk]",
+   "source": "template",
+   "ok": true,
+   "ms": 31,
+   "value": "[{\"{#INSTANCE}\":\"0 C:\"},{\"{#INSTANCE}\":\"_Total\"}]",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.dev.discovery",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 10,
+   "value": "",
+   "error": "Unknown metric vfs.dev.discovery",
+   "first_pass": "Unknown metric vfs.dev.discovery"
+  },
+  {
+   "category": "disk",
+   "key": "vfs.dev.read[,ops]",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Unknown metric vfs.dev.read",
+   "first_pass": "Unknown metric vfs.dev.read"
+  },
+  {
+   "category": "disk",
+   "key": "wmi.getall[root\\cimv2,\"select Index,Model,Status,Size from Win32_DiskDrive\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 37,
+   "value": "[{\"DeviceID\":\"\\\\\\\\.\\\\PHYSICALDRIVE0\",\"Index\":0,\"Model\":\"VIVA 200s\",\"Size\":\"120031511040\",\"Status\":\"OK\"}]",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.discovery",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "<JSON 배열 9개, 항목 키: ['{#IFNAME}', '{#IFGUID}']> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.list",
+   "source": "extra",
+   "ok": true,
+   "ms": 11,
+   "value": "<텍스트 9줄> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "wmi.getall[root\\cimv2,\"select Name,Description,NetConnectionID,Speed,AdapterTypeId,NetConnectionStatus,GUID from win32_networkadapter where PhysicalAdapter=True and NetConnectionStatus>0\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 42,
+   "value": "[{\"AdapterTypeId\":0,\"Description\":\"Realtek PCIe GbE Family Controller\",\"DeviceID\":\"1\",\"GUID\":\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\",\"Name\":\"Realtek PCIe GbE Family Controller\",\"NetConnectionID\":\"이더넷\",\"NetConnectionStatus\":2,\"Speed\":\"1000000000\"}]",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.tcp.port[127.0.0.1,10050]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "1",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.tcp.listen[10050]",
+   "source": "extra",
+   "ok": true,
+   "ms": 10,
+   "value": "1",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.tcp.socket.count[,10050]",
+   "source": "extra",
+   "ok": true,
+   "ms": 12,
+   "value": "194",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.dns[,www.zabbix.com,A,2,1]",
+   "source": "extra",
+   "ok": true,
+   "ms": 13,
+   "value": "1",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "service.discovery",
+   "source": "template",
+   "ok": true,
+   "ms": 104,
+   "value": "<JSON 배열 271개, 항목 키: ['{#SERVICE.NAME}', '{#SERVICE.DISPLAYNAME}', '{#SERVICE.DESCRIPTION}', '{#SERVICE.STATE}', '{#SERVICE.STATENAME}', '{#SERVICE.PATH}', '{#SERVICE.USER}', '{#SERVICE.STARTUPTRIGGER}', '{#SERVICE.STARTUP}', '{#SERVICE.STARTUPNAME}']> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "service.info[EventLog]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "service.info[EventLog,startup]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "service.info[Dnscache,state]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "service.info[Winmgmt,displayname]",
+   "source": "extra",
+   "ok": true,
+   "ms": 10,
+   "value": "Windows Management Instrumentation",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "service.info[NoSuchService_DejaFix]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "255",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "service",
+   "key": "services[automatic,stopped]",
+   "source": "extra",
+   "ok": true,
+   "ms": 81,
+   "value": "edgeupdate\r\nIntel(R) TPM Provisioning Service\r\nMapsBroker\r\nsppsvc\r\nGoogleUpdaterInternalService157.0.8089.0\r\nGoogleUpdaterService157.0.8089.0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "proc.num[]",
+   "source": "template",
+   "ok": true,
+   "ms": 13,
+   "value": "211",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "proc.num[svchost.exe]",
+   "source": "extra",
+   "ok": true,
+   "ms": 13,
+   "value": "70",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "perf_counter_en[\"\\System\\Threads\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "2882.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "process",
+   "key": "perf_counter_en[\"\\System\\Processes\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "211.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "process",
+   "key": "proc_info[svchost.exe,wkset,sum]",
+   "source": "extra",
+   "ok": true,
+   "ms": 14,
+   "value": "137748.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "proc_info[svchost.exe,io_read_b,sum]",
+   "source": "extra",
+   "ok": true,
+   "ms": 14,
+   "value": "17479029.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "proc_info[svchost.exe,utime,sum]",
+   "source": "extra",
+   "ok": true,
+   "ms": 13,
+   "value": "10465.000000",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "proc.get[,,,summary]",
+   "source": "extra",
+   "ok": true,
+   "ms": 27,
+   "value": "<JSON 배열 38개, 항목 키: ['name', 'processes', 'vmsize', 'wkset', 'cputime_user', 'cputime_system', 'threads', 'page_faults', 'handles', 'io_read_b', 'io_write_b', 'io_read_op', 'io_write_op', 'io_other_b', 'io_other_op']> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "perf_counter_en[\"\\Process(svchost)\\% Processor Time\",60]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "process",
+   "key": "wmi.getall[root\\cimv2,\"select Name,IDProcess,PercentProcessorTime,WorkingSetPrivate from Win32_PerfFormattedData_PerfProc_Process where Name<>'_Total' and Name<>'Idle' and PercentProcessorTime>0\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 351,
+   "value": "<JSON 배열 2개, 항목 키: ['IDProcess', 'Name', 'PercentProcessorTime', 'WorkingSetPrivate']> (전체 값은 로컬 결과에만 보관)",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "process",
+   "key": "proc.cpu.util[]",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Unknown metric proc.cpu.util",
+   "first_pass": "Unknown metric proc.cpu.util"
+  },
+  {
+   "category": "process",
+   "key": "proc.mem[]",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Unknown metric proc.mem",
+   "first_pass": "Unknown metric proc.mem"
+  },
+  {
+   "category": "eventlog",
+   "key": "eventlog[System]",
+   "source": "expect-unsupported",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "The \"eventlog\" key is not supported in test or single passive check mode",
+   "first_pass": "The \"eventlog\" key is not supported in test or single passive check mode"
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Disk Reads/sec\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.366451",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Disk Writes/sec\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "14.245746",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Current Disk Queue Length\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000000",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\% Idle Time\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "99.417771",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Avg. Disk sec/Read\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000122",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Avg. Disk sec/Write\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000201",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Avg. Disk Read Queue Length\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.000434",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Avg. Disk Write Queue Length\",60]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0.002986",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Disk Read Bytes/sec\",60]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "9562.105572",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "disk",
+   "key": "perf_counter_en[\"\\PhysicalDisk(0 C:)\\Disk Write Bytes/sec\",60]",
+   "source": "extra",
+   "ok": true,
+   "ms": 9,
+   "value": "195959.193866",
+   "error": "",
+   "first_pass": "Received empty response from Zabbix Agent at [127.0.0.1]. Assuming that agent dropped connection because of access permissions."
+  },
+  {
+   "category": "network",
+   "key": "net.if.in[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "8093716384",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.out[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\"]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "887879162",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.in[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\",errors]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.out[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\",errors]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.in[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\",dropped]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "1128",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.out[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\",dropped]",
+   "source": "template",
+   "ok": true,
+   "ms": 9,
+   "value": "0",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.total[\"{A7EDAA52-E3D4-4B2C-BE74-55BADBF9FE84}\"]",
+   "source": "extra",
+   "ok": true,
+   "ms": 10,
+   "value": "8981595546",
+   "error": "",
+   "first_pass": "ok"
+  },
+  {
+   "category": "network",
+   "key": "net.if.in[\"이더넷\"]",
+   "source": "extra",
+   "ok": false,
+   "ms": 9,
+   "value": "",
+   "error": "Cannot obtain network interface information.",
+   "first_pass": "Cannot obtain network interface information."
+  }
+ ]
+}

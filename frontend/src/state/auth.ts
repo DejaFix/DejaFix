@@ -1,8 +1,13 @@
 import { createContext, useContext } from 'react'
+import type { AuthUser, Role } from '../lib/types'
 
 export interface AuthState {
-  user: string | null
-  login: (id: string) => void
+  // restoring: 새로고침 직후 저장된 토큰을 GET /api/auth/me로 확인하는 중
+  status: 'restoring' | 'authenticated' | 'anonymous'
+  user: AuthUser | null
+  // 역할은 로그인·me 응답의 user.role에서만 온다. 로그아웃 상태 기본값은 가장 좁은 viewer.
+  role: Role
+  login: (username: string, password: string) => Promise<void>
   logout: () => void
 }
 

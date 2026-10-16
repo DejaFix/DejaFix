@@ -1,0 +1,14 @@
+[project]
+name = "shared-db"
+version = "0.1.0"
+description = "공유 DB 스키마 적용 모듈"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "shared_db"
+module-root = ""

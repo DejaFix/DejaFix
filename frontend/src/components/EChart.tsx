@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts/core'
 import type { EChartsCoreOption } from 'echarts/core'
-import { BarChart, HeatmapChart } from 'echarts/charts'
+import { BarChart, HeatmapChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
-echarts.use([BarChart, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
+echarts.use([BarChart, HeatmapChart, LineChart, GridComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
 
 // option은 호출하는 쪽에서 useMemo로 고정해서 넘긴다.
 export function EChart({ option, tall = false }: { option: EChartsCoreOption; tall?: boolean }) {
@@ -17,7 +17,10 @@ export function EChart({ option, tall = false }: { option: EChartsCoreOption; ta
     chart.setOption(option)
     const ro = new ResizeObserver(() => chart.resize())
     ro.observe(el)
-    return () => { ro.disconnect(); chart.dispose() }
+    return () => {
+      ro.disconnect()
+      chart.dispose()
+    }
   }, [option])
   return <div ref={ref} className={`chart ${tall ? 'tall' : ''}`} />
 }

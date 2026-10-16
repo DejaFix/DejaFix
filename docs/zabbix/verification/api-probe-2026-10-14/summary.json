@@ -1,0 +1,55 @@
+{
+ "apiinfo.version": {
+  "ms": 53,
+  "count": 1,
+  "value": "7.0.31"
+ },
+ "host.get": {
+  "ms": 165,
+  "count": 1
+ },
+ "item.get": {
+  "ms": 218,
+  "count": 51,
+  "by_value_type": {
+   "0": 5,
+   "1": 2,
+   "2": 2,
+   "3": 14
+  },
+  "not_supported": 1
+ },
+ "history.get.type0": {
+  "ms": 169,
+  "count": 4
+ },
+ "history.get.type1": {
+  "ms": 135,
+  "count": 0
+ },
+ "history.get.type2": {
+  "ms": 158,
+  "count": 0
+ },
+ "history.get.type3": {
+  "ms": 188,
+  "count": 11
+ },
+ "trend.get": {
+  "ms": 156,
+  "count": 0
+ },
+ "problem.get": {
+  "ms": 191,
+  "count": 1
+ },
+ "event.get": {
+  "ms": 186,
+  "count": 1
+ },
+ "trigger.get": {
+  "ms": 165,
+  "count": 19,
+  "in_problem": 1
+ }
+}

@@ -1,32 +1,64 @@
-import { alerts, baselines, crossGroups, diskForecasts, heatmap, heatProjects, incidents, oldAlerts, plans, reports, summary, trend } from './mock'
-import type { AssistantReply, EvidenceCall } from './types'
+import {
+  baselines,
+  costItems,
+  crossGroups,
+  deliveries,
+  diskForecasts,
+  heatmap,
+  heatProjects,
+  legacyAlerts,
+  legacyIncidents,
+  legacyOldAlerts,
+  legacyPlans,
+  legacyReports,
+  legacySummary,
+  notificationRules,
+  servers,
+  trend,
+  users,
+} from './mock'
+import type { LegacyAssistantReply, LegacyEvidenceCall } from './types'
 
 // 백엔드(BFF) API가 준비되면 이 파일의 함수 내부만 fetch로 바꾼다. 화면 코드는 그대로 둔다.
-const wait = <T,>(value: T, ms = 220): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms))
+// 지금 함수들은 옛 목업 형식(legacy*)을 돌려준다. 계약 형식 목(health·dashboardSummary·incidentDetails 등)은 mock.ts 맨 아래.
+const wait = <T>(value: T, ms = 220): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms))
 
 export const api = {
-  summary: () => wait(summary),
-  alerts: () => wait({ fresh: alerts, old: oldAlerts }),
+  summary: () => wait(legacySummary),
+  alerts: () => wait({ fresh: legacyAlerts, old: legacyOldAlerts }),
   crossGroups: () => wait(crossGroups),
   baselines: () => wait(baselines),
   diskForecasts: () => wait(diskForecasts),
   trend: () => wait(trend),
   heatmap: () => wait({ projects: heatProjects, cells: heatmap }),
-  incident: (id: string) => wait(incidents[id] ?? null),
-  plans: () => wait(plans),
-  plan: (id: string) => wait(plans.find((p) => p.id === id) ?? null),
-  reports: () => wait(reports),
+  incident: (id: string) => wait(legacyIncidents[id] ?? null),
+  plans: () => wait(legacyPlans),
+  plan: (id: string) => wait(legacyPlans.find((p) => p.id === id) ?? null),
+  reports: () => wait(legacyReports),
+  servers: () => wait(servers),
+  costItems: () => wait(costItems),
+  notificationRules: () => wait(notificationRules),
+  deliveries: () => wait(deliveries),
+  users: () => wait(users),
 }
 
-const tool = (name: string, command: string, result: string, ms: number): EvidenceCall => ({ tool: name, command, result, ms })
+const tool = (name: string, command: string, result: string, ms: number): LegacyEvidenceCall => ({
+  tool: name,
+  command,
+  result,
+  ms,
+})
 
-export async function askAssistant(question: string): Promise<AssistantReply> {
+export async function askAssistant(question: string): Promise<LegacyAssistantReply> {
   const q = question.toLowerCase()
   await wait(null, 650)
   if (q.includes('확인') || q.includes('장애')) {
     return {
       text: '지금 새로 열린 장애는 4건입니다.\n1. app-web-03 메모리 95% 초과 (12분 전, 24시간 12회 반복)\n2. db-win-01 CPU 권한 시간 과다 (3시간 전)\n3. batch-02 설치 패키지 수 변경 (5시간 전)\n4. ml-gpu-07 디스크 응답 지연 (34분 전)\n우선 1번을 보시길 권합니다. 반복 횟수가 가장 많고 메모리 누수 가능성이 확인되었습니다.',
-      evidence: [tool('zabbix.problems', 'severity>=info age<24h', '새 장애 4건, 오래된 장애 48건', 310), tool('zabbix.history', 'host=app-web-03 item=memory range=6h', '6시간 동안 선형 증가', 220)],
+      evidence: [
+        tool('zabbix.problems', 'severity>=info age<24h', '새 장애 4건, 오래된 장애 48건', 310),
+        tool('zabbix.history', 'host=app-web-03 item=memory range=6h', '6시간 동안 선형 증가', 220),
+      ],
       unknowns: [],
     }
   }

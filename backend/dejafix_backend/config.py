@@ -1,0 +1,59 @@
+"""환경 변수 설정. 비밀값은 코드에 쓰지 않고 .env / 환경 변수로만 받는다."""
+
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/dejafix_backend/config.py -> 저장소 루트. .env·상대 DB 경로는 실행 위치(cwd)가 아니라 여기 기준.
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
+
+    # 인증
+    jwt_secret: str = ""
+    jwt_expire_min: int = 480
+    demo_admin_password: str = ""
+    demo_oncall_password: str = ""
+
+    # DB (compose에서는 /data/*.db, 로컬 기본은 저장소 루트의 ./data/)
+    backend_db_path: str = "data/backend.db"
+    shared_db_path: str = "data/shared.db"
+    # 비워 두면 저장소 루트의 contracts/db-schema.sql
+    db_schema_path: str = ""
+
+    # 외부 서비스
+    zabbix_mock: bool = True
+    # ZABBIX_MOCK=false 일 때 libs/zabbix_ro 가 쓴다. 토큰은 .env 에만 둔다(코드·로그·응답에 쓰지 않음)
+    zabbix_url: str = ""
+    zabbix_api_token: str = ""
+    zabbix_verify_tls: str = ""
+    # ZABBIX_MOCK=true 일 때 어떤 상황의 목 데이터를 쓸지(libs/zabbix_ro ZABBIX_MOCK_SCENARIO). 기본 demo.
+    zabbix_mock_scenario: str = "demo"
+    # 화면이 15초마다 부르는 API 가 느린 Zabbix 에 같이 멈추지 않게 하는 안전장치 (dejafix_backend/zabbix.py)
+    zabbix_timeout_sec: float = 5.0  # API 5번·6번 호출 한도 (health 는 3초)
+    zabbix_cache_ttl_sec: float = 5.0  # 성공 응답을 재사용하는 시간
+    # 실패를 붙들어 두는 시간(짧게 — 복구가 금방 보이게)
+    zabbix_failure_ttl_sec: float = 2.0
+    agent_url: str = "http://agent:8100"
+    mcp_zabbix_url: str = "http://mcp-zabbix:8200/mcp"
+    internal_token: str = ""
+
+    # 분석 대상 심각도 (analysis.status 의 skipped/pending 구분)
+    analyze_min_severity: int = 2
+
+    # 서버
+    cors_origins: str = "http://localhost:5173"
+    chat_streaming: bool = True
+    chat_first_event_timeout_sec: float = 3.0
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

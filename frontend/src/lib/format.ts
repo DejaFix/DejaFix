@@ -1,8 +1,18 @@
-import type { Risk, Severity, Verdict } from './types'
+import type { LegacyRisk, LegacySeverity, LegacyVerdict, Role } from './types'
 
-export const severityLabel: Record<Severity, string> = { info: '정보', warning: '경고', average: '보통', high: '높음', disaster: '심각' }
-export const riskLabel: Record<Risk, string> = { low: '낮음', medium: '보통', high: '높음' }
-export const verdictLabel: Record<Verdict, string> = { confirmed: '확인됨', refuted: '반증됨', unknown: '판단 불가' }
+export const severityLabel: Record<LegacySeverity, string> = {
+  info: '정보',
+  warning: '경고',
+  average: '보통',
+  high: '높음',
+  disaster: '심각',
+}
+export const riskLabel: Record<LegacyRisk, string> = { low: '낮음', medium: '보통', high: '높음' }
+export const verdictLabel: Record<LegacyVerdict, string> = {
+  confirmed: '확인됨',
+  refuted: '반증됨',
+  unknown: '판단 불가',
+}
 
 export function openedAgo(minutes: number): string {
   if (minutes < 60) return `${minutes}분 전 열림`
@@ -25,3 +35,7 @@ export function toUtc(kst: string): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}`
 }
+
+export const roleLabel: Record<Role, string> = { admin: '관리자', operator: '운영자', viewer: '조회자' }
+
+export const won = (n: number): string => `${n.toLocaleString('ko-KR')}원`
