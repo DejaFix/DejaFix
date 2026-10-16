@@ -37,7 +37,7 @@
 
 | 기록 | 내용 | 근거 | 담당 | 상태 |
 |---|---|---|---|---|
-| `version.md` | 팀 VM의 OS·Zabbix 버전·설치 방식(apt / VM 내 Docker), `apiinfo.version` 응답 캡처 | FR-ZBX-001, G1 | Zabbix·MCP 담당 | 로컬 서버 응답은 `verification/api-probe-2026-10-14/`에 있음. 팀 VM 것은 미기록 |
+| `version.md` | 팀 VM의 OS·Zabbix 버전·설치 방식(apt / VM 내 Docker), `apiinfo.version` 응답 캡처 | FR-ZBX-001, G1 | Zabbix·MCP 담당 | 기록함(2026-10-16): 7.0.31·apt 설치·MariaDB·06:05 정지 사고. 정확한 OS 버전(`lsb_release`)은 확인 못 함. 로컬 서버 응답은 `verification/api-probe-2026-10-14/` |
 | `readonly-account.md` | `dejafix-readonly` 사용자·그룹·권한, API 토큰 발급 절차(값 제외), **`host.update` 호출 시 권한 오류 캡처** | FR-ZBX-004, NFR-SAFE-001 | Zabbix·MCP 담당 | 기록함(역할·그룹·사용자·토큰 구성). `host.update` 권한 오류 증빙 포함(2026-10-15) |
 | `access.md` | 접속 방식(웹 80번 포트 `/zabbix`), `ZABBIX_URL` 형식, 방화벽 설정, 아침 점검 절차 결과 | FR-ZBX-006, G7 | Zabbix·MCP 담당 | 기록함(80번 포트, `ZABBIX_URL` 형식, `.env` 주의점). 주소 값은 적지 않음 |
 | 실제 아이템 키 | 데모 PC agent 2 설치 결과, 템플릿 이름, cpu·mem·disk·net 키(인터페이스 이름 포함), 스왑 free 불일치 메모 | FR-ZBX-002·007, G2·G18 | 팀장 | **`core-metrics.md`·`windows-agent-api.md`로 충족**. `packs/it/metrics.yaml` 반영 완료(PR #41) |
