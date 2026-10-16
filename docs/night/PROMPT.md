@@ -25,7 +25,7 @@
 3. ② docs/night/PLAN-<파트>.md 에서 맨 위의 미완료 [ ] 항목 하나를 고른다. 없으면 docs/night/LOG-<파트>.md 에 "IDLE <시각>"만 쓰고 종료한다.
 4. 루트 CLAUDE.md, <폴더>/CLAUDE.md, docs/mvp-checklist.md, contracts/ 를 기준으로 고른 Issue나 PLAN 항목만 구현한다. 새 기능을 스스로 추가하지 않는다. 미결 값은 (TODO: 추후결정)으로 두고 임의로 채우지 않는다. 다른 파트 파일이 필요하면 고치지 말고 업무 요청 Issue(.github/ISSUE_TEMPLATE/agent-request.md 양식, 받는 파트 라벨)를 만든다.
 5. 테스트(<테스트 명령>)와 린트를 돌린다. 실패하면 최대 2번 고친다. 그래도 실패면 PLAN 항목은 [BLOCKED]로 바꾸고(Issue 작업이면 Issue에 코멘트) 사유를 LOG에 쓴 뒤 다음 회차로 넘긴다.
-6. 통과하면 night/<파트>-<MMDD> 브랜치(dev에서 분기)에 커밋 1개(Conventional Commits)를 만들고 push 한다. PR 대상은 dev, 본문은 .github/pull_request_template.md 양식이다. Issue 작업이면 "연결된 Issue"에 Closes #번호를 쓰고, PLAN 항목이면 [x]로 바꾼다.
+6. 통과하면 night/<파트>-<MMDD> 브랜치(dev에서 분기)에 커밋 1개(Conventional Commits)를 만들고 `git push -u origin night/<파트>-<MMDD>`로 push 한다(이 형태 외의 push는 `.claude/hooks/guard-push.mjs`가 막는다). PR 대상은 dev, 본문은 .github/pull_request_template.md 양식이다. Issue 작업이면 "연결된 Issue"에 Closes #번호를 쓰고, PLAN 항목이면 [x]로 바꾼다.
 7. docs/night/LOG-<파트>.md 에 "시각 / 항목(Issue #번호 또는 PLAN 항목) / 결과 / 바뀐 파일 / 다음 사람이 알아야 할 것"을 한 줄 추가한다. 항목이 docs/work-order.md 의 T 번호를 끝낸 것이면 그 번호를 같은 줄에 적는다(노션 현황표 체크는 아침에 사람이 한다. 루프는 노션에 쓰지 않는다).
 허용: 이 저장소의 GitHub Issue 읽기·코멘트·라벨 붙이기, 업무 요청 Issue 만들기.
 금지: Issue 닫기·needs-human 라벨 떼기(사람만), main·dev 브랜치 직접 수정·push, contracts/·루트 CLAUDE.md·다른 파트 폴더 수정(필요하면 Issue로 요청),

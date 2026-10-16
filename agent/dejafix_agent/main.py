@@ -18,10 +18,18 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from shared_db import open_db
 
 from . import chat, worker
+from .collect import _call
 from .config import Settings
 from .mcp_client import McpToolClient, startup_check
 from .packs import load_pack
-from .tools import ToolClient, UnavailableToolClient
+from .tools import (
+    KB_SERVER_TOOLS,
+    KB_TOOL,
+    ZABBIX_SERVER_TOOLS,
+    RoutedToolClient,
+    ToolClient,
+    UnavailableToolClient,
+)
 
 log = logging.getLogger("dejafix.agent")
 
@@ -50,9 +58,19 @@ async def mcp_status(settings: Settings) -> str:
 
 def make_tool_client(settings: Settings) -> ToolClient:
     """MCP_ZABBIX_URL 이 있으면 실 MCP 클라이언트, 없으면 모든 조회가 TOOL_ERROR."""
-    if not settings.mcp_zabbix_url:
-        return UnavailableToolClient()
-    return McpToolClient(settings.mcp_zabbix_url, settings.internal_token)
+    main: ToolClient = (
+        McpToolClient(settings.mcp_zabbix_url, settings.internal_token)
+        if settings.mcp_zabbix_url
+        else UnavailableToolClient()
+    )
+    if settings.mcp_kb_url:  # RAG 지식 검색 (결정 017) — 없으면 기존과 같다
+        return RoutedToolClient(
+            main,
+            McpToolClient(
+                settings.mcp_kb_url, settings.internal_token, allowed=KB_SERVER_TOOLS
+            ),
+        )
+    return main
 
 
 def create_app(
@@ -70,7 +88,13 @@ def create_app(
         pack = load_pack(settings.domain_pack, packs_dir)  # PackError → 기동 실패
         app.state.pack = pack
         client = tool_client or make_tool_client(settings)
-        await startup_check(client)  # 허용 밖 도구 → 기동 실패 (SAFE-03)
+        if isinstance(
+            client, RoutedToolClient
+        ):  # 서버마다 기대 집합으로 따로 검사 (SAFE-03)
+            await startup_check(client.main, ZABBIX_SERVER_TOOLS)
+            await startup_check(client.kb, KB_SERVER_TOOLS)
+        else:
+            await startup_check(client, ZABBIX_SERVER_TOOLS)  # 허용 밖 → 기동 실패
         app.state.tool_client = client
         open_db(settings.shared_db_path, "shared").close()
 
@@ -128,6 +152,34 @@ def create_app(
                 },
             )
             try:
+                client = request.app.state.tool_client
+                if getattr(client, "kb_enabled", False):
+                    # 과거 장애·런북 검색 1회 (FR-RAG-008). 순서: meta → tool_call → tool_result → token → final
+                    args = chat.kb_query_args(message, started.context)
+                    call = await asyncio.to_thread(_call, client, 1, KB_TOOL, args)
+                    await asyncio.to_thread(
+                        chat.save_tool_call, db_path, started.run_id, call
+                    )
+                    yield chat.sse(
+                        "tool_call",
+                        {
+                            "id": call.id,
+                            "tool": KB_TOOL,
+                            "args": args,
+                            "started_at": call.called_at,
+                        },
+                    )
+                    yield chat.sse(
+                        "tool_result",
+                        {
+                            "id": call.id,
+                            "ok": call.ok,
+                            "duration_ms": call.duration_ms,
+                            "summary": call.summary,
+                            "data_clock": call.data_clock,
+                        },
+                    )
+                    started.context[chat.KB_CONTEXT_KEY] = chat.kb_context(call)
                 ans = await asyncio.to_thread(
                     chat.answer, settings, pack, message, started.context
                 )

@@ -126,6 +126,37 @@ def _incident(row: sqlite3.Row, settings: Settings) -> dict[str, Any]:
     }
 
 
+DETAIL_SQL = _INCIDENT_SQL + " WHERE i.id = ?"
+
+
+def build_list_query(
+    status: str | None,
+    severity_min: int | None,
+    after: tuple[str, int] | None,
+    limit: int,
+) -> tuple[str, list[Any]]:
+    """API 10번 목록의 SQL 과 파라미터. 라우터와 성능 테스트(실행 계획)가 같은 조합을 쓰게 따로 뺐다."""
+    where: list[str] = []
+    params: list[Any] = []
+    if status is not None:
+        where.append("i.status = ?")
+        params.append(status)
+    if severity_min is not None:
+        where.append("i.severity >= ?")
+        params.append(severity_min)
+    if after is not None:
+        started_at, last_id = after
+        where.append("(i.started_at < ? OR (i.started_at = ? AND i.id < ?))")
+        params += [started_at, started_at, last_id]
+
+    sql = _INCIDENT_SQL
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    # 새 장애가 맨 위 (FR-FE-004)
+    sql += " ORDER BY i.started_at DESC, i.id DESC LIMIT ?"
+    return sql, [*params, limit]
+
+
 @router.get("")
 def list_incidents(
     status: Literal["problem", "resolved"] | None = None,
@@ -138,31 +169,19 @@ def list_incidents(
 ):
     _require_shared(db)
 
-    where: list[str] = []
-    params: list[Any] = []
-    if status is not None:
-        where.append("i.status = ?")
-        params.append(status)
-    if severity_min is not None:
-        where.append("i.severity >= ?")
-        params.append(severity_min)
+    after: tuple[str, int] | None = None
     if cursor:
         try:
-            after = decode_cursor(cursor)
-            started_at, last_id = str(after["started_at"]), int(after["id"])
+            fields = decode_cursor(cursor)
+            after = (str(fields["started_at"]), int(fields["id"]))
         except (ValueError, KeyError, TypeError):
             raise ApiError(
                 422, "VALIDATION_ERROR", "cursor 형식이 올바르지 않습니다"
             ) from None
-        where.append("(i.started_at < ? OR (i.started_at = ? AND i.id < ?))")
-        params += [started_at, started_at, last_id]
 
-    sql = _INCIDENT_SQL
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    # 새 장애가 맨 위 (FR-FE-004). limit+1 개를 읽어 다음 쪽이 있는지 안다.
-    sql += " ORDER BY i.started_at DESC, i.id DESC LIMIT ?"
-    rows = db.conn.execute(sql, [*params, limit + 1]).fetchall()
+    # limit+1 개를 읽어 다음 쪽이 있는지 안다.
+    sql, params = build_list_query(status, severity_min, after, limit + 1)
+    rows = db.conn.execute(sql, params).fetchall()
 
     page = rows[:limit]
     next_cursor = None
@@ -252,7 +271,7 @@ def incident_detail(
     _require_shared(db)
     conn = db.conn
 
-    row = conn.execute(_INCIDENT_SQL + " WHERE i.id = ?", (incident_id,)).fetchone()
+    row = conn.execute(DETAIL_SQL, (incident_id,)).fetchone()
     if row is None:
         raise ApiError(404, "NOT_FOUND", "장애를 찾을 수 없습니다")
 

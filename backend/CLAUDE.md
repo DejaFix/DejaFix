@@ -43,16 +43,17 @@
 - 제공: `contracts/api.md`(7-1), `contracts/incident.schema.json`(5-5) — 둘 다 Backend 담당 소유. FastAPI OpenAPI와 프론트 MSW가 `api.md`와 일치해야 한다(FR-INF-008)
 - 소비: `contracts/agent-api.md`(#18 중계), `contracts/db-schema.sql`(`users`·`mail_logs` 쓰기 / shared 전부 읽기), `libs/zabbix_ro`
 
-## 환경 변수 (이름만)
-`BACKEND_DB_PATH`, `SHARED_DB_PATH`, `ZABBIX_URL`, `ZABBIX_API_TOKEN`, `ZABBIX_VERIFY_TLS`, `ZABBIX_MOCK`, `AGENT_URL`, `INTERNAL_TOKEN`(선택), `JWT_SECRET`, `DEMO_ADMIN_PASSWORD`, `DEMO_ONCALL_PASSWORD`, `APP_BASE_URL`, `MAIL_PROVIDER`, `MAIL_RECIPIENTS`, `SMTP_*`, `SENDGRID_API_KEY`, `MAIL_FROM`
+## 환경 변수 (이름만 — 기본값·뜻은 `backend/README.md`)
+`BACKEND_DB_PATH`, `SHARED_DB_PATH`, `DB_SCHEMA_PATH`, `ZABBIX_URL`, `ZABBIX_API_TOKEN`, `ZABBIX_VERIFY_TLS`, `ZABBIX_MOCK`, `AGENT_URL`, `MCP_ZABBIX_URL`, `INTERNAL_TOKEN`(선택), `JWT_SECRET`, `JWT_EXPIRE_MIN`, `DEMO_ADMIN_PASSWORD`, `DEMO_ONCALL_PASSWORD`, `ANALYZE_MIN_SEVERITY`, `CORS_ORIGINS`, `CHAT_STREAMING`, `CHAT_FIRST_EVENT_TIMEOUT_SEC`, `APP_BASE_URL`, `MAIL_PROVIDER`, `MAIL_RECIPIENTS`, `MAIL_FROM`, `MAIL_POLL_SEC`, `SMTP_*`, `SENDGRID_API_KEY`
 
 ## 실행 (uv workspace, 루트에서)
-- 로컬: `uv sync` → `uv run --package backend uvicorn dejafix_backend.main:app --port 8000 --reload` (모듈 이름은 골격 PR에서 확정). 메일 워커는 앱 기동과 함께 백그라운드 태스크
+- 로컬: `uv sync` → `uv run --package backend uvicorn dejafix_backend.main:app --port 8000 --reload`. 확인은 `GET /healthz`. 메일 워커는 앱 기동과 함께 백그라운드 태스크(기동 연결은 PR 86)
 - 로컬 개발 기본은 `ZABBIX_MOCK=true`, `MAIL_PROVIDER=console`
+- DB 상대 경로는 실행 위치가 아니라 **저장소 루트** 기준이다. Windows 로컬에서 `.env.example`의 `/data/...`(compose용)를 쓰면 `C:\data`로 풀려 실패하니 `data/*.db`를 쓴다
 - compose: `docker compose -f infra/docker-compose.yml up -d backend`
 
 ## 테스트 (PR 머지 조건)
-- `uv run ruff check . && uv run ruff format --check . && uv run pytest` (`ZABBIX_MOCK=true`, 임시 DB)
+- `uv run ruff check . && uv run ruff format --check . && uv run pytest` (`ZABBIX_MOCK=true`, 임시 DB). 안전 회귀 세트만: `uv run pytest -m safety_regression`
 - 반드시 있어야 할 테스트: **ATTACH 쓰기 거부**(`INSERT INTO shared.incidents` → readonly 오류) / **메일 dedup**(같은 리포트에 워커 3회 → 수신자당 1행) / 로그인 성공·실패·역할 403 / `/api/health` Agent 기동 전 `waiting` / #11 응답에 4묶음·근거 ID 일치·`execute` 없음·`mode:"preview"` / `analysis.status` 6값 / Zabbix 차단 시 503 `ZABBIX_UNAVAILABLE` / SMTP 차단 시 `attempts=3`·`failed`
 - Incident 응답은 `contracts/incident.schema.json`으로 검증(FR-DATA-006)
 
