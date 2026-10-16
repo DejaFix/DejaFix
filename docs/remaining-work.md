@@ -1,7 +1,8 @@
 # 남은 작업 (2026-10-16 18시 기준)
 
-- 기준: `docs/mvp-checklist.md`·`docs/night/PLAN-*.md` 체크 결과 + GitHub 열린 Issue·PR.
-- 체크리스트는 코드·테스트·문서 근거가 있는 항목만 체크했다. 남은 칸은 아래 표의 1~3번이다.
+- 기준: `docs/mvp-checklist.md` 체크 결과 + GitHub 열린 Issue·PR. `docs/night/PLAN-*.md` 체크는 연동·인프라 담당 폴더라 이 PR에서 바꾸지 않는다.
+- 체크리스트는 코드·테스트·문서 근거가 **머지돼 있는** 항목만 체크했다. 근거가 미머지 PR이거나 `(TODO: 추후결정)`이 남은 줄은 체크하지 않았다(아래 표 1·4·5번, 6장 미결).
+  - 비어 있는 칸: E2E 리허설 2회 연속(NFR-PERF-001, 5번), compose 5서비스(FR-INF-001, 4번), 데모 트리거 호스트 이름(FR-ZBX-003)·접속 주소(FR-ZBX-006, `(TODO: 추후결정)`)
 
 ## 1. [필수] 중 아직 안 끝난 것
 
@@ -10,8 +11,9 @@
 | 1 | 비용 절감·서버 비교 메뉴 "준비 중" 처리 (FR-FE-013) — mvp-checklist, PLAN-frontend 2·3·9 | 화면 | Issue #143, PR #149 | PR 리뷰 대기 |
 | 2 | OpenAPI 8개 엔드포인트와 `contracts/api.md` 대조 (PLAN-backend 12) | Backend | PR #102(계약 적합성 테스트) | 승인됨, 머지 대기 |
 | 3 | 대체 경로 B·C·D 시험 4항목 (`docs/demo/fallback-paths.md`) | 팀장 | 시험 기록 없음 | 미착수 |
-| 4 | docker compose 5서비스 빌드·기동 1회 확인 (FR-INF-001 실행 확인) | 연동·인프라 | Issue #144 | 미착수 (compose 파일은 완료) |
-| 5 | 리허설 기록을 `docs/demo/rehearsal-log.md`에 반영 (NFR-PERF-001 증빙) | 팀장 | PR #132, Issue #124 | PR 리뷰 대기 |
+| 4 | docker compose 5서비스 빌드·기동 1회 확인 (FR-INF-001) — 체크리스트 미체크 | 연동·인프라 | Issue #144 | 미착수 (compose 파일만 있음, 기동 미확인) |
+| 5 | 리허설 2회 연속 기록을 `docs/demo/rehearsal-log.md`에 반영 (NFR-PERF-001) — 체크리스트 미체크 | 팀장 | PR #132(1회차만), Issue #124(2회차 표) | PR 리뷰 대기, 2회차 기록 필요 |
+| 12 | 데모 트리거 호스트 이름(FR-ZBX-003)·접속 주소(FR-ZBX-006) 결정 기록 — `(TODO: 추후결정)` 남음 | 팀장 | 결정 016, Issue #124 3번 | 결정 기록 대기 |
 
 ## 2. [선택]·후속
 

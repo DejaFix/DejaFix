@@ -6,7 +6,7 @@
 - 괄호 안은 근거 ID(기획서 절 / 요구사항 ID). 미결 값은 `(TODO: 추후결정)` — 임의로 채우지 않는다.
 
 ## 1. 데모 완료 기준
-- [x] 학원 PC에 CPU 부하 주입 → Zabbix Problem → Scheduler 30초 안 수집 → Agent가 MCP로 조회·분석 → 리포트 + 변경 계획(미리보기) → 웹 화면 → 담당자 메일, **주입 후 3분 안, 리허설 2회 연속** (NFR-PERF-001)
+- [ ] 학원 PC에 CPU 부하 주입 → Zabbix Problem → Scheduler 30초 안 수집 → Agent가 MCP로 조회·분석 → 리포트 + 변경 계획(미리보기) → 웹 화면 → 담당자 메일, **주입 후 3분 안, 리허설 2회 연속** (NFR-PERF-001)
 - [x] LLM 공급자가 미정이면 `kind='fallback'` 리포트 + fallback 계획("LLM 미연결 — 규칙 기반" 라벨)으로 같은 흐름 → 데모 완료로 인정. 가짜 LLM(`LLM_FAKE=true`)은 데모 금지 (요구사항 2-2)
 - 시간 예산(최대): 에이전트 수집 30초 + 트리거 60초 + Scheduler 30초 + Agent 60초 + 메일 40초. 넘으면 메일 워커 15초 → Agent 워커 5초 → 트리거 창 30초 순으로 조정 (4-4)
 
@@ -15,9 +15,9 @@
 ### Zabbix (Zabbix·MCP 담당·팀장)
 - [x] VM 서버 웹 로그인, `apiinfo.version` 응답 캡처 `docs/zabbix/` (FR-ZBX-001)
 - [x] 학원 PC 1~2대 agent 2, 데모 PC `system.cpu.util` 최신값 2분 이내 (FR-ZBX-002)
-- [x] 데모 트리거 `avg(/<데모 호스트>/system.cpu.util,1m)>85` High, CPU 아이템 30초(템플릿 복제본) — 호스트 이름 (TODO: 추후결정) (FR-ZBX-003)
+- [ ] 데모 트리거 `avg(/<데모 호스트>/system.cpu.util,1m)>85` High, CPU 아이템 30초(템플릿 복제본) — 호스트 이름 (TODO: 추후결정) (FR-ZBX-003)
 - [x] 읽기 전용 계정·API 토큰, `host.update` 권한 오류 1회 확인 (FR-ZBX-004, SAFE-01 일부)
-- [x] 접속 주소·아침 점검 절차 (TODO: 추후결정 — 포트 포워딩 / 브리지 IP) (FR-ZBX-006)
+- [ ] 접속 주소·아침 점검 절차 (TODO: 추후결정 — 포트 포워딩 / 브리지 IP) (FR-ZBX-006)
 - [x] `packs/it/metrics.yaml` 실제 키: cpu·mem(`vm.memory.util`)·disk·**net**(`net.if.in/out`, 멘토 지시) (FR-ZBX-007)
 
 ### Scheduler (DB·메일 담당)
@@ -76,7 +76,7 @@
 - [x] 테이블별 단일 작성자, `change_plans.mode` CHECK `'preview'` (FR-DATA-002·005)
 
 ### 인프라·운영 (연동·인프라 담당·Zabbix·MCP 담당·DB·메일 담당)
-- [x] `infra/docker-compose.yml` 5개 서비스, 공개 포트 8080만, Python 서비스는 루트 빌드 컨텍스트, named volume, `restart: unless-stopped` (FR-INF-001)
+- [ ] `infra/docker-compose.yml` 5개 서비스, 공개 포트 8080만, Python 서비스는 루트 빌드 컨텍스트, named volume, `restart: unless-stopped` (FR-INF-001)
 - [x] backend·agent·mcp-zabbix `/healthz` (FR-INF-002)
 - [x] `infra/scripts/inject-cpu.ps1`·`cleanup.ps1`·`backup-db.ps1`(골든 백업 10/16 11:30) (FR-INF-003·005·006)
 - [x] `.env.example` 한 블록(3-4), `.gitignore`(.env·*.db·backups/), `contracts/` 5종 dev 머지 (FR-INF-007·008)
