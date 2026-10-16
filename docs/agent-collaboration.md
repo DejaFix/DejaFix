@@ -57,7 +57,8 @@
 
 | 누가 | 무엇을 | 방법 |
 |---|---|---|
-| 각 파트 작업 세션 | 15분마다 자기 라벨 Issue 확인·응답 | 세션에서 `/loop 15m 내 라벨(to-<파트>) Issue 확인하고 응답해` — 응답 기준은 2·4장 |
+| 각 파트 작업 세션 | 15분마다 **남의 PR 리뷰(최대 3) → 내 PR → 내 Issue → 새 작업** 순서로 한 회차 | 세션에서 `/loop 15m` — 회차 규칙은 `.claude/loop.md` 1~5, 기준은 2·4·7장 |
+| 통합 에이전트 (to-infra) | 매 회차 통합 닥터, 08:30 밤사이 보고 | `.claude/loop.md` "통합 닥터" — 8장 |
 | 통합 에이전트 (to-infra) | 60분마다 정찰 | `/loop 60m` 으로 `scout` 서브에이전트(`.claude/agents/scout.md`) 실행 → 빠진 요구사항·파트 간 불일치·담당 없는 작업·기한 위험을 `discovery` + `to-<파트>` Issue로 등록(중복 확인 후, 1회 최대 5개) |
 | 통합 에이전트 | 하루 2번 보고 (12:30, 17:30) | `docs/reports/YYMMDD-HHMM.md` — ① 찾은 것(새 discovery Issue) ② 합의된 것(accepted·결정 기록) ③ 진행 중(in-progress·리뷰 대기 PR) ④ needs-human(사람이 결정할 것) ⑤ 다음 마감선까지 위험 |
 | 사람 | 스탠드업에서 보고서와 `needs-human` 확인 | 결정은 Issue 코멘트 + `docs/decisions/` 3줄, 그다음 라벨을 뗀다 |
@@ -70,24 +71,37 @@
 dev 머지는 에이전트가 한다. **`main` 머지는 사람만** 한다(dev → main은 데모·배포 시점, 팀장 승인, 루트 CLAUDE.md ⑦).
 
 ```
-작성자 에이전트: 빌드·테스트 ──► dev로 PR ──► 자동 머지 예약(gh pr merge --auto --squash)
-리뷰어 에이전트: PR 브랜치에서 빌드·테스트 ──► 문제 없으면 승인(gh pr review --approve) / 있으면 변경 요청
-                                                        └──► 승인 충족 시 GitHub이 dev에 squash 머지
+작성자 에이전트: dev로 PR ──► 바로 자동 머지 예약(gh pr merge --auto --squash)
+                 └─ CI 빨강 → 고쳐 push(ci-failed) · 충돌 → dev 기준 rebase(conflict) · 변경 요청 → 반영
+리뷰어 에이전트: 매 회차 먼저 남의 PR 최대 3개 ──► 승인(근거 한 줄) / 변경 요청(고칠 위치) / 애매하면 파트 라벨 코멘트만
+GitHub:          CI(python·frontend·safety) 초록 + 승인 충족 ──► dev 머지
 ```
-1. **작성자 에이전트**: PR을 올리기 전에 바꾼 영역의 린트·빌드·테스트를 직접 돌리고, 결과를 PR 본문 "테스트"에 붙인다. 그다음 `gh pr merge <번호> --auto --squash`로 예약한다.
-2. **리뷰어 에이전트**: PR 브랜치를 받아 **직접** 같은 명령을 다시 돌린다. 작성자 결과를 믿고 넘기지 않는다. 통과하고 `plan-reviewer` 검사(SAFE 위반·계약 불일치·[이후] 침범·엔진 하드코딩)에 문제가 없을 때만 승인한다. 승인 본문에 돌린 명령과 결과를 한 줄씩 적는다.
+1. **작성자 에이전트**: PR을 올리면 바로 `gh pr merge <번호> --auto --squash`로 예약한다. 그 뒤 회차마다 내 PR을 보고 CI 빨강·충돌·변경 요청을 처리한다(`.claude/loop.md` 2단계).
+2. **리뷰어 에이전트**: 회차마다 가장 먼저, 작성자가 내가 아니고 승인이 없는 열린 PR을 최대 3개 리뷰한다. 계약 위반·테스트 누락·안전 규칙·하드코딩을 확인하고, 괜찮으면 승인(근거 한 줄), 문제면 변경 요청(고칠 위치). 판단이 어려우면 승인하지 않고 그 파트 라벨을 붙여 코멘트만 남긴다(`.claude/loop.md` 1단계).
 3. **승인 충족 조건**: 작성자가 아닌 승인 1명 이상, 남은 변경 요청 없음, `needs-human` 라벨 없음. `contracts/`를 바꾸는 PR은 승인 2명(계약 소유자 + 소비자, 3장).
 4. 변경 요청을 받으면 작성자가 고쳐 push하고, 변경을 요청한 리뷰어가 다시 확인해 승인한다.
 
-| 영역 | 작성자·리뷰어가 돌릴 명령 |
+**CI** (`.github/workflows/ci.yml`, pull_request·merge_group·dev push, 경로 필터 없음)
+
+| job (필수 체크 이름) | 명령 |
 |---|---|
-| Python | `uv run ruff check .` · `uv run ruff format --check .` · `uv run pytest` · `uv run pytest -m safety_regression`(잘못 통과 0/N) |
-| Frontend | `npm ci` · `npm run lint` · `npx tsc --noEmit` · `npm run build` |
-| 문서·설정만 | 링크·표 확인. 하드코딩 검사(루트 CLAUDE.md ⑨) 0건 |
+| `python` | `uv sync --locked` · `uv run ruff check .` · `uv run pytest -q` |
+| `frontend` | `npm ci` · `npx tsc --noEmit -p tsconfig.app.json` · `npm run build` (frontend 폴더) |
+| `safety` | `uv run pytest -m safety_regression -q` · 하드코딩 검사(루트 CLAUDE.md ⑨, 테스트·fixture·목·주석 제외 0건) · `contracts/` 스키마 검증(`.github/scripts/check_contracts.py`) |
+
+- job 이름은 dev ruleset의 required status checks와 같아야 하므로 바꾸지 않는다.
+- 상태 라벨: `ci-failed`(내 PR CI 빨강, 고치는 중) · `conflict`(dev와 충돌, rebase 중) · `auto-revert`(통합 닥터가 되돌림, 8장)
 
 **강제 장치**
 - `.claude/settings.json`: `gh pr review *`·`gh pr merge * --auto --squash*`만 허용하고, `--admin` 머지는 금지한다.
 - `.claude/hooks/guard-merge.mjs`: 머지 명령 전에 PR을 조회해 **대상이 dev가 아니면**, 승인이 모자라거나 변경 요청·`needs-human`이 남아 있으면 막는다. PR 정보를 못 읽어도 막는다. 명령 위치(줄 처음, `;` `&` `|` `$(` 뒤)에 있는 머지 명령만 검사하므로 커밋 메시지·PR 본문 속 문구는 막지 않는다.
 - 승인은 GitHub 계정 단위다. 작성자 본인 계정의 승인은 세지 않는다. 그래서 리뷰어 에이전트는 **다른 팀원의 세션**이어야 한다.
-- 지금 저장소에는 dev·main 브랜치 규칙이 없다(ruleset `develop`·`pr`가 `disabled`). 이 상태에서는 GitHub이 `--auto` 예약을 승인 전에도 바로 머지할 수 있어서, 위 훅이 먼저 막는다. 저장소 관리자가 ruleset을 켜서 dev에는 승인 1명, main에는 사람 승인과 직접 push 금지를 걸어야 GitHub 쪽에서도 막힌다.
-- 에이전트는 머지를 되돌리지 않는다(revert·force push 금지). 잘못 머지되면 `needs-human` Issue로 올린다.
+- ruleset `develop`(승인 1·필수 체크 `python`·`frontend`·`safety`·merge queue)과 `pr`(승인 1)은 `active`지만 **적용 대상 브랜치(include)가 비어 있어** 아직 어떤 브랜치에도 걸리지 않는다(10/16 확인). 저장소 관리자가 `develop`에 dev, `pr`에 main을 넣어야 GitHub 쪽에서도 막힌다. 그전에는 위 훅이 먼저 막는다.
+- 에이전트는 머지를 되돌리지 않는다(force push 금지). 예외는 통합 닥터의 revert **PR**뿐이다(8장). 그 밖에 잘못 머지되면 `needs-human` Issue로 올린다.
+- force push는 **내 PR 브랜치의 `--force-with-lease`**(충돌 rebase 뒤)만 허용한다. `dev`·`main`·남의 브랜치는 금지.
+
+## 8. 통합 닥터 — dev가 깨지면 되돌린다 (to-infra 루프 전용)
+상세 절차는 `.claude/loop.md` "통합 닥터".
+- **매 회차**: 최신 dev를 받아 CI와 같은 검사를 직접 돌린다.
+- **깨졌으면**: 원인 커밋을 찾아(`git bisect run`) revert PR을 내고(`auto-revert` 라벨, 일반 PR과 같이 승인·CI 거쳐 머지), 원인 파트에 `to-<파트>` + `auto-revert` Issue를 만든다. 원인이 코드가 아니면(외부·간헐·러너) revert하지 않고 `needs-human`.
+- **08:30**: `docs/reports/YYMMDD-0830.md`에 밤사이 머지·revert·막힌 PR·needs-human을 요약해 PR로 올린다.
