@@ -694,7 +694,7 @@ export const users: UserAccount[] = [
   { id: 'jaehyun', name: '재현', role: 'operator', active: true, lastLogin: '2026-10-14 13:02' },
   { id: 'yejin', name: '예진', role: 'operator', active: true, lastLogin: '2026-10-13 18:40' },
   { id: 'junha', name: '준하', role: 'operator', active: true, lastLogin: '2026-10-13 17:55' },
-  { id: 'taeyun', name: '태윤', role: 'viewer', active: true, lastLogin: '2026-10-12 11:10' },
+  { id: 'taeyoon', name: '태윤', role: 'admin', active: true, lastLogin: '2026-10-12 11:10' },
   { id: 'guest01', name: '외부 검토자', role: 'viewer', active: false, lastLogin: '2026-09-30 10:05' },
 ]
 

@@ -114,18 +114,19 @@ INSERT OR IGNORE INTO plan_steps
 VALUES
   (1, 1, 1, 'seed_check_process_list', 'CPU 상위 프로세스 확인', 'LAB-PC-07',
    'Get-Process | Sort-Object CPU -Descending | Select-Object -First 5', 'A',
-   '규칙: actions.yaml 조회 동작 (시드 예시)', NULL, '원인 프로세스 확인', '없음 (조회)', NULL, '["ev_s4"]'),
+   '시드 예시 A 동작 (실제 판정은 packs/it/actions.yaml)', NULL, '원인 프로세스 확인', '없음 (조회)', NULL, '["ev_s4"]'),
   (2, 1, 2, 'seed_stop_batch_job', '부하 배치 작업 일시 중지', 'LAB-PC-07 예약 작업',
    'Disable-ScheduledTask -TaskName <작업 이름>', 'B',
-   '규칙: actions.yaml 변경 동작, precheck·rollback 있음 (시드 예시)',
+   '시드 예시 B 동작, precheck·rollback 있음 (실제 판정은 packs/it/actions.yaml)',
    '작업 이름과 다음 실행 시각 확인', 'CPU 사용률 감소 예상', '예약 작업이 한 번 건너뛰어짐',
    'Enable-ScheduledTask -TaskName <작업 이름>', '["ev_s4"]'),
-  (3, 1, 3, NULL, '서버 재부팅', 'LAB-PC-07',
-   'Restart-Computer', 'C',
-   'actions.yaml 미등록 동작 → C 로 지정 (SAFE-06)', NULL, NULL, '서비스 중단', NULL, '[]'),
+  (3, 1, 3, NULL, '프로세스 강제 종료', 'LAB-PC-07',
+   'Stop-Process -Name <프로세스 이름> -Force', 'C',
+   'packs/it/actions.yaml 미등록 동작(프로세스 강제 종료) → C (SAFE-06)', NULL, NULL,
+   '저장하지 않은 작업이 사라질 수 있음', NULL, '[]'),
   (4, 2, 1, 'seed_check_process_list', '메모리 상위 프로세스 확인', 'LAB-PC-08',
    'Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 5', 'A',
-   '규칙 기반 계획: fallback_plans.mem (시드 예시)', NULL, '원인 프로세스 확인', '없음 (조회)', NULL, '["ev_s8"]');
+   '시드 예시 fallback A 동작 (실제 계획은 packs/it/actions.yaml fallback_plans)', NULL, '원인 프로세스 확인', '없음 (조회)', NULL, '["ev_s8"]');
 
 -- @db backend
 

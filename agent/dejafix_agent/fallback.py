@@ -81,7 +81,8 @@ def build_draft(
                 "unknown_reason": "STALE"
                 if stale
                 else ("NO_DATA" if value is None else None),
-                "evidence_ids": [items.id],
+                # 잘린 목록을 보충한 항목은 그 보충 조회가 근거다
+                "evidence_ids": [item.get("_ev") or items.id],
                 "collected_at": clock_iso(item.get("lastclock")),
             }
         )
