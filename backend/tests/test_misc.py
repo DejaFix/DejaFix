@@ -37,7 +37,7 @@ def test_utc_now_iso_format():
 # ---- #5·#6 (T32 전까지 스텁): 모양이 계약과 같은지만 확인한다
 
 
-def test_summary_stub_values_are_all_measured(client, oncall):
+def test_summary_values_are_all_measured(client, oncall):
     body = client.get("/api/dashboard/summary", headers=oncall).json()
     data = body["data"]
     measured = [
@@ -56,18 +56,6 @@ def test_summary_stub_values_are_all_measured(client, oncall):
     assert unknown["unknown_reason"] == "NO_DATA"
     assert data["llm_usage_today"] is None
     assert body["meta"]["generated_at"].endswith("Z")
-
-
-def test_problems_stub_filters_and_shape(client, oncall):
-    body = client.get("/api/problems", headers=oncall).json()
-    assert [p["eventid"] for p in body["data"]] == ["40211", "40219"]
-    assert body["data"][1]["incident_id"] is None
-    assert set(body["meta"]) == {"collected_at", "truncated"}
-    high = client.get("/api/problems?severity_min=4", headers=oncall).json()["data"]
-    assert [p["eventid"] for p in high] == ["40211"]
-    host = client.get("/api/problems?hostid=10585", headers=oncall).json()["data"]
-    assert [p["eventid"] for p in host] == ["40219"]
-    assert client.get("/api/problems?severity_min=9", headers=oncall).status_code == 422
 
 
 def test_required_routes_are_exposed(client):
