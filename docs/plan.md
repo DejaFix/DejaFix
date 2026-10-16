@@ -1233,7 +1233,7 @@ fallback_plans:
 | 3 | `GET /api/auth/me` | 로그인 | 현재 사용자 | backend.db | P0 |
 | 4 | `GET /api/health` | 로그인 | `{zabbix, agent, mcp_zabbix, shared_db, backend_db, scheduler, scheduler_last_ok}` | 전체 | P0 |
 | 5 | `GET /api/dashboard/summary` | viewer | KPI 4종(`Measured`), 오늘 LLM 사용량(선택) | Zabbix + shared | P0 |
-| 6 | `GET /api/problems?severity_min=&hostid=` | viewer | Zabbix 실시간 문제 목록 (+ DejaFix incident_id 매칭) | Zabbix `problem.get` | P0 |
+| 6 | `GET /api/problems?severity_min=&hostid=` | viewer | Zabbix 실시간 문제 목록 (+ DejaFix incident_id 매칭), 최대 200건·새 문제가 위, 초과 시 `meta.truncated` | Zabbix `problem.get` | P0 |
 | 7 | `GET /api/hosts` | viewer | 호스트 목록·가용성·주요 지표 최신값 | Zabbix `host.get`,`item.get` | P0 |
 | 8 | `GET /api/hosts/{hostid}` | viewer | 상세 + 최근 사양 스냅샷 | Zabbix + shared | P1 |
 | 9 | `GET /api/hosts/{hostid}/metrics?keys=cpu,mem,disk&range=1h` | viewer | 시계열 | Zabbix `history.get`/`trend.get` | P1 |
@@ -1245,7 +1245,7 @@ fallback_plans:
 | 15 | `GET /api/plans?incident_id=` / `GET /api/plans/{id}` | viewer | 계획 + 단계 + 검토 이력 | shared + backend | P0 |
 | 16 | `POST /api/plans` | operator | `{incident_id, goal?}` → Agent 중계, `202 {run_id}` | Agent | P2 |
 | 17 | `POST /api/plans/{id}/review` | operator | `{decision: reviewed|discarded, comment}` (실행 아님) | backend | P1 |
-| 18 | `POST /api/chat` | operator | `{conversation_id?, message, context:{incident_id?, hostid?}}` → **SSE** (이벤트는 7-2 그대로 중계) | Agent | P0 |
+| 18 | `POST /api/chat` | operator | `{conversation_id?, message(공백 제외 1~4000자), context:{incident_id?, hostid?}}` → **SSE** (이벤트는 7-2 그대로 중계, 유휴 15초마다 `: ping` 주석) | Agent | P0 |
 | 19 | `GET /api/conversations` / `GET /api/conversations/{id}/messages` | operator | 본인 대화 목록·메시지(+근거) | shared | P1 |
 | 20 | `POST /api/incidents/{id}/mail` | operator | 수동 발송 `{recipients?: id[]}` | SMTP | P1 |
 | 21 | `GET /api/mail-logs?incident_id=` | viewer | 발송 기록 | backend | P1 |

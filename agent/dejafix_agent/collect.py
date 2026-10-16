@@ -4,6 +4,7 @@
 2. zabbix_get_host(hostid)               호스트·유지보수 여부
 3. zabbix_list_items(hostid)             팩 metrics.yaml 의 지표 키만 골라 씀
 4. zabbix_get_history(트리거 아이템, 1시간)
+5. kb_search_knowledge(장애 제목·호스트) — MCP_KB_URL 이 있을 때만 (결정 017, FR-RAG-007)
 
 도구 응답 형식은 contracts/mcp-tools.md(작성 중)를 따른다. 그 전까지는 기획서 7-3 필드
 (problem.items[].itemid·key_, item.itemid·key_·name·lastvalue·lastclock·units·stale)를 가정하고
@@ -20,10 +21,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .packs import Pack
-from .tools import ToolClient
+from .tools import KB_TOOL, ToolClient
 
 MAX_RESULT_BYTES = 32 * 1024
 MAX_ITEMS_PER_ALIAS = 3
+KB_TOP_K = 3  # 리포트에 붙일 비슷한 과거 사례 수
 
 
 def utcnow() -> datetime:
@@ -73,19 +75,33 @@ def _new_ev() -> str:
     return "ev_" + uuid.uuid4().hex[:10]
 
 
+def _result_count(data: Any) -> int:
+    """요약에 쓰는 결과 건수. 목록은 길이, 이력 객체({points: [...]})는 점 개수,
+    그 밖의 단건 객체는 1 (contracts/mcp-tools.md 3-5: get_history data 는 객체)."""
+    if isinstance(data, list):
+        return len(data)
+    if isinstance(data, dict) and isinstance(data.get("points"), list):
+        return len(data["points"])
+    if isinstance(data, dict) and isinstance(data.get("hits"), list):
+        return len(data["hits"])  # kb_search_knowledge (contracts/mcp-tools.md 6장)
+    return 1 if data else 0
+
+
 def _call(client: ToolClient, seq: int, tool: str, args: dict[str, Any]) -> ToolCall:
     called_at = iso(utcnow())
     start = time.monotonic()
     try:
         result = client.call(tool, args)
     except Exception as exc:  # 도구 예외를 LLM·화면에 그대로 넘기지 않는다
-        result = {"ok": False, "reason": "ZABBIX_ERROR", "message": type(exc).__name__}
+        reason = (
+            "KB_ERROR" if tool.startswith("kb_") else "ZABBIX_ERROR"
+        )  # 계약 2장·6장
+        result = {"ok": False, "reason": reason, "message": type(exc).__name__}
     duration = int((time.monotonic() - start) * 1000)
     ok = bool(result.get("ok"))
     data = result.get("data")
     if ok:
-        count = len(data) if isinstance(data, list) else (1 if data else 0)
-        summary = f"{tool} 성공, 결과 {count}건"
+        summary = f"{tool} 성공, 결과 {_result_count(data)}건"
         if result.get("truncated"):
             summary += " (잘림)"
     else:
@@ -114,6 +130,16 @@ def _items_of(data: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _rank(pack: Pack, call: ToolCall) -> list[tuple[int, dict[str, Any]]]:
+    """호출 결과의 항목 중 팩 지표에 걸리는 것 → (일치 등급, 항목+별칭+근거 ID)."""
+    ranked = []
+    for item in _items_of(call.result.get("data")) if call.ok else []:
+        found = pack.match_key(str(item.get("key_", "")))
+        if found:
+            ranked.append((found[1], {**item, "_alias": found[0], "_ev": call.id}))
+    return ranked
+
+
 def collect(
     incident: dict[str, Any],
     client: ToolClient,
@@ -136,11 +162,24 @@ def collect(
 
     items = _call(client, 3, "zabbix_list_items", {"hostid": hostid})
     calls.append(items)
-    ranked = []
-    for item in _items_of(items.result.get("data")) if items.ok else []:
-        found = pack.match_key(str(item.get("key_", "")))
-        if found:
-            ranked.append((found[1], {**item, "_alias": found[0]}))
+    seq = 4
+    ranked = _rank(pack, items)
+    # 항목이 많은 호스트는 목록이 잘려(truncated) 이름순 뒤쪽 지표가 빠진다. 팩 별칭 중 못 찾은 것만
+    # 그 별칭의 첫 키 이름으로 한 번씩 더 조회한다(별칭 수만큼이 상한, 키는 팩에서만 읽음).
+    if items.ok and items.result.get("truncated"):
+        found_aliases = {item["_alias"] for _, item in ranked}
+        for alias, keys in pack.metrics.items():
+            if alias in found_aliases or not keys:
+                continue
+            extra = _call(
+                client,
+                seq,
+                "zabbix_list_items",
+                {"hostid": hostid, "key_search": keys[0].split("[", 1)[0]},
+            )
+            seq += 1
+            calls.append(extra)
+            ranked += [r for r in _rank(pack, extra) if r[1]["_alias"] == alias]
     # 한 별칭에 여러 항목이 걸리면(드라이브·인터페이스별, free/total 등) 팩 키와 가까운 순으로
     # 별칭당 MAX_ITEMS_PER_ALIAS 개만 쓴다. 리포트 사실 목록이 길어지지 않게.
     ranked.sort(key=lambda r: r[0])
@@ -166,9 +205,27 @@ def collect(
     if trigger_itemid:
         history = _call(
             client,
-            4,
+            seq,
             "zabbix_get_history",
             {"itemid": str(trigger_itemid), "time_from": iso(now - timedelta(hours=1))},
         )
         calls.append(history)
+    if getattr(client, "kb_enabled", False):
+        # 비슷한 과거 장애·런북 (결정 017, FR-RAG-007). 근거일 뿐 티어를 정하지 않는다.
+        query = " ".join(
+            str(v) for v in (incident.get("title"), incident.get("host_name")) if v
+        )
+        if query:
+            calls.append(
+                _call(
+                    client,
+                    len(calls) + 1,
+                    KB_TOOL,
+                    {
+                        "query": query,
+                        "k": KB_TOP_K,
+                        "exclude_source_ids": [f"incident:{incident.get('id')}"],
+                    },
+                )
+            )
     return calls

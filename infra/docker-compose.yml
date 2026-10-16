@@ -1,0 +1,110 @@
+# DejaFix compose (T61) — 5서비스: frontend · backend · agent · mcp-zabbix · scheduler
+#   docker compose -f infra/docker-compose.yml up -d --build      (저장소 루트에서)
+# - 외부 공개 포트는 frontend 8080 하나뿐(SAFE-14). 나머지는 expose(내부 네트워크)만.
+# - Zabbix 는 compose 밖 외부 서비스(VM). 운영 Zabbix 호출은 backend·mcp-zabbix·scheduler 가 libs/zabbix_ro 로만.
+# - 비밀값은 루트 .env 로만(env_file). 아래 environment 는 컨테이너 안 경로·주소만 덮어쓴다(.env 의 로컬 값 data/*.db·localhost 를 대신함).
+# - SQLite 2파일은 named volume dejafix-data(/data). 작성자: shared.db = agent·scheduler, backend.db = backend.
+
+x-python-service: &python-service
+  build:
+    context: ..
+    dockerfile: infra/docker/python.Dockerfile
+  env_file:
+    - path: ../.env
+      required: false
+  restart: unless-stopped
+  volumes:
+    - dejafix-data:/data
+
+x-db-paths: &db-paths
+  SHARED_DB_PATH: /data/shared.db
+  BACKEND_DB_PATH: /data/backend.db
+
+services:
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    <<: *python-service
+    build:
+      context: ..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: backend
+    command: ["uvicorn", "dejafix_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    expose:
+      - "8000"
+    environment:
+      <<: *db-paths
+      AGENT_URL: http://agent:8100
+      MCP_ZABBIX_URL: http://mcp-zabbix:8200/mcp
+    depends_on:
+      - agent
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  agent:
+    <<: *python-service
+    build:
+      context: ..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: agent
+    command: ["uvicorn", "dejafix_agent.main:app", "--host", "0.0.0.0", "--port", "8100"]
+    expose:
+      - "8100"
+    environment:
+      <<: *db-paths
+      MCP_ZABBIX_URL: http://mcp-zabbix:8200/mcp
+    depends_on:
+      - mcp-zabbix
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  mcp-zabbix:
+    <<: *python-service
+    build:
+      context: ..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: mcp-zabbix
+    command: ["python", "-m", "mcp_zabbix"]
+    expose:
+      - "8200"
+    environment:
+      # mcp_zabbix/__main__.py 가 읽는 이름은 MCP_ZABBIX_HOST·MCP_ZABBIX_PORT (기본 127.0.0.1 → 컨테이너 밖에서 못 붙음)
+      MCP_ZABBIX_HOST: 0.0.0.0
+      MCP_ZABBIX_PORT: "8200"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  scheduler:
+    <<: *python-service
+    build:
+      context: ..
+      dockerfile: infra/docker/python.Dockerfile
+      args:
+        PACKAGE: scheduler
+    command: ["python", "-m", "dejafix_scheduler"]
+    environment:
+      <<: *db-paths
+
+volumes:
+  dejafix-data:
+    name: dejafix-data

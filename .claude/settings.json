@@ -26,7 +26,28 @@
       "Bash(gh issue edit * --add-label *)",
       "Bash(gh label list*)",
       "Bash(gh pr review *)",
-      "Bash(gh pr merge * --auto --squash*)"
+      "Bash(gh pr edit * --add-reviewer *)",
+      "Bash(gh pr merge * --auto --squash*)",
+      "Bash(git fetch*)",
+      "Bash(git merge origin/dev*)",
+      "Bash(git worktree *)",
+      "Bash(git bisect *)",
+      "Bash(git revert --no-edit *)",
+      "Bash(git push origin fix/*)",
+      "Bash(git push origin docs/*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr edit * --base dev*)",
+      "Bash(gh pr edit * --add-label *)",
+      "Bash(gh pr edit * --remove-label ci-failed*)",
+      "Bash(gh pr edit * --remove-label conflict*)",
+      "Bash(gh run list*)",
+      "Bash(gh run view *)",
+      "Bash(gh api user*)",
+      "Bash(gh issue edit * --add-assignee *)"
     ],
     "deny": [
       "Read(./.env)",
@@ -57,7 +78,8 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-merge.mjs\"", "timeout": 30 }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-merge.mjs\"", "timeout": 30 },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-push.mjs\"", "timeout": 10 }
         ]
       }
     ],

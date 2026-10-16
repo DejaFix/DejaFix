@@ -112,6 +112,7 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
 ```
 - 값은 `"ok" | "down"`. `shared_db` 만 `"waiting"`(shared.db 파일이 아직 없음, 요청마다 재시도), `scheduler` 만 `"stale"` 이 더해진다.
 - `scheduler_last_ok` = `shared.scheduler_jobs` 의 `job='poll_problems'` `last_ok_at`. 기록이 없거나 shared.db 가 없으면 `null`.
+- `zabbix` 는 `apiinfo.version` 한 번(인증 없는 읽기)으로 판정한다. Zabbix 가 느려도 health 가 같이 느려지지 않도록 **3초 안에 답이 없으면 `"down"`**. `ZABBIX_MOCK=true` 면 항상 `"ok"`.
 - `scheduler` = 수집기가 살아 있는지의 판정. 응답을 만드는 시각과 `scheduler_last_ok` 의 차이가 **`SCHEDULER_STALE_SEC` 이내면 `"ok"`**, 그보다 오래됐으면 `"stale"`(수집이 멈춘 것으로 본다), `scheduler_last_ok` 가 `null` 이면 `"down"`. `SCHEDULER_STALE_SEC` 기본값은 **90**(폴링 주기 `INCIDENT_POLL_SEC=30` × 3)이다. 화면은 이 값으로 "수집 중단" 배너를 띄운다.
 
 ### #5 `GET /api/dashboard/summary`
@@ -137,7 +138,8 @@ KPI 4종, **모든 값이 `Measured`**.
 - 활성 장애 = `incidents.status='problem'` 수. High 이상 = severity ≥ 4(High·Disaster).
 - 감시 호스트 = Zabbix 감시 중(`status=0`) 호스트 수. 정상 = 에이전트 가용성 1 이고 활성 Problem 0, 확인 불가 = 가용성 0 → `hosts.unknown` 에 따로 센다.
 - 오늘 리포트 수·평균 분석 시간의 "오늘" = **KST 자정 기준**.
-- Zabbix 가 끊기면 `hosts.*` 는 `unknown:true, unknown_reason:"TOOL_ERROR"`, shared.db 기준 KPI 는 값을 유지한다.
+- Zabbix 가 끊기면 `hosts.*` 는 `unknown:true, unknown_reason:"TOOL_ERROR"`, shared.db 기준 KPI 는 값을 유지한다. Zabbix 가 5초 안에 답하지 않아도 같다(API 5번 자체는 200 으로 즉시 답한다).
+- Zabbix 조회 결과는 **성공 5초·실패 2초** 동안 재사용된다(15초 폴링에 여러 사용자가 붙어도 Zabbix 에 가볍게 가도록). 그래서 `hosts.*` 의 `collected_at` 은 요청 시각보다 최대 5초 늦을 수 있다.
 - `llm_usage_today` 는 [선택] — 필수 단계에서는 `null`.
 
 ### #6 `GET /api/problems?severity_min=&hostid=`
@@ -159,7 +161,11 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
   "meta": { "collected_at": "2026-10-16T01:21:15Z", "truncated": false }
 }
 ```
-- Zabbix 연결 실패: 503 `ZABBIX_UNAVAILABLE`.
+- 해결된 문제는 목록에 없다. **새 문제가 위**: `clock` 내림차순, 같으면 `eventid` 가 큰 것 먼저.
+- 최대 **200건**. 더 있으면 앞 200건만 주고 `meta.truncated: true`.
+- `severity_min` 은 0~5, 범위 밖이면 422 `VALIDATION_ERROR`. `hostid` 를 주면 그 호스트의 문제만.
+- 호스트를 알 수 없으면 `host: {"id": null, "name": null}` (프론트는 UnknownValue 로 표시). `incident_id` 는 수집 전이거나 shared.db 가 없으면 `null`.
+- Zabbix 연결 실패 또는 5초 안에 답이 없으면 503 `ZABBIX_UNAVAILABLE`. 오류 내용·토큰·주소는 응답에 넣지 않는다.
 
 ### #10 `GET /api/incidents?status=&severity_min=&limit=&cursor=`
 
@@ -260,7 +266,7 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
 ```json
 { "conversation_id": "c_7f3a", "message": "이 서버 백업 작업이 원인인가?", "context": { "incident_id": 12, "hostid": "10584" } }
 ```
-- Backend 는 Agent `POST /v1/chat` 에 `caller:"backend"`, 헤더 `X-User-Id`·`X-User-Role` 을 붙여 호출하고 **이벤트를 바꾸지 않고 그대로 중계**한다(`agent-api.md` 1-2). operator 미만은 403 `FORBIDDEN`. `message` 가 비면 422.
+- Backend 는 Agent `POST /v1/chat` 에 `caller:"backend"`, 헤더 `X-User-Id`·`X-User-Role` 을 붙여 호출하고 **이벤트를 바꾸지 않고 그대로 중계**한다(`agent-api.md` 1-2). operator 미만은 403 `FORBIDDEN`. `message` 가 비었거나 공백뿐이거나 **4000자를 넘으면** Agent 로 보내지 않고 422 `VALIDATION_ERROR`.
 - 응답 `Content-Type: text/event-stream; charset=utf-8`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`.
 - 이벤트 6종과 순서: `meta`(항상 첫 이벤트) → (`tool_call` → `tool_result`)* → `token`* → `final` | `error`. 규칙 기반 답변은 `meta` → `final` 만 와도 정상.
 ```
@@ -274,6 +280,7 @@ event: final
 data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"label":"백업 작업 여부","reason":"NOT_COLLECTED"}]}
 ```
 - Agent 에 연결할 수 없거나 요청 후 3초 안에 첫 이벤트가 없으면 Backend 가 `event: error` + `{"code":"AGENT_UNAVAILABLE"}` 를 보내고 닫는다. 스트림 중간에 끊겨도 같다.
+- Agent 가 15초(`CHAT_KEEPALIVE_SEC`) 넘게 조용하면(도구 호출·LLM 대기) Backend 가 `: ping` **SSE 주석 줄**을 보내 nginx·프록시가 유휴 연결을 끊지 않게 한다. 이벤트가 아니므로 클라이언트는 무시한다. 이벤트 도중에는 끼워 넣지 않는다.
 - **비스트리밍(탈출 규칙 1)**: 같은 경로가 JSON 으로 응답한다(Agent 는 그대로 스트림을 보내고 Backend 가 합친다). 프론트는 응답 `Content-Type` 으로 SSE/JSON 을 고른다.
 ```json
 {

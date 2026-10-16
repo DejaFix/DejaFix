@@ -1,0 +1,27 @@
+[project]
+name = "kb"
+version = "0.1.0"
+description = "DejaFix RAG 지식 도우미 — 수집·청킹·색인·검색 (결정 017)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "pyyaml>=6.0.3",
+]
+
+# 테스트가 shared.db 시드(shared_db.load_dev_seed)를 쓴다 — kb 만 설치해도 테스트가 돌도록 명시
+[dependency-groups]
+dev = [
+    "shared-db",
+    "pytest",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "dejafix_kb"
+module-root = ""
+
+[tool.uv.sources]
+shared-db = { workspace = true }

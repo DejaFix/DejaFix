@@ -42,6 +42,8 @@ class Pack:
     default_tier: str
     fallback_plans: dict[str, list[str]]  # 지표 별칭 → 동작 ID 목록
     prompts: dict[str, str]  # 파일 이름(확장자 제외) → 내용
+    # 선택 chat.yaml: 과거·절차를 묻는 질문 판별어(규칙 기반 채팅에서 지식 검색 결과를 붙일지) — 없으면 빈 값
+    history_words: tuple[str, ...] = ()
 
     def classify_key(self, item_key: str) -> str | None:
         """트리거 아이템 키를 지표 별칭으로 분류한다. 모르면 None."""
@@ -172,6 +174,12 @@ def load_pack(name: str, packs_dir: Path | None = None) -> Pack:
         raise PackError(f"prompts/ 폴더 없음: {prompts_dir}")
     prompts = {p.stem: p.read_text(encoding="utf-8") for p in prompts_dir.glob("*.md")}
 
+    chat_path = root / "chat.yaml"  # 선택 파일 (결정 017, FR-RAG-008)
+    chat_raw = _read_yaml(chat_path) if chat_path.exists() else {}
+    history_words = tuple(
+        str(w) for w in _as_list(chat_raw.get("history_words")) if str(w).strip()
+    )
+
     return Pack(
         name=name,
         path=root,
@@ -180,4 +188,5 @@ def load_pack(name: str, packs_dir: Path | None = None) -> Pack:
         default_tier=default_tier,
         fallback_plans=fallback_plans,
         prompts=prompts,
+        history_words=history_words,
     )

@@ -1,4 +1,4 @@
-# mcp-tools.md — Agent ↔ mcp-zabbix 도구 계약 (v0)
+# mcp-tools.md — Agent ↔ mcp-zabbix·mcp-kb 도구 계약 (v0.2)
 
 > 소유 Zabbix·MCP 담당 · 소비 팀장(Agent). 원본: 기획서 7-3, 요구사항 IF-INT-MCP-001~008·FR-MCP-001~010. 이 문서가 기획서보다 우선한다(루트 CLAUDE.md 0).
 > 실측 근거: `docs/zabbix/verification/api-probe-2026-10-14/` (Zabbix 7.x, 템플릿 "Windows by Zabbix agent active").
@@ -29,7 +29,7 @@
 - 시각 인자(`since`, `time_from`, `time_till`)는 **UTC ISO8601 문자열 또는 유닉스 초(정수·문자열)** 둘 다 받는다.
 
 ### 2-2. 오래된 값 판정 (FR-MCP-008, SAFE-09)
-`stale = (now - lastclock) > max(delay초 × 3, 600초)`. `delay`는 `30s`·`1m`·`1h` 같은 문자열이라 MCP가 초로 바꾼다. 사용자 매크로(`{$...}`)라 해석이 안 되면 600초를 쓴다. `lastclock`이 `"0"`이거나 없으면 `stale: true`.
+`stale = (now - lastclock) > max(delay초 × 3, 600초)`. `delay`는 `30s`·`1m`·`1h` 같은 문자열이라 MCP가 초로 바꾼다. 사용자 매크로(`{$...}`)라 해석이 안 되면 600초를 쓴다. `delay`가 `0`(종속 아이템 등)이면 `max(0, 600)`이라 600초다. `30s;50/1-7,00:00-24:00`처럼 유연한 간격이 붙으면 첫 항목(`30s`)만 본다. `lastclock`이 `"0"`이거나 없으면 `stale: true`.
 
 ### 2-3. 보내지 않는 값
 - 호스트 인터페이스의 `ip`·`dns`는 넘기지 않는다(외부 LLM으로 사설 주소가 나가지 않게). 인터페이스는 종류·가용성만.
@@ -65,6 +65,7 @@
 - 인자: `hostid`(필수)
 - 매핑: `host.get(hostids, selectHostGroups=[groupid,name], output=[hostid,host,name,status,active_available,maintenance_status])` + `hostinterface.get(hostids)` + `maintenance.get(hostids)`
 - 없으면 `NOT_FOUND`
+- Zabbix 7.x `host.get`은 그룹을 `hostgroups` 키로 준다. MCP는 이를 `groups`로 이름을 바꿔 돌려준다(Agent는 `groups`만 본다). 인터페이스는 실측 호스트처럼 빈 배열일 수 있다.
 - `data`: 객체. `available`은 액티브 에이전트 가용성(`active_available`: 0 알 수 없음·1 사용 가능·2 사용 불가).
 ```json
 {"hostid": "10642", "host": "<기술 이름>", "name": "<표시 이름>", "available": "1",
@@ -91,13 +92,15 @@
  "last_clock": "1792026930", "stale": false}
 ```
 - 점이 0개면 `ok:true`, `points: []`(소비자는 `NO_DATA`).
+- **`data`는 배열이 아니라 객체다**(#34 결정 3). 오래된 값 판정에 필요한 `last_clock`·`stale`을 같이 주기 때문이다. 소비자는 점을 `data.points[]`에서 읽고 개수는 `len(data.points)`로 센다(`data` 자체의 길이가 아님).
 
-## 4. 도구 이름 전체 (Agent 허용 명시 집합, 12개)
+## 4. 도구 이름 전체 (Agent 허용 명시 집합, 13개)
 | 이름 | 등급 | 서버 등록 |
 |---|---|---|
 | `zabbix_list_problems`, `zabbix_get_problem`, `zabbix_get_host`, `zabbix_list_items`, `zabbix_get_history` | 필수 | **등록** |
 | `zabbix_get_event_history`, `zabbix_list_triggers`, `zabbix_api_version` | 선택 (IF-INT-MCP-007) | 미등록 |
 | `zabbix_get_trends`, `zabbix_list_hosts`, `zabbix_list_host_groups`, `zabbix_get_alert_settings` | 이후 (IF-INT-MCP-008) | 미등록 |
+| `kb_search_knowledge` (서버 `mcp-kb`, 6장) | 이후 (FR-RAG-006, 결정 017) | `mcp-kb`에만 등록 |
 
 planned 7개의 인자·응답은 기획서 7-3을 따르고, 구현할 때 이 문서에 상세를 추가하는 계약 PR을 먼저 올린다.
 
@@ -107,5 +110,28 @@ planned 7개의 인자·응답은 기획서 7-3을 따르고, 구현할 때 이 
 - `lastclock`을 15분 전으로 둔 fixture 항목(`delay` 1m) → `stale: true`.
 - 허용 목록 밖 메서드 요청 → 네트워크 전에 예외(`libs/zabbix_ro` 테스트).
 
+## 6. mcp-kb — RAG 지식 검색 (v0.2, FR-RAG-006, 결정 017, 등급 [이후])
+- 서버: 별도 MCP 서버 `mcp-kb`, streamable HTTP `http://mcp-kb:8300/mcp`(compose 내부 전용), 로컬 `http://localhost:8300/mcp`. Agent는 `MCP_KB_URL`로 받고, **비어 있으면 연결하지 않는다**(기존 동작 그대로).
+- `GET /healthz` → `{"ok": true, "kb": "ok" | "empty" | "down", "documents": <int>, "chunks": <int>}`
+- `tools/list`에는 `kb_search_knowledge` **하나만** 등록한다(쓰기 도구 없음, SAFE-03). Agent는 mcp-kb의 도구도 4장 명시 집합으로 검사한다.
+- 데이터: `libs/kb`가 만든 `knowledge.db`를 **읽기 전용**으로 연다. 색인(쓰기)은 `python -m dejafix_kb index`만 한다.
+
+### `kb_search_knowledge`
+- 인자: `query`(필수, 문자열), `k`(선택, 1~5, 기본 5), `source_types`(선택, `incident_report`·`runbook`·`pack_action`·`resolution_note` 중 목록), `host_name`(선택, 장애 리포트만 거름), `exclude_source_ids`(선택, 예: 지금 장애 `incident:34`)
+- 봉투: 2장과 같다. 실패 `reason`은 `KB_ERROR`(DB 없음·열기 실패) 하나 → Agent `unknown_reason`은 `TOOL_ERROR`. 결과가 비면 `ok:true`, `hits: []` → 소비자는 `NO_DATA`("관련 지식 없음")로 다룬다.
+- `data`: 객체
+```json
+{"mode": "hybrid", "hits": [
+  {"chunk_id": "kb_1a2b3c4d5e6f", "source_type": "incident_report", "source_id": "incident:32",
+   "title": "장애 #32 DejaFix demo: CPU 1분 평균 85% 초과", "heading": "장애 #32 ...",
+   "text": "<최대 600자>", "score": 0.0325, "cosine": 0.6944,
+   "meta": {"incident_id": 32, "host_name": "TaeYoon-PC", "severity": 4}}]}
+```
+- `mode`: `hybrid`(임베딩 사용) 또는 `keyword`(임베딩 미설정·실패). 숫자 필드(`score`·`cosine`)는 MCP가 계산한 값이라 JSON 숫자다(2-1 예외 규칙과 같음).
+- 근거: Agent는 이 호출 자체를 `tool_calls` 1행(`ev_...`)으로 남기고, 답변·리포트에서 인용하는 청크는 `chunk_id`(`kb_...`)로 밝힌다. 검색 결과는 **근거일 뿐 티어를 정하지 않는다**(티어는 `actions.yaml`, SAFE-06).
+- 안전: `text`는 Agent가 `<data>` 블록으로 감싸 넣고 그 안의 지시를 따르지 않는다(NFR-RAG-001).
+
 ## 변경 이력
 - v0 (2026-10-15): 필수 5도구 상세, 공통 봉투, 값 형식(원본 문자열 유지), `get_problem.data.items` 필수, 인터페이스 IP 제외. Issue #34·#28.
+- v0.1 (2026-10-15): `get_history.data`가 객체임을 못박음(#34 결정 3), stale 규칙에 `delay` 0·유연한 간격 추가, `host.get` `hostgroups`→`groups` 매핑 명시. 구현은 PR #77과 일치. `docs/plan.md` 7-3은 동결 문서라 고치지 않고 계약이 우선한다(루트 CLAUDE.md 0).
+- v0.2 (2026-10-16): `mcp-kb` 서버와 `kb_search_knowledge` 도구 추가(6장, 등급 [이후], 결정 017). 허용 명시 집합 12 → 13개. `MCP_KB_URL`이 비면 Agent는 연결하지 않음. mcp-zabbix 5도구는 변경 없음.

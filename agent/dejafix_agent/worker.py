@@ -37,6 +37,12 @@ def _j(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _data(value: Any) -> str:
+    """<data> 블록에 넣는 JSON. Zabbix 제목·지식 검색 발췌 속 '</data>' 가 블록을 닫지 못하게
+    <, > 를 유니코드 이스케이프로 바꾼다(유효한 JSON 그대로, NFR-RAG-001·SAFE-15)."""
+    return _j(value).replace("<", "\\u003c").replace(">", "\\u003e")
+
+
 def pending_incidents(
     conn: sqlite3.Connection, min_severity: int, limit: int = BATCH
 ) -> list[dict]:
@@ -216,7 +222,7 @@ def run_analysis(
                         "{allowed_actions}", pack.allowed_actions_text()
                     ).replace(
                         "{collected}",
-                        _j(
+                        _data(
                             [
                                 {
                                     "id": c.id,
@@ -240,6 +246,14 @@ def run_analysis(
             error = error or "LLM_ERROR"
             kind = "fallback"
             report, plan_draft = validate_draft(base, evidence)
+
+        similar = fallback.kb_fact(
+            calls
+        )  # LLM 이 빠뜨려도 과거 유사 사례는 남긴다 (FR-RAG-007)
+        if similar and not any(
+            f.get("label") == similar["label"] for f in report.get("facts", [])
+        ):
+            report.setdefault("facts", []).append(similar)
 
         report_id = _save_report(conn, incident["id"], run_id, kind, report)
         _set_status(conn, run_id, "reported")
