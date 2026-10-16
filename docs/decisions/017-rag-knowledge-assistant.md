@@ -1,0 +1,11 @@
+# 017 RAG 장애 대응 지식 도우미 — 범위·구조·담당 (FR-RAG-001)
+- 결정: 과거 장애 리포트·계획(shared.db), 런북(`docs/demo`·`docs/zabbix`), 팩 동작 설명(`packs/*/actions.yaml`), 사람이 쓴 해결 메모를 청킹·색인한다. 새 장애 분석과 채팅에서 "비슷한 과거 장애와 당시 조치"를 **청크 ID 근거와 함께** 보여 준다. 구성은 아래 셋이다.
+  - **`libs/kb`**(패키지 `dejafix_kb`): 수집·청킹·임베딩·`knowledge.db` 저장·하이브리드 검색·CLI
+  - **`mcp-kb`**: 읽기 전용 MCP 서버, 도구 `kb_search_knowledge` 1개
+  - **Agent 연동**: 분석·채팅에서 위 도구를 부른다. 결과는 `tool_calls`에 남아 근거 패널에 그대로 보인다.
+  - 등급은 **[이후]**다. 금요일 [필수] 데모 경로(`main` 동결본)에는 넣지 않고, `KB_*`·`MCP_KB_URL`이 비어 있으면 기존 동작과 같다.
+- 이유: 차별점 3축(근거 첨부·실행은 미리보기만·티어는 규칙)을 해치지 않고 "같은 장애가 전에 어땠는지"를 답할 수 있다. 검색 결과는 근거일 뿐이므로 티어는 지금처럼 `actions.yaml`이 정하고, 관련 지식이 없으면 "확인할 수 없음"이다. 저장은 SQLite(FTS5 + 벡터 BLOB)로 해서 "PostgreSQL 안 씀·DB 컨테이너 없음" 원칙을 지킨다. 임베딩은 Gemini OpenAI 호환 `/embeddings`(`gemini-embedding-001`, 10/16 실호출 확인)로 하되, 키가 없으면 키워드(FTS5) 검색만 한다.
+- 대안(기각): ① 벡터 DB(Chroma·pgvector) 별도 컨테이너 — compose·외부 공개 포트·DB 원칙 위반 ② Agent가 knowledge.db를 직접 읽기 — SAFE-05(외부 조회는 MCP로만) 위반 ③ LLM이 검색 결과로 티어 판단 — 차별점 ② 위반
+- 담당(폴더 소유권 추가): `libs/kb/`·`mcp-kb/` 주담당 팀장, 부담당 `libs/kb` DB·메일 담당, `mcp-kb` Zabbix·MCP 담당. 다른 파트 몫(화면 카드 FR-RAG-009, 해결 메모 API FR-RAG-010, 야간 재색인 Scheduler 작업 NFR-RAG-003)은 Issue로 요청한다. `contracts/mcp-tools.md`에 도구를 추가하는 것은 계약 PR(2인 승인)이 먼저다.
+- 미결: 벡터 차원(기본 768로 줄여 저장, (TODO: 추후결정)), 해결 메모 테이블 위치(backend.db vs knowledge.db, (TODO: 추후결정))
+- 결정자·일시 / 근거: 팀장(이태윤), 2026-10-16 KST / 노션 현황표 FR-RAG-001~010·DR-RAG-001·NFR-RAG-001~003, 루트 CLAUDE.md ②·⑨, `docs/plan.md` 1-3
