@@ -9,7 +9,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // 다른 포트로 띄운 격리 환경(scripts/dev-up.ps1 -BackendPort)은 DEV_API_TARGET 으로 바꾼다. 설정 시점에만 읽고 번들에는 들어가지 않는다.
+        target: process.env.DEV_API_TARGET || 'http://localhost:8000',
         changeOrigin: true,
         configure: (proxy) => {
           // 채팅 SSE(#18)가 모였다가 한 번에 오지 않게: 압축을 요청하지 않고, 응답 버퍼링 끔 헤더를 붙인다.
