@@ -5,11 +5,12 @@
 - [필수] `problem.get`은 호스트를 안 주므로 `trigger.get(selectHosts)`로 `hostid`·`host_name` 보강
 - [필수] 매 주기 `scheduler_jobs`의 `poll_problems` 1행 UPSERT(`last_run_at, last_ok_at, status, message`), 실패해도 죽지 않고 다음 주기 재시도 (FR-SCH-004·009)
 - [필수] 기동 시 `contracts/db-schema.sql`(전 문장 `IF NOT EXISTS`)을 `shared.db`에 적용
+- [이후] RAG 재색인(`kb_jobs.py`, 결정 017·#159): `KB_DB_PATH`가 있을 때만 매일 03:00 KST(18:00 UTC) 전체 색인(`kb_reindex`), `KB_NOTES_SEC`(기본 300초)마다 해결 메모만 부분 색인(`kb_notes`). 별도 스레드 하나에서 돌아 수집 주기를 막지 않고, 결과는 `scheduler_jobs` 행에만 남긴다. `knowledge.db`는 `libs/kb` 색인기가 쓴다
 - [이후] 일일 지표 요약·사양 수집·보관 정리 — 지금 만들지 않는다
 
 ## 하지 않는 것
 - Agent·Backend·LLM 호출 (구조도에 없는 화살표)
-- 자기 테이블(`incidents`, `scheduler_jobs`) 밖 쓰기, `backend.db` 접근
+- 자기 테이블(`incidents`, `scheduler_jobs`) 밖 쓰기, `backend.db` 직접 접근(해결 메모는 `libs/kb`가 `mode=ro`로만 읽음)
 - Zabbix 직접 HTTP 호출 — 반드시 `libs/zabbix_ro` 경유
 
 ## 의존 계약
@@ -17,7 +18,7 @@
 
 ## 실행
 - 로컬: `uv run --package scheduler python -m dejafix_scheduler` (패키지 이름 `dejafix_scheduler` — 폴더 이름과 같으면 pytest importlib 모드에서 가려짐)
-- 환경 변수: `SHARED_DB_PATH`, `INCIDENT_POLL_SEC`(기본 30, 최소 5), `ZABBIX_MOCK`(true면 `dejafix_scheduler/fixtures/mock_zabbix.json`), `SCHEDULER_MOCK_FILE`(목 파일 경로 바꿀 때)
+- 환경 변수: `SHARED_DB_PATH`, `INCIDENT_POLL_SEC`(기본 30, 최소 5), `ZABBIX_MOCK`(true면 `dejafix_scheduler/fixtures/mock_zabbix.json`), `SCHEDULER_MOCK_FILE`(목 파일 경로 바꿀 때). 재색인([이후]): `KB_DB_PATH`(비면 끔), `KB_NOTES_SEC`·`KB_RETRY_SEC`(기본 300, 최소 60), 그 밖 `KB_ROOT`·`BACKEND_DB_PATH`·`DOMAIN_PACK`·`KB_EMBED_*`는 `libs/kb` 설정
 - 실서버 모드는 `libs/zabbix_ro`의 `from_env()`·`client.call(method, params)`를 쓴다. 아직 없으면 매 주기 `scheduler_jobs.poll_problems.status='error'`로 남기고 계속 돈다
 
 ## 테스트
