@@ -11,6 +11,7 @@
 | `access.md` | 팀 Zabbix 접속 방식·`ZABBIX_URL` 형식·`.env` 주의점 (주소 값 없음) |
 | `readonly-account.md` | 읽기 전용 계정 `dejafix-readonly` 역할·그룹·토큰 구성 (토큰 값 없음) |
 | `mcp-live-test.md` | 팀 서버에서 mcp-zabbix 5도구 실호출 결과 |
+| `incident-2026-10-16-db-stop.md` | 10/16 06:05 DB·서버 정지 사고 기록, 재발 방지 대책(안)·복구 순서·점검 3단계 |
 
 데모 템플릿·트리거 정의와 적용 절차는 `infra/zabbix/demo/README.md`.
 
