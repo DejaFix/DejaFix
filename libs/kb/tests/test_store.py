@@ -72,3 +72,66 @@ def test_index_real_sources(settings):
     c = counts(conn)
     assert stats.added == c["documents"] and c["chunks"] >= c["documents"]
     assert c["embedded"] == 0
+
+
+def test_prune_when_a_type_drops_to_zero(tmp_path):
+    """이번 수집에 장애 리포트가 0건이어도(shared.db 없음 등) 옛 장애 문서는 지워진다 (#136 리뷰)."""
+    conn = open_kb(tmp_path / "k.db")
+    upsert(
+        conn,
+        [
+            d("incident:1", "# 장애\n내용 첫번째", "incident_report"),
+            d("a.md", "# A\n본문입니다"),
+        ],
+    )
+    stats = upsert(conn, [d("a.md", "# A\n본문입니다")])
+    assert stats.removed == 1
+    assert {r[0] for r in conn.execute("select source_id from kb_documents")} == {
+        "a.md"
+    }
+
+
+def test_partial_prune_types_keeps_other_types(tmp_path):
+    conn = open_kb(tmp_path / "k.db")
+    upsert(
+        conn,
+        [
+            d("incident:1", "# 장애\n내용 첫번째", "incident_report"),
+            d("a.md", "# A\n본문입니다"),
+        ],
+    )
+    stats = upsert(conn, [], prune_types={"runbook"})
+    assert stats.removed == 1
+    assert {r[0] for r in conn.execute("select source_id from kb_documents")} == {
+        "incident:1"
+    }
+
+
+def test_readonly_connection_refuses_writes(tmp_path):
+    import sqlite3
+
+    import pytest
+
+    from dejafix_kb.store import open_kb_readonly
+
+    path = tmp_path / "k.db"
+    open_kb(path).close()
+    ro = open_kb_readonly(path)
+    with pytest.raises(sqlite3.OperationalError):
+        ro.execute("insert into kb_meta(key, value) values ('x', 'y')")
+
+
+def test_chunker_version_change_rechunks(tmp_path, monkeypatch):
+    from dejafix_kb import store
+
+    conn = open_kb(tmp_path / "k.db")
+    upsert(conn, [d("a.md", "# A\n본문입니다")])
+    monkeypatch.setattr(store, "CHUNKER_VERSION", "test-next")
+    stats = upsert(conn, [d("a.md", "# A\n본문입니다")])
+    assert stats.added == 1 and stats.unchanged == 0
+    assert (
+        conn.execute(
+            "select value from kb_meta where key='chunker_version'"
+        ).fetchone()[0]
+        == "test-next"
+    )

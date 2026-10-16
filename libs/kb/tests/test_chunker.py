@@ -67,3 +67,21 @@ def test_chunk_all_real_sources(settings):
         "pack_action",
     }
     assert len({c.chunk_id for c in chunks}) == len(chunks)
+
+
+def test_hash_line_inside_code_fence_is_not_heading():
+    """코드 블록 안 '# 주석' 줄이 제목으로 잡혀 블록이 쪼개지면 안 된다 (#135 리뷰)."""
+    from dejafix_kb.chunker import _sections
+
+    text = "# 개요\n본문\n```bash\n# 이건 셸 주석\necho hi\n```\n끝"
+    sections = _sections(text, "T")
+    assert [h for h, _ in sections] == ["개요"]
+    chunks = chunk_doc(doc(text))
+    assert len(chunks) == 1 and "# 이건 셸 주석" in chunks[0].text
+
+
+def test_oversized_paragraph_is_split():
+    long_para = "가" * (MAX_TOKENS * chunker.CHARS_PER_TOKEN * 2 + 10)
+    chunks = chunk_doc(doc("# 긴 문단\n" + long_para))
+    assert len(chunks) >= 3
+    assert all(c.tokens <= MAX_TOKENS + chunker.OVERLAP_TOKENS for c in chunks)

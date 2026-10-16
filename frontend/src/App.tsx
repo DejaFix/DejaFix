@@ -3,14 +3,13 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import Admin from './pages/Admin'
 import Alerts from './pages/Alerts'
-import Cost from './pages/Cost'
+import ComingSoon from './pages/ComingSoon'
 import Dashboard from './pages/Dashboard'
 import IncidentDetail from './pages/IncidentDetail'
 import Login from './pages/Login'
 import PlanDetail from './pages/PlanDetail'
 import Plans from './pages/Plans'
 import Reports from './pages/Reports'
-import ServerCompare from './pages/ServerCompare'
 import { useAuth } from './state/auth'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -35,8 +34,8 @@ export default function App() {
         <Route path="plans" element={<Plans />} />
         <Route path="plans/:id" element={<PlanDetail />} />
         <Route path="reports" element={<Reports />} />
-        <Route path="cost" element={<Cost />} />
-        <Route path="compare" element={<ServerCompare />} />
+        <Route path="cost" element={<ComingSoon title="비용 절감" />} />
+        <Route path="compare" element={<ComingSoon title="서버 비교" />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="admin" element={<Admin />} />
       </Route>
