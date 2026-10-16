@@ -28,7 +28,9 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--k", type=int, default=5)
     sp.add_argument("--type", action="append", dest="types")
     ep = sub.add_parser("eval", help="질의셋으로 Recall@5·인용 정확도·응답 시간 측정")
-    ep.add_argument("queries", nargs="?", help="기본: packs/${DOMAIN_PACK}/kb-eval.yaml")
+    ep.add_argument(
+        "queries", nargs="?", help="기본: packs/${DOMAIN_PACK}/kb-eval.yaml"
+    )
     a = ap.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     settings = KbSettings.from_env()

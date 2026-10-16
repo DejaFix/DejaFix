@@ -34,9 +34,7 @@ def pack_queries_path(root: Path, domain_pack: str | None) -> Path | None:
     return root / "packs" / domain_pack / PACK_QUERIES if domain_pack else None
 
 
-def run_eval(
-    conn, embedder: Embedder | None, queries_path: Path
-) -> dict[str, Any]:
+def run_eval(conn, embedder: Embedder | None, queries_path: Path) -> dict[str, Any]:
     data = yaml.safe_load(queries_path.read_text(encoding="utf-8")) or {}
     rows = []
     for item in data.get("queries") or []:
