@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -20,6 +21,7 @@ from typing import Any
 import yaml
 
 from .config import KbSettings
+from .redact import redact, redact_value
 
 
 def now_iso() -> str:
@@ -176,6 +178,16 @@ def pack_docs(root: Path, domain_pack: str | None) -> list[SourceDoc]:
 
 
 NOTES_TABLE = "resolution_notes"
+# Issue #153 제안 DDL 기준. contracts/db-schema.sql 계약 PR(DB 담당)이 머지되면 그 이름에 맞춘다
+NOTES_COLUMNS = (
+    "id",
+    "incident_id",
+    "root_cause",
+    "action_taken",
+    "result",
+    "created_at",
+)
+log = logging.getLogger(__name__)
 
 
 def note_docs(backend_db: Path) -> list[SourceDoc]:
@@ -190,8 +202,17 @@ def note_docs(backend_db: Path) -> list[SourceDoc]:
         ).fetchone()
         if not exists:
             return []
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({NOTES_TABLE})")}
+        missing = [c for c in NOTES_COLUMNS if c not in cols]
+        if missing:
+            # 컬럼 이름이 다르면 해결 메모만 건너뛴다(장애·런북 색인은 계속)
+            log.warning(
+                "resolution_notes 컬럼이 예상과 달라 해결 메모 색인을 건너뜀: 없는 컬럼 %s",
+                ",".join(missing),
+            )
+            return []
         rows = conn.execute(
-            f"SELECT id, incident_id, root_cause, action_taken, result, created_at FROM {NOTES_TABLE} ORDER BY id"
+            f"SELECT {', '.join(NOTES_COLUMNS)} FROM {NOTES_TABLE} ORDER BY id"
         ).fetchall()
     finally:
         conn.close()
@@ -219,10 +240,18 @@ def note_docs(backend_db: Path) -> list[SourceDoc]:
 
 
 def collect(settings: KbSettings) -> list[SourceDoc]:
-    """출처 전부. 순서: 장애 → 해결 메모 → 런북 → 팩 동작."""
-    return (
+    """출처 전부. 순서: 장애 → 해결 메모 → 런북 → 팩 동작.
+
+    색인에 넣기 전에 제목·본문·meta 의 IP·비밀값을 가린다(NFR-RAG-001). 원본은 바꾸지 않는다.
+    """
+    docs = (
         incident_docs(settings.path(settings.shared_db_path))
         + note_docs(settings.path(settings.backend_db_path))
         + runbook_docs(settings.root, settings.doc_dirs)
         + pack_docs(settings.root, settings.domain_pack)
     )
+    for d in docs:
+        d.title = redact(d.title)
+        d.text = redact(d.text)
+        d.meta = redact_value(d.meta)
+    return docs

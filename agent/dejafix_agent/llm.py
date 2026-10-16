@@ -51,6 +51,10 @@ def complete_text(settings: Settings, prompt: str) -> str:
         "max_tokens": MAX_TOKENS,
         "temperature": 0,
     }
+    # 사고(reasoning) 모델은 사고 토큰도 max_tokens 에 들어가 JSON 이 잘린다(finish_reason=length).
+    # 설정했을 때만 OpenAI 호환 reasoning_effort 를 보낸다. 비우면 요청 본문은 예전과 같다.
+    if settings.llm_reasoning_effort:
+        body["reasoning_effort"] = settings.llm_reasoning_effort
     try:
         resp = httpx.post(
             url,
