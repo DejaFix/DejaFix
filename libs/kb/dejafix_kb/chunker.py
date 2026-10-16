@@ -17,6 +17,8 @@ from typing import Any
 
 from .sources import SourceDoc
 
+# 규칙을 바꾸면 올린다 → 저장소가 기존 청크를 전부 다시 만든다 (DR-RAG-001)
+CHUNKER_VERSION = "2"
 MAX_TOKENS = 500
 OVERLAP_TOKENS = 50
 CHARS_PER_TOKEN = 2
