@@ -2,6 +2,7 @@
 
 - 장애 맥락(장애·최신 리포트)을 데이터로 감싸 붙인다. 사용자 문장 속 지시를 규칙보다 앞세우지 않는다.
   장애를 열지 않은 질문이면 shared.db 의 열린 장애 목록(Scheduler 수집분, 최대 OVERVIEW_LIMIT 건)을 맥락으로 쓴다.
+  Scheduler 마지막 수집이 없거나 OVERVIEW_STALE_SEC 보다 오래되면 목록 대신 '확인할 수 없음 · STALE/NOT_COLLECTED'.
 - LLM 이 없거나 실패하면 규칙 기반 답변: 최신 리포트 요약 + 수집된 사실만.
   질문 대상이 수집되지 않았으면 "확인할 수 없음 · NOT_COLLECTED".
 - 저장: conversations, messages(user·assistant), agent_runs(kind='chat').
@@ -14,6 +15,7 @@ import json
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +27,8 @@ from .llm import LlmError, complete_text
 from .packs import Pack
 
 OVERVIEW_LIMIT = 20  # 장애 없이 물을 때 맥락에 넣는 열린 장애 수(프롬프트 길이 상한)
+# 열린 장애 목록이 최신인지 판단하는 기준. Scheduler 주기 30초 기준 max(주기×3, 10분) = 600초 (SAFE-09)
+OVERVIEW_STALE_SEC = 600
 
 
 class ChatError(Exception):
@@ -72,13 +76,32 @@ def _overview(conn: sqlite3.Connection) -> dict[str, Any]:
     job = conn.execute(
         "SELECT last_ok_at FROM scheduler_jobs WHERE job = 'poll_problems'"
     ).fetchone()
+    collected_at = job["last_ok_at"] if job else None
     return {
         "open_incidents": {
             "total": total,
             "shown": [dict(r) for r in rows],
-            "collected_at": job["last_ok_at"] if job else None,
+            "collected_at": collected_at,
+            "stale": _is_stale(collected_at),
         }
     }
+
+
+def _is_stale(collected_at: str | None) -> bool:
+    """수집 시각이 없거나 OVERVIEW_STALE_SEC 보다 오래되면 목록을 현재 사실로 쓰지 않는다(SAFE-09)."""
+    if not collected_at:
+        return True
+    try:
+        at = datetime.fromisoformat(collected_at.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    return (utcnow() - at).total_seconds() > OVERVIEW_STALE_SEC
+
+
+def _data_json(context: dict[str, Any]) -> str:
+    """<data> 블록용 JSON. 장애 제목 속 '</data>' 등이 블록을 닫지 못하게 <, > 를 이스케이프한다."""
+    text = json.dumps(context, ensure_ascii=False)
+    return text.replace("<", "\\u003c").replace(">", "\\u003e")
 
 
 def _load_context(conn: sqlite3.Connection, incident_id: int | None) -> dict[str, Any]:
@@ -170,11 +193,30 @@ def rule_based(message: str, context: dict[str, Any], pack: Pack) -> Answer:
     if not incident:
         overview = context.get("open_incidents") or {}
         shown = overview.get("shown") or []
+        if overview.get("stale"):
+            # 수집이 멈췄거나 오래됐으면 목록을 현재 사실로 답하지 않는다 (SAFE-09)
+            at = overview.get("collected_at")
+            return Answer(
+                "열린 장애 현황은 확인할 수 없습니다. "
+                + (
+                    f"마지막 수집 시각이 {at}로 오래되었습니다(STALE)."
+                    if at
+                    else "수집 기록이 없습니다(NOT_COLLECTED)."
+                ),
+                [],
+                [
+                    {
+                        "label": "열린 장애 현황",
+                        "reason": "STALE" if at else "NOT_COLLECTED",
+                    }
+                ],
+                False,
+            )
         if not shown:
             return Answer(
-                "장애 맥락 없이 받은 질문입니다. 조회한 데이터가 없어 확인할 수 없습니다.",
+                f"수집된 열린 장애가 없습니다 (수집 시각 {overview['collected_at']}).",
                 [],
-                [{"label": message[:40], "reason": "NOT_COLLECTED"}],
+                [],
                 False,
             )
         lines = [
@@ -232,8 +274,10 @@ def answer(
     fallback = rule_based(message, context, pack)
     if settings.llm_mode != "real":
         return fallback
+    if (context.get("open_incidents") or {}).get("stale"):
+        return fallback  # 오래된 목록은 LLM 에 넘기지 않고 코드가 '확인할 수 없음'으로 답한다
     prompt = pack.prompts.get("chat", "{context}").replace(
-        "{context}", json.dumps(context, ensure_ascii=False)
+        "{context}", _data_json(context)
     )
     try:
         content = complete_text(settings, prompt + "\n\n질문: " + message)
