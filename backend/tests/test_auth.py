@@ -1,3 +1,4 @@
+import pytest
 import sqlite3
 
 from dejafix_backend.config import get_settings
@@ -78,6 +79,7 @@ def test_me_requires_valid_token(client):
         assert response.json()["error"]["code"] == "UNAUTHORIZED"
 
 
+@pytest.mark.safety_regression
 def test_expired_token_is_401(client):
     token, _ = create_token(get_settings().jwt_secret, 1, "admin", expire_min=-1)
     response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -93,6 +95,7 @@ def test_token_for_deleted_user_is_401(env, client, oncall):
     assert client.get("/api/auth/me", headers=oncall).status_code == 401
 
 
+@pytest.mark.safety_regression
 def test_token_signed_with_other_secret_is_401(client):
     token, _ = create_token("another-secret-another-secret-32bytes", 1, "admin", 60)
     response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
@@ -126,6 +129,7 @@ def test_seed_skips_account_without_password(env, make_client):
     assert names == ["oncall"]
 
 
+@pytest.mark.safety_regression
 def test_password_is_hashed_in_db(env, client, helpers):
     conn = sqlite3.connect(env.backend)
     (stored,) = conn.execute(
@@ -135,6 +139,7 @@ def test_password_is_hashed_in_db(env, client, helpers):
     assert stored != helpers.admin_password and stored.startswith("$2")
 
 
+@pytest.mark.safety_regression
 def test_viewer_can_read_but_not_chat(client, viewer):
     """FR-BE-003: viewer 는 조회만, POST /api/chat 은 403."""
     assert client.get("/api/auth/me", headers=viewer).status_code == 200
@@ -144,6 +149,7 @@ def test_viewer_can_read_but_not_chat(client, viewer):
     assert response.json()["error"]["code"] == "FORBIDDEN"
 
 
+@pytest.mark.safety_regression
 def test_unauthenticated_requests_are_401(client):
     for method, path in [
         ("get", "/api/health"),

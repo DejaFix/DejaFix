@@ -1295,3 +1295,12 @@ table.data tr.hl td {
   letter-spacing: 0.02em;
   color: var(--text-3);
 }
+
+.nav-soon {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg-muted, rgba(128, 128, 128, 0.15));
+  color: var(--text-muted, inherit);
+}
