@@ -96,7 +96,7 @@ GitHub:          CI(python·frontend·safety) 초록 + 승인 충족 ──► d
 - `.claude/settings.json`: `gh pr review *`·`gh pr merge * --auto --squash*`만 허용하고, `--admin` 머지는 금지한다.
 - `.claude/hooks/guard-merge.mjs`: 머지 명령 전에 PR을 조회해 **대상이 dev가 아니면**, 승인이 모자라거나 변경 요청·`needs-human`이 남아 있으면 막는다. PR 정보를 못 읽어도 막는다. 명령 위치(줄 처음, `;` `&` `|` `$(` 뒤)에 있는 머지 명령만 검사하므로 커밋 메시지·PR 본문 속 문구는 막지 않는다.
 - 승인은 GitHub 계정 단위다. 작성자 본인 계정의 승인은 세지 않는다. 그래서 리뷰어 에이전트는 **다른 팀원의 세션**이어야 한다.
-- ruleset `develop`(승인 1·필수 체크 `python`·`frontend`·`safety`·merge queue)과 `pr`(승인 1)은 `active`지만 **적용 대상 브랜치(include)가 비어 있어** 아직 어떤 브랜치에도 걸리지 않는다(10/16 확인). 저장소 관리자가 `develop`에 dev, `pr`에 main을 넣어야 GitHub 쪽에서도 막힌다. 그전에는 위 훅이 먼저 막는다.
+- GitHub ruleset(10/16 적용): **`develop` → dev** — 승인 1명·필수 체크 `python`·`frontend`·`safety`·merge queue·삭제/force push 금지. **`pr` → main** — 승인 1명·삭제/force push 금지. 훅은 그 앞에서 한 번 더 막는다(dev 외 대상, 승인 부족, 변경 요청, `needs-human`).
 - 에이전트는 머지를 되돌리지 않는다(force push 금지). 예외는 통합 닥터의 revert **PR**뿐이다(8장). 그 밖에 잘못 머지되면 `needs-human` Issue로 올린다.
 - **충돌 해결은 rebase가 아니라 merge**다: `git fetch origin` → `git merge origin/dev` → 테스트 → 일반 `git push`. force push는 어느 브랜치에서도 쓰지 않는다(`.claude/settings.json` deny 유지). dev는 squash 머지라 PR 브랜치의 merge 커밋은 dev 히스토리에 남지 않는다.
 - **스택 PR**(다른 PR 브랜치를 base로 둔 PR): 부모 PR이 dev에 머지되면 같은 방식으로 dev를 merge해 push하고, `gh pr edit <번호> --base dev`로 base를 dev로 바꾼 뒤 자동 머지를 다시 예약한다.
