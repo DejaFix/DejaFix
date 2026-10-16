@@ -4,6 +4,7 @@
 2. zabbix_get_host(hostid)               호스트·유지보수 여부
 3. zabbix_list_items(hostid)             팩 metrics.yaml 의 지표 키만 골라 씀
 4. zabbix_get_history(트리거 아이템, 1시간)
+5. kb_search_knowledge(장애 제목·호스트) — MCP_KB_URL 이 있을 때만 (결정 017, FR-RAG-007)
 
 도구 응답 형식은 contracts/mcp-tools.md(작성 중)를 따른다. 그 전까지는 기획서 7-3 필드
 (problem.items[].itemid·key_, item.itemid·key_·name·lastvalue·lastclock·units·stale)를 가정하고
@@ -20,10 +21,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .packs import Pack
-from .tools import ToolClient
+from .tools import KB_TOOL, ToolClient
 
 MAX_RESULT_BYTES = 32 * 1024
 MAX_ITEMS_PER_ALIAS = 3
+KB_TOP_K = 3  # 리포트에 붙일 비슷한 과거 사례 수
 
 
 def utcnow() -> datetime:
@@ -80,6 +82,8 @@ def _result_count(data: Any) -> int:
         return len(data)
     if isinstance(data, dict) and isinstance(data.get("points"), list):
         return len(data["points"])
+    if isinstance(data, dict) and isinstance(data.get("hits"), list):
+        return len(data["hits"])  # kb_search_knowledge (contracts/mcp-tools.md 6장)
     return 1 if data else 0
 
 
@@ -203,4 +207,22 @@ def collect(
             {"itemid": str(trigger_itemid), "time_from": iso(now - timedelta(hours=1))},
         )
         calls.append(history)
+    if getattr(client, "kb_enabled", False):
+        # 비슷한 과거 장애·런북 (결정 017, FR-RAG-007). 근거일 뿐 티어를 정하지 않는다.
+        query = " ".join(
+            str(v) for v in (incident.get("title"), incident.get("host_name")) if v
+        )
+        if query:
+            calls.append(
+                _call(
+                    client,
+                    len(calls) + 1,
+                    KB_TOOL,
+                    {
+                        "query": query,
+                        "k": KB_TOP_K,
+                        "exclude_source_ids": [f"incident:{incident.get('id')}"],
+                    },
+                )
+            )
     return calls

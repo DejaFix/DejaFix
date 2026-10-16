@@ -25,6 +25,7 @@ def _int(value: str | None, default: int) -> int:
 class Settings:
     shared_db_path: Path
     mcp_zabbix_url: str
+    mcp_kb_url: str  # 비어 있으면 RAG 지식 검색을 쓰지 않는다 (결정 017)
     internal_token: str
     llm_base_url: str
     llm_api_key: str
@@ -41,6 +42,7 @@ class Settings:
         return cls(
             shared_db_path=Path(e.get("SHARED_DB_PATH") or "data/shared.db"),
             mcp_zabbix_url=e.get("MCP_ZABBIX_URL", ""),
+            mcp_kb_url=e.get("MCP_KB_URL", ""),
             internal_token=e.get("INTERNAL_TOKEN", ""),
             llm_base_url=e.get("LLM_BASE_URL", ""),
             llm_api_key=e.get("LLM_API_KEY", ""),

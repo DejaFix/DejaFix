@@ -241,6 +241,14 @@ def run_analysis(
             kind = "fallback"
             report, plan_draft = validate_draft(base, evidence)
 
+        similar = fallback.kb_fact(
+            calls
+        )  # LLM 이 빠뜨려도 과거 유사 사례는 남긴다 (FR-RAG-007)
+        if similar and not any(
+            f.get("label") == similar["label"] for f in report.get("facts", [])
+        ):
+            report.setdefault("facts", []).append(similar)
+
         report_id = _save_report(conn, incident["id"], run_id, kind, report)
         _set_status(conn, run_id, "reported")
 
