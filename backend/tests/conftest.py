@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
+from dejafix_backend import zabbix as zabbix_calls
 from dejafix_backend.config import get_settings
 from dejafix_backend.db import split_zones
 from dejafix_backend.main import create_app
@@ -83,19 +84,28 @@ def env(tmp_path, monkeypatch):
         "SHARED_DB_PATH": str(tmp_path / "shared.db"),
         "DB_SCHEMA_PATH": str(SCHEMA),
         "ZABBIX_MOCK": "true",
+        # 저장소 루트의 로컬 .env 에 실서버 값이 있어도 테스트가 실제 Zabbix 를 부르지 않게 비워 둔다
+        "ZABBIX_URL": "",
+        "ZABBIX_API_TOKEN": "",
+        "ZABBIX_VERIFY_TLS": "",
         "AGENT_URL": "http://127.0.0.1:9",
         "MCP_ZABBIX_URL": "http://127.0.0.1:9/mcp",
         "INTERNAL_TOKEN": "",
         "CHAT_STREAMING": "true",
         "CHAT_FIRST_EVENT_TIMEOUT_SEC": "3",
+        # lifespan 이 메일 워커를 띄우므로 로컬 .env 의 수신자·공급자가 테스트에 섞이지 않게 고정
+        "MAIL_PROVIDER": "console",
+        "MAIL_RECIPIENTS": "",
     }
     for key, value in values.items():
         monkeypatch.setenv(key, value)
     get_settings.cache_clear()
+    zabbix_calls.reset()  # 테스트끼리 Zabbix 호출 캐시를 공유하지 않게
     yield SimpleNamespace(
         shared=tmp_path / "shared.db", backend=tmp_path / "backend.db"
     )
     get_settings.cache_clear()
+    zabbix_calls.reset()
 
 
 @pytest.fixture
