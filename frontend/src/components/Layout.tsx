@@ -16,12 +16,13 @@ interface NavDef {
   icon: IconName
   end?: boolean
   adminOnly?: boolean
+  soon?: boolean // L1 예정 메뉴: '준비 중' 표시(FR-FE-013)
 }
 
 const nav: NavDef[] = [
   { to: '/', label: '현황 · 장애 대응', icon: 'dashboard', end: true },
-  { to: '/cost', label: '비용 절감', icon: 'cost' },
-  { to: '/compare', label: '서버 비교', icon: 'compare' },
+  { to: '/cost', label: '비용 절감', icon: 'cost', soon: true },
+  { to: '/compare', label: '서버 비교', icon: 'compare', soon: true },
   { to: '/reports', label: '리포트', icon: 'report' },
   { to: '/plans', label: '변경 계획', icon: 'plan' },
   { to: '/alerts', label: '알림', icon: 'bell' },
@@ -94,6 +95,7 @@ export function Layout() {
           >
             <Icon name={n.icon} />
             {n.label}
+            {n.soon ? <span className="nav-soon">준비 중</span> : null}
             {n.to === '/' && openBadge ? <span className="nav-badge">{openBadge}</span> : null}
           </NavLink>
         ))}
@@ -147,6 +149,7 @@ export function Layout() {
           {items.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
               {n.label}
+              {n.soon ? ' (준비 중)' : ''}
             </NavLink>
           ))}
         </nav>
