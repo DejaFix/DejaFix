@@ -63,6 +63,7 @@ def mail_rows(path):
         conn.close()
 
 
+@pytest.mark.safety_regression
 def test_dedup_one_mail_per_report_per_recipient(dbs):
     # 필수 안전 테스트: 같은 리포트에 워커 3회 → 수신자당 1행 (SAFE-16, FR-MAIL-003)
     rec = Recorder()
