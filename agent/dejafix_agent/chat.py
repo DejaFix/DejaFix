@@ -1,6 +1,7 @@
 """채팅 (T54, FR-AG-009·011, contracts/agent-api.md 1-2).
 
 - 장애 맥락(장애·최신 리포트)을 데이터로 감싸 붙인다. 사용자 문장 속 지시를 규칙보다 앞세우지 않는다.
+  장애를 열지 않은 질문이면 shared.db 의 열린 장애 목록(Scheduler 수집분, 최대 OVERVIEW_LIMIT 건)을 맥락으로 쓴다.
 - LLM 이 없거나 실패하면 규칙 기반 답변: 최신 리포트 요약 + 수집된 사실만.
   질문 대상이 수집되지 않았으면 "확인할 수 없음 · NOT_COLLECTED".
 - 저장: conversations, messages(user·assistant), agent_runs(kind='chat').
@@ -22,6 +23,8 @@ from .collect import iso, utcnow
 from .config import Settings
 from .llm import LlmError, complete_text
 from .packs import Pack
+
+OVERVIEW_LIMIT = 20  # 장애 없이 물을 때 맥락에 넣는 열린 장애 수(프롬프트 길이 상한)
 
 
 class ChatError(Exception):
@@ -53,9 +56,34 @@ def _conn(db_path: Path) -> sqlite3.Connection:
     return conn
 
 
+def _overview(conn: sqlite3.Connection) -> dict[str, Any]:
+    """장애를 열지 않은 질문용 맥락: Scheduler 가 수집한 열린 장애 목록(심각도·최신순)."""
+    total = conn.execute(
+        "SELECT COUNT(*) FROM incidents WHERE status = 'problem'"
+    ).fetchone()[0]
+    rows = conn.execute(
+        """SELECT i.id, i.host_name, i.title, i.severity, i.started_at,
+                  (SELECT r.kind FROM analysis_reports r WHERE r.incident_id = i.id
+                    ORDER BY r.version DESC LIMIT 1) AS report_kind
+             FROM incidents i WHERE i.status = 'problem'
+            ORDER BY i.severity DESC, i.started_at DESC LIMIT ?""",
+        (OVERVIEW_LIMIT,),
+    ).fetchall()
+    job = conn.execute(
+        "SELECT last_ok_at FROM scheduler_jobs WHERE job = 'poll_problems'"
+    ).fetchone()
+    return {
+        "open_incidents": {
+            "total": total,
+            "shown": [dict(r) for r in rows],
+            "collected_at": job["last_ok_at"] if job else None,
+        }
+    }
+
+
 def _load_context(conn: sqlite3.Connection, incident_id: int | None) -> dict[str, Any]:
     if not incident_id:
-        return {}
+        return _overview(conn)
     inc = conn.execute(
         "SELECT * FROM incidents WHERE id = ?", (incident_id,)
     ).fetchone()
@@ -140,10 +168,29 @@ def rule_based(message: str, context: dict[str, Any], pack: Pack) -> Answer:
     report = context.get("report")
     incident = context.get("incident")
     if not incident:
+        overview = context.get("open_incidents") or {}
+        shown = overview.get("shown") or []
+        if not shown:
+            return Answer(
+                "장애 맥락 없이 받은 질문입니다. 조회한 데이터가 없어 확인할 수 없습니다.",
+                [],
+                [{"label": message[:40], "reason": "NOT_COLLECTED"}],
+                False,
+            )
+        lines = [
+            f"- [{r['severity']}] {r['host_name'] or '호스트 확인할 수 없음'} · {r['title']} (장애 #{r['id']})"
+            for r in shown
+        ]
+        more = overview["total"] - len(shown)
+        if more > 0:
+            lines.append(f"- 외 {more}건")
         return Answer(
-            "장애 맥락 없이 받은 질문입니다. 조회한 데이터가 없어 확인할 수 없습니다.",
+            f"수집된 열린 장애 {overview['total']}건입니다"
+            f" (수집 시각 {overview.get('collected_at') or '확인할 수 없음'}, 괄호 앞 숫자는 Zabbix 심각도).\n"
+            + "\n".join(lines)
+            + "\n특정 장애의 원인·지표는 장애 상세 화면에서 물어보세요.",
             [],
-            [{"label": message[:40], "reason": "NOT_COLLECTED"}],
+            [],
             False,
         )
     head = f"{incident['host_name'] or '호스트'}의 장애 '{incident['title']}'에 대한 답입니다."

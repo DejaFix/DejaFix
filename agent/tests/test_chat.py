@@ -175,3 +175,37 @@ def test_llm_failure_falls_back_to_rules(seeded, packs_dir, monkeypatch):
         == "LLM_TIMEOUT"
     )
     db.close()
+
+
+def test_no_incident_lists_open_incidents(seeded, packs_dir):
+    """장애를 열지 않은 질문: 수집된 열린 장애 목록으로 답한다(해결된 장애 제외)."""
+    with client_for(seeded, packs_dir) as c:
+        final = parse(post(c, {"message": "지금 장애 현황 알려줘"}).text)[-1][1]
+    content = final["content"]
+    assert "열린 장애 5건" in content and "2026-10-15T01:25:20Z" in content
+    assert "LAB-PC-07" in content and "장애 #1" in content
+    assert "장애 #5" not in content  # resolved
+    assert final["unknowns"] == [] and final["evidence_ids"] == []
+
+
+def test_no_incident_and_no_open_incidents_is_not_collected(settings, packs_dir):
+    with client_for(settings, packs_dir) as c:
+        final = parse(post(c, {"message": "어떤 질문 할 수 있어?"}).text)[-1][1]
+    assert final["unknowns"] == [
+        {"label": "어떤 질문 할 수 있어?", "reason": "NOT_COLLECTED"}
+    ]
+
+
+def test_llm_prompt_gets_open_incidents_without_incident(
+    seeded, packs_dir, monkeypatch
+):
+    seen = {}
+
+    def fake(s, prompt):
+        seen["prompt"] = prompt
+        return "열린 장애 5건입니다."
+
+    monkeypatch.setattr(chat, "complete_text", fake)
+    with client_for(real(seeded), packs_dir) as c:
+        parse(post(c, {"message": "장애 현황"}).text)
+    assert '"open_incidents"' in seen["prompt"] and '"total": 5' in seen["prompt"]
