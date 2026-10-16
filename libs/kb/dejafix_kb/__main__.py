@@ -22,7 +22,12 @@ from .store import open_kb_readonly
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="dejafix_kb")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("index", help="수집·청킹·저장·임베딩 1회")
+    ip = sub.add_parser("index", help="수집·청킹·저장·임베딩 1회")
+    ip.add_argument(
+        "--only",
+        action="append",
+        help="이 출처만 다시 색인(예: resolution_note). 여러 번 줄 수 있다",
+    )
     sp = sub.add_parser("search", help="하이브리드 검색")
     sp.add_argument("query")
     sp.add_argument("--k", type=int, default=5)
@@ -33,7 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     settings = KbSettings.from_env()
     if a.cmd == "index":
-        print(json.dumps(run_index(settings), ensure_ascii=False))
+        only = set(a.only) if a.only else None
+        print(json.dumps(run_index(settings, only_types=only), ensure_ascii=False))
         return 0
     es = EmbedSettings.from_env()
     embedder = HttpEmbedder(es) if es.enabled else None
