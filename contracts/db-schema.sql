@@ -60,7 +60,7 @@ CREATE INDEX IF NOT EXISTS ix_incidents_started ON incidents(started_at);   -- #
 -- 작성자: Scheduler. 읽기: Backend (#4 scheduler_last_ok = poll_problems.last_ok_at)
 -- [필수] 행은 job='poll_problems' 1개 (AS-M03). 매 주기 UPSERT.
 CREATE TABLE IF NOT EXISTS scheduler_jobs (
-  job          TEXT PRIMARY KEY,                            -- poll_problems ([이후] daily_collect, retention)
+  job          TEXT PRIMARY KEY,                            -- poll_problems ([이후] daily_collect, retention, kb_reindex 매일 03:00 KST 전체 색인, kb_notes 5분 해결 메모 색인 — 결정 017·Issue #159)
   last_run_at  TEXT,
   last_ok_at   TEXT,
   status       TEXT CHECK (status IS NULL OR status IN ('ok','error')),
