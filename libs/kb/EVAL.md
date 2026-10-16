@@ -1,6 +1,6 @@
 # RAG 평가 기록 (NFR-RAG-002)
 
-`python -m dejafix_kb eval` 결과를 회차마다 맨 아래에 추가한다. 질의셋은 `eval/queries.yaml`(20개: 정답 있는 질의 18, 정답 없음 2).
+`python -m dejafix_kb eval` 결과를 회차마다 맨 아래에 추가한다. 질의셋은 팩 데이터 `packs/${DOMAIN_PACK}/kb-eval.yaml`(IT 팩 20개: 정답 있는 질의 18, 정답 없음 2).
 
 ## 지표
 - **Recall@5**: 정답이 있는 질의 중 상위 5개에 기대 출처가 하나라도 있는 비율

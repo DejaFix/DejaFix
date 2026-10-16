@@ -46,3 +46,29 @@ def test_default_queries_file_has_20(tmp_path):
     data = yaml.safe_load(DEFAULT_QUERIES.read_text(encoding="utf-8"))
     assert len(data["queries"]) == 20
     assert any(not q["expect"] for q in data["queries"])
+
+
+def test_pack_query_set_lives_in_pack_and_matches_actions():
+    """질의셋은 팩 데이터다(엔진에 동작 ID 하드코딩 금지, ⑨-1). 기대 동작 ID 는 팩 actions.yaml 에 있어야 한다."""
+    from pathlib import Path
+
+    import yaml
+
+    from dejafix_kb.evaluate import pack_queries_path
+
+    repo = Path(__file__).resolve().parents[3]
+    assert pack_queries_path(repo, None) is None
+    path = pack_queries_path(repo, "it")
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert len(data["queries"]) == 20
+    actions = yaml.safe_load(
+        (repo / "packs" / "it" / "actions.yaml").read_text(encoding="utf-8")
+    )
+    ids = {a["id"] for a in actions["actions"]}
+    wanted = {
+        e.split(":", 1)[1]
+        for q in data["queries"]
+        for e in q.get("expect") or []
+        if e.startswith("action:")
+    }
+    assert wanted and wanted <= ids
