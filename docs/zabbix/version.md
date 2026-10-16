@@ -7,8 +7,8 @@
 | 항목 | 값 | 근거 |
 |---|---|---|
 | Zabbix 서버·프론트 버전 | **7.0.31** | `apiinfo.version` 응답 `"result":"7.0.31"` (2026-10-16 확인) |
-| OS | Ubuntu 24.04 계열(패키지 접미사 `ubuntu…24.04`), 호스트 이름 `himedia-2` | `apt history`의 패키지 버전. 정확한 `lsb_release` 출력은 확인 못 함 |
-| 설치 방식 | **apt 패키지(VM에 직접 설치).** Docker 아님 | 서비스 유닛이 `/usr/lib/systemd/system/zabbix-server.service`, `zabbix-server`·`mariadb`가 systemd 서비스로 동작 |
+| OS | **Ubuntu 24.04.5 LTS (noble)**, 호스트 이름 `himedia-2` | `lsb_release -a` |
+| 설치 방식 | **apt 패키지(Zabbix 공식 저장소 `zabbix-release` 7.0-5, VM에 직접 설치).** Docker 아님 | `apt list --installed`, 서비스 유닛 `/usr/lib/systemd/system/zabbix-server.service` |
 | 데이터베이스 | MariaDB 10.11.14 (PostgreSQL 없음) | `systemctl status mariadb`, `Unit postgresql.service could not be found` |
 | 웹 서버 | Apache 2.4.x (`apache2`, 패키지 2.4.58-1ubuntu8.x) | `apt history` |
 | 서버 자동 업그레이드 | 켜져 있음(`unattended-upgrade`) | `apt history` 2026-10-16 12:39 |
@@ -28,5 +28,14 @@
 - **재발 방지(결정 필요, 서버 설정 변경이라 서버 관리자 몫):** 데모 전까지 `apt-daily-upgrade.timer`를 끄거나 `50unattended-upgrades`의 `Package-Blacklist`에 `mariadb-*`·`zabbix-*`를 넣는다. 데모 후 되돌린다.
 - 복구 순서: `zabbix-server`가 `deactivating`에 걸려 있으면 `systemctl kill -s KILL zabbix-server` → `systemctl start mariadb` → `systemctl start zabbix-server`.
 
+## 설치 패키지 (`apt list --installed | grep -E "zabbix|mariadb"`, 2026-10-16)
+| 패키지 | 버전 |
+|---|---|
+| `zabbix-server-mysql` | 1:7.0.31-1+ubuntu24.04 |
+| `zabbix-frontend-php`, `zabbix-apache-conf`, `zabbix-sql-scripts` | 1:7.0.31-1+ubuntu24.04 |
+| `zabbix-agent`, `zabbix-get` | 1:7.0.31-1+ubuntu24.04 (서버 자신도 감시) |
+| `zabbix-release` | 1:7.0-5+ubuntu24.04 (공식 저장소 설정) |
+| `mariadb-server`, `mariadb-client` | 1:10.11.14-0ubuntu0.24.04.1 (`noble-updates`) |
+
 ## 아직 확인 못 한 것
-- `lsb_release -a`(정확한 Ubuntu 버전), `apt list --installed | grep -E "zabbix|mariadb"`(설치 패키지 버전 전체)는 서버 셸이 필요해 이 문서에 넣지 못했다. 서버 관리자가 출력을 붙이면 위 표를 보완한다.
+- 06:05 정지의 정확한 원인: 06:0x 시각의 `apt history`·`/var/log/unattended-upgrades/` 확인이 남아 있다.
