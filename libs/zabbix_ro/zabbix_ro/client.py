@@ -6,6 +6,7 @@
 """
 
 import itertools
+import logging
 import os
 from collections.abc import Mapping
 from typing import Any
@@ -14,6 +15,9 @@ import httpx
 
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError
 from zabbix_ro.mock import SCENARIOS, mock_result
+
+# httpx 는 INFO 로그에 요청 URL(=Zabbix 서버 주소)을 그대로 남긴다. 주소는 로그에 쓰지 않는다(기획서 11-4).
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 ALLOWED_METHODS = frozenset(
     {
