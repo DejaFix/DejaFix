@@ -98,6 +98,7 @@ GitHub:          CI(python·frontend·safety) 초록 + 승인 충족 ──► d
 **강제 장치**
 - `.claude/settings.json`: `gh pr review *`·`gh pr merge * --auto --squash*`만 허용하고, `--admin` 머지는 금지한다.
 - `.claude/hooks/guard-merge.mjs`: 머지 명령 전에 PR을 조회해 **대상이 dev가 아니면**, 승인이 모자라거나(`contracts/` 변경·테스트 파일 삭제 줄이 있으면 2명) 변경 요청·`needs-human`이 남아 있으면 막는다. PR 정보를 못 읽어도 막는다. 명령 위치(줄 처음, `;` `&` `|` `$(` 뒤)에 있는 머지 명령만 검사하므로 커밋 메시지·PR 본문 속 문구는 막지 않는다.
+- `.claude/hooks/guard-push.mjs`: `git push`는 `git push [-u] origin <fix|docs|feat|test|chore>/<이름>` 형태만 통과시킨다. 플래그(`-f`·`--force*`·`--mirror`·`--all`·`--delete`·`--tags`·`-q` 등), refspec(`:`)·`+`, origin 외 원격, main·dev 대상은 막는다. `git -c ... push`, `bash -c`·`sh -c`·`eval`, `$(...)`·백틱, heredoc 안의 push도 검사하고, 해석이 안 되면 막는다.
 - 승인은 GitHub 계정 단위다. 작성자 본인 계정의 승인은 세지 않는다. 그래서 리뷰어 에이전트는 **다른 팀원의 세션**이어야 한다.
 - GitHub ruleset(10/16 적용): **`develop` → dev** — 승인 1명·필수 체크 `python`·`frontend`·`safety`·merge queue(SQUASH)·삭제/force push 금지. **`pr` → main** — 승인 1명·삭제/force push 금지. 훅은 그 앞에서 한 번 더 막는다(dev 외 대상, 승인 부족, 변경 요청, `needs-human`).
 - 에이전트는 머지를 되돌리지 않는다(force push 금지). 예외는 통합 닥터의 revert **PR**뿐이다(8장). 그 밖에 잘못 머지되면 `needs-human` Issue로 올린다.
