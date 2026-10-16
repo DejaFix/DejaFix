@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dejafix_backend.config import get_settings
 from dejafix_backend.db import init_backend_db
 from dejafix_backend.errors import register_error_handlers
+from dejafix_backend.mail import start_mail_worker, stop_mail_worker
 from dejafix_backend.routers import (
     auth,
     chat,
@@ -26,15 +27,18 @@ log = logging.getLogger("dejafix.backend")
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
     settings = get_settings()
     if not settings.jwt_secret:
         raise RuntimeError("JWT_SECRET 환경 변수가 필요합니다 (.env.example 참고)")
     init_backend_db(settings)
     created = ensure_seed_users(settings)
     log.info("backend.db 준비 완료 (새 시드 계정: %d)", created)
-    # TODO(T38 연결): 예진님의 start_mail_worker(app) 호출 한 줄을 여기에 추가
-    yield
+    start_mail_worker(app)
+    try:
+        yield
+    finally:
+        await stop_mail_worker(app)
 
 
 def create_app() -> FastAPI:
