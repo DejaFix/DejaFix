@@ -18,7 +18,8 @@ import yaml
 from .embed import Embedder
 from .search import search
 
-DEFAULT_QUERIES = Path(__file__).resolve().parents[1] / "eval" / "queries.yaml"
+# 질의셋은 도메인 데이터(동작 ID·장애 제목)라 팩에 둔다: packs/${DOMAIN_PACK}/kb-eval.yaml (⑨-1)
+PACK_QUERIES = "kb-eval.yaml"
 K = 5
 LATENCY_TARGET_SEC = 3.0
 
@@ -28,9 +29,12 @@ def _match(hit: dict[str, Any], expect: list[str]) -> bool:
     return any(e in hay for e in expect)
 
 
-def run_eval(
-    conn, embedder: Embedder | None, queries_path: Path = DEFAULT_QUERIES
-) -> dict[str, Any]:
+def pack_queries_path(root: Path, domain_pack: str | None) -> Path | None:
+    """활성 팩의 질의셋 경로. 팩이 없으면 None(호출자가 경로를 직접 줘야 한다)."""
+    return root / "packs" / domain_pack / PACK_QUERIES if domain_pack else None
+
+
+def run_eval(conn, embedder: Embedder | None, queries_path: Path) -> dict[str, Any]:
     data = yaml.safe_load(queries_path.read_text(encoding="utf-8")) or {}
     rows = []
     for item in data.get("queries") or []:

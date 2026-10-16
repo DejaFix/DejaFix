@@ -31,3 +31,7 @@
 
 ## 엔진↔팩 계약 문서
 팩이 제공해야 할 파일·키·스키마와 엔진이 기대하는 것을 적는 `packs/README.md`는 [선택](NFR-EXT-005). 그 전까지는 이 파일과 기획서 6-3·7-3이 기준이다.
+
+## 그 밖의 팩 데이터
+- `chat.yaml` — 채팅에서 과거·절차 질문을 가르는 판별어(`history_words`, FR-RAG-008)
+- `kb-eval.yaml` — RAG 평가 질의셋 20개(NFR-RAG-002). 기대값에 동작 ID·장애 제목이 들어가 엔진(`libs/kb`) 밖 팩에 둔다. `python -m dejafix_kb eval`이 `DOMAIN_PACK`으로 찾는다

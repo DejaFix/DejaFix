@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .config import KbSettings
 from .embed import EmbedSettings, HttpEmbedder
-from .evaluate import DEFAULT_QUERIES, run_eval
+from .evaluate import pack_queries_path, run_eval
 from .indexer import run_index
 from .search import search
 from .store import open_kb_readonly
@@ -33,7 +33,9 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--k", type=int, default=5)
     sp.add_argument("--type", action="append", dest="types")
     ep = sub.add_parser("eval", help="질의셋으로 Recall@5·인용 정확도·응답 시간 측정")
-    ep.add_argument("queries", nargs="?", default=str(DEFAULT_QUERIES))
+    ep.add_argument(
+        "queries", nargs="?", help="기본: packs/${DOMAIN_PACK}/kb-eval.yaml"
+    )
     a = ap.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     settings = KbSettings.from_env()
@@ -45,8 +47,17 @@ def main(argv: list[str] | None = None) -> int:
     embedder = HttpEmbedder(es) if es.enabled else None
     conn = open_kb_readonly(settings.path(settings.kb_db_path))
     if a.cmd == "eval":
+        qpath = (
+            Path(a.queries)
+            if a.queries
+            else pack_queries_path(settings.root, settings.domain_pack)
+        )
+        if qpath is None or not qpath.exists():
+            conn.close()
+            print("질의셋 없음: 경로를 주거나 DOMAIN_PACK 을 설정한다", file=sys.stderr)
+            return 2
         try:
-            result = run_eval(conn, embedder, Path(a.queries))
+            result = run_eval(conn, embedder, qpath)
         finally:
             conn.close()
         print(json.dumps(result, ensure_ascii=False, indent=1))
