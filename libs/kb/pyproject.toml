@@ -1,0 +1,17 @@
+[project]
+name = "kb"
+version = "0.1.0"
+description = "DejaFix RAG 지식 도우미 — 수집·청킹·색인·검색 (결정 017)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "pyyaml>=6.0.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "dejafix_kb"
+module-root = ""

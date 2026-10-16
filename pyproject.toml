@@ -13,6 +13,7 @@ dependencies = [
     "scheduler",
     "zabbix-ro",
     "shared-db",
+    "kb",
 ]
 
 [dependency-groups]
@@ -32,6 +33,7 @@ members = [
     "scheduler",
     "libs/zabbix_ro",
     "libs/shared_db",
+    "libs/kb",
 ]
 
 [tool.uv.sources]
@@ -41,6 +43,7 @@ mcp-zabbix = { workspace = true }
 scheduler = { workspace = true }
 zabbix-ro = { workspace = true }
 shared-db = { workspace = true }
+kb = { workspace = true }
 
 [tool.ruff]
 target-version = "py312"
@@ -61,6 +64,7 @@ testpaths = [
     "scheduler/tests",
     "libs/zabbix_ro/tests",
     "libs/shared_db/tests",
+    "libs/kb/tests",
 ]
 markers = [
     "safety_regression: 안전 회귀 세트",
