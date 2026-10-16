@@ -90,7 +90,7 @@
 1. **원인 커밋 찾기**: 마지막 초록 커밋과 지금 사이를 `git bisect run <실패한 명령>`으로 좁힌다(dev는 squash 머지라 PR 1개 = 커밋 1개).
 2. 같은 커밋에 열린 `auto-revert` PR이 이미 있으면 새로 만들지 않는다.
    - **핑퐁 방지**: 같은 원래 PR 번호를 가리키는 `auto-revert` PR이 이미 **2개 머지**됐으면 세 번째 revert를 하지 않는다. 대신 `needs-human` Issue로 올리고 원인 파트와 지금까지의 revert PR 링크를 적는다.
-     - 확인: `gh pr list --base dev --state merged --label auto-revert --limit 100 --json number,title,url --jq '[.[] | select(.title | contains("(#<원래 PR>)"))]'` (제목 형식이 아래 3번 `revert: ... (#<원래 PR>) — ...`이므로)
+     - 확인: `gh pr list --base dev --state merged --label auto-revert --limit 100 --json number,title,url --jq '[.[] | select(.title | test("[(]#<원래 PR>[)] — dev CI 깨짐$"))]'` (제목 끝이 아래 3번 형식 `(#<원래 PR>) — dev CI 깨짐`인 것만 센다. 괄호는 `\(` 대신 `[(]`·`[)]` — Git Bash→gh에서 역슬래시가 빠져 jq 보간으로 읽힘)
 3. **revert PR**: `git switch -c fix/<영역>-revert-<sha7> origin/dev` → `git revert --no-edit <sha>` → 검사 재실행으로 초록 확인 → dev로 PR.
    - 제목 `revert: <원래 PR 제목> (#<원래 PR>) — dev CI 깨짐`, 라벨 `auto-revert`, 본문에 실패한 명령과 로그 요약(20줄 이내), 원래 PR 링크.
    - 일반 PR과 같이 승인 1명 + CI 초록으로 머지된다. `--admin`·직접 push로 되돌리지 않는다.

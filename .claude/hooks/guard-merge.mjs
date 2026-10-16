@@ -22,11 +22,19 @@ if (typeof command !== 'string') process.exit(0)
 const merges = [...command.matchAll(/(?:^|[;&|\n]|\$\()\s*gh\s+pr\s+merge\b([^;&|\n)]*)/g)]
 if (merges.length === 0) process.exit(0)
 
-// 테스트 파일: 경로에 /tests/ 또는 /test/, 파일명 test_*.py, *.test.ts, *.test.tsx
+// 테스트 파일: 경로에 /tests/·/test/·/__tests__/, 파일명 test_*.py·conftest.py·*.test.ts(x)·*.test.js(x)·*.spec.ts(x)
 function isTestFile(path) {
   const p = `/${path}`
   const name = p.slice(p.lastIndexOf('/') + 1)
-  return p.includes('/tests/') || p.includes('/test/') || /^test_.*\.py$/.test(name) || /\.test\.tsx?$/.test(name)
+  return (
+    p.includes('/tests/') ||
+    p.includes('/test/') ||
+    p.includes('/__tests__/') ||
+    /^test_.*\.py$/.test(name) ||
+    name === 'conftest.py' ||
+    /\.test\.[jt]sx?$/.test(name) ||
+    /\.spec\.tsx?$/.test(name)
+  )
 }
 
 function block(reason) {

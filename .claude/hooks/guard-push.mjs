@@ -1,5 +1,5 @@
 // PreToolUse 훅: 에이전트의 `git push`를 한 가지 형태로만 허용한다 (docs/agent-collaboration.md 7장).
-//   git push [-u] origin <브랜치>   — <브랜치>는 fix/·docs/·feat/·test/·chore/로 시작, ':'·'+'·추가 인자 없음
+//   git push [-u] [-q|--quiet] origin <브랜치>   — <브랜치>는 fix/·docs/·feat/·test/·chore/·night/로 시작, ':'·'+'·추가 인자 없음
 // 그 밖(-f·--force*·--mirror·--all·--delete·--tags 등 플래그, refspec ':', '+', origin 외 원격, main·dev 대상)은 전부 막는다.
 // `git -c k=v push`, `bash -c "..."`·`sh -c`·`eval`, `$(...)`·백틱, heredoc으로 셸에 넘긴 명령, xargs·env·timeout 뒤의 git도 검사한다.
 // 해석이 안 되면(따옴표 미종료, 변수·치환으로 만든 인자 등) 막는다(fail closed). 차단하면 exit 2 + stderr 사유.
@@ -15,7 +15,8 @@ try {
 const command = input.tool_input?.command
 if (typeof command !== 'string') process.exit(0)
 
-const BRANCH = /^(fix|docs|feat|test|chore)\/[A-Za-z0-9._/-]+$/
+const BRANCH = /^(fix|docs|feat|test|chore|night)\/[A-Za-z0-9._/-]+$/
+const PUSH_FLAGS = new Set(['-u', '-q', '--quiet']) // origin 앞에서만, 순서 무관
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'ash'])
 const PS = new Set(['powershell', 'pwsh', 'cmd'])
 const KEYWORDS = new Set(['{', '}', '!', 'if', 'then', 'else', 'elif', 'fi', 'do', 'done', 'while', 'until', 'time'])
@@ -242,14 +243,16 @@ function lex(src) {
 function checkPush(args, shown) {
   if (args.some((a) => a.opaque)) block(`변수·치환으로 만든 인자는 해석할 수 없다: ${shown}`)
   const v = args.map((a) => a.v)
-  const rest = v[0] === '-u' ? v.slice(1) : v
+  let k = 0
+  while (k < v.length && PUSH_FLAGS.has(v[k])) k++
+  const rest = v.slice(k)
   const flag = rest.find((a) => a.startsWith('-'))
-  if (flag) block(`플래그 ${flag}는 허용하지 않는다 (-u만 origin 앞에 허용): ${shown}`)
-  if (rest.length !== 2) block(`허용 형태는 'git push [-u] origin <브랜치>' 하나뿐이다: ${shown}`)
+  if (flag) block(`플래그 ${flag}는 허용하지 않는다 (origin 앞의 -u·-q·--quiet만 허용): ${shown}`)
+  if (rest.length !== 2) block(`허용 형태는 'git push [-u] [-q] origin <브랜치>' 하나뿐이다: ${shown}`)
   const [remote, branch] = rest
   if (remote !== 'origin') block(`원격은 origin만 허용한다 (${remote}): ${shown}`)
   if (!BRANCH.test(branch)) {
-    block(`브랜치는 fix/·docs/·feat/·test/·chore/로 시작해야 하고 ':'·'+'·플래그를 쓸 수 없다 (${branch}): ${shown}`)
+    block(`브랜치는 fix/·docs/·feat/·test/·chore/·night/로 시작해야 하고 ':'·'+'·플래그를 쓸 수 없다 (${branch}): ${shown}`)
   }
 }
 
