@@ -1,0 +1,44 @@
+# RAG 평가 질의셋 (NFR-RAG-002). expect: 상위 5개 결과의 제목 또는 source_id 에 들어 있어야 할 문자열(하나라도 맞으면 정답).
+# expect 가 빈 목록이면 '관련 지식 없음'이 정답인 질의(결과가 0건이어야 맞음).
+# 장애 리포트 기대값은 팀 Zabbix 실데이터(10/16 로컬 색인) 기준이다. 다른 환경에서는 runbook·pack 질의만 의미가 있다.
+queries:
+  - q: CPU 사용률이 계속 100%야 전에 어떻게 했어?
+    expect: ["CPU 1분 평균 85% 초과", "action:check_top_process"]
+  - q: 고부하 프로세스 찾는 방법
+    expect: ["action:check_top_process"]
+  - q: 디스크가 꽉 찼어
+    expect: ["Space is critically low", "Space is low", "action:check_disk_usage"]
+  - q: C 드라이브 용량 부족 장애
+    expect: ["Space is critically low"]
+  - q: 임시 파일 정리하면 되돌릴 수 있어?
+    expect: ["action:clean_temp_files"]
+  - q: 서버 재부팅해도 돼?
+    expect: ["action:reboot_host"]
+  - q: 서비스가 멈췄을 때 재시작 절차
+    expect: ["action:restart_service", "is not running"]
+  - q: 구글 업데이트 서비스가 꺼져 있다는 알람
+    expect: ["GoogleUpdater"]
+  - q: WSL 서비스 중지 장애
+    expect: ["WSLService", "WslInstaller"]
+  - q: 에이전트 통신이 끊긴 서버 있었어?
+    expect: ["Zabbix agent is not available"]
+  - q: 데모 중에 Zabbix가 안 되면 어떻게 해?
+    expect: ["docs/demo/fallback-paths.md", "docs/demo/README.md"]
+  - q: 리허설 몇 초 걸렸어?
+    expect: ["docs/demo/rehearsal-log.md"]
+  - q: 읽기 전용 계정 권한
+    expect: ["docs/zabbix/readonly-account.md"]
+  - q: Zabbix 서버 버전이 뭐야
+    expect: ["docs/zabbix/version.md"]
+  - q: 팀 Zabbix 접속 주소 형식
+    expect: ["docs/zabbix/access.md"]
+  - q: Zabbix DB가 멈췄던 사고 원인
+    expect: ["docs/zabbix/incident-2026-10-16-db-stop.md"]
+  - q: 메모리 사용률 지표 키
+    expect: ["docs/zabbix/core-metrics.md", "docs/zabbix/windows-agent-api.md"]
+  - q: MCP 도구 실서버 호출 결과
+    expect: ["docs/zabbix/mcp-live-test.md"]
+  - q: 고양이 사료 추천해줘
+    expect: []
+  - q: 오늘 점심 메뉴
+    expect: []

@@ -1,4 +1,4 @@
-"""CLI: python -m dejafix_kb index | search "질문" [--k 5] [--type incident_report]
+"""CLI: python -m dejafix_kb index | search "질문" [--k 5] [--type incident_report] | eval [질의셋.yaml]
 
 설정은 환경 변수(KB_*, SHARED_DB_PATH, DOMAIN_PACK, LLM_*)에서만 읽는다. 키는 출력하지 않는다.
 """
@@ -9,8 +9,11 @@ import argparse
 import json
 import sys
 
+from pathlib import Path
+
 from .config import KbSettings
 from .embed import EmbedSettings, HttpEmbedder
+from .evaluate import pack_queries_path, run_eval
 from .indexer import run_index
 from .search import search
 from .store import open_kb_readonly
@@ -19,20 +22,46 @@ from .store import open_kb_readonly
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="dejafix_kb")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("index", help="수집·청킹·저장·임베딩 1회")
+    ip = sub.add_parser("index", help="수집·청킹·저장·임베딩 1회")
+    ip.add_argument(
+        "--only",
+        action="append",
+        help="이 출처만 다시 색인(예: resolution_note). 여러 번 줄 수 있다",
+    )
     sp = sub.add_parser("search", help="하이브리드 검색")
     sp.add_argument("query")
     sp.add_argument("--k", type=int, default=5)
     sp.add_argument("--type", action="append", dest="types")
+    ep = sub.add_parser("eval", help="질의셋으로 Recall@5·인용 정확도·응답 시간 측정")
+    ep.add_argument(
+        "queries", nargs="?", help="기본: packs/${DOMAIN_PACK}/kb-eval.yaml"
+    )
     a = ap.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     settings = KbSettings.from_env()
     if a.cmd == "index":
-        print(json.dumps(run_index(settings), ensure_ascii=False))
+        only = set(a.only) if a.only else None
+        print(json.dumps(run_index(settings, only_types=only), ensure_ascii=False))
         return 0
     es = EmbedSettings.from_env()
     embedder = HttpEmbedder(es) if es.enabled else None
     conn = open_kb_readonly(settings.path(settings.kb_db_path))
+    if a.cmd == "eval":
+        qpath = (
+            Path(a.queries)
+            if a.queries
+            else pack_queries_path(settings.root, settings.domain_pack)
+        )
+        if qpath is None or not qpath.exists():
+            conn.close()
+            print("질의셋 없음: 경로를 주거나 DOMAIN_PACK 을 설정한다", file=sys.stderr)
+            return 2
+        try:
+            result = run_eval(conn, embedder, qpath)
+        finally:
+            conn.close()
+        print(json.dumps(result, ensure_ascii=False, indent=1))
+        return 0
     try:
         hits, info = search(conn, a.query, a.k, embedder, a.types)
     finally:

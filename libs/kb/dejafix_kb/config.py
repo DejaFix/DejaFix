@@ -12,6 +12,7 @@ class KbSettings:
     root: Path  # 저장소 루트. 상대 경로(DB·문서)는 여기 기준
     kb_db_path: Path
     shared_db_path: Path
+    backend_db_path: Path  # 해결 메모(resolution_notes) 읽기 전용 (FR-RAG-010)
     doc_dirs: tuple[str, ...]
     domain_pack: str | None
 
@@ -23,6 +24,7 @@ class KbSettings:
             root=Path(e.get("KB_ROOT") or ".").resolve(),
             kb_db_path=Path(e.get("KB_DB_PATH") or "data/knowledge.db"),
             shared_db_path=Path(e.get("SHARED_DB_PATH") or "data/shared.db"),
+            backend_db_path=Path(e.get("BACKEND_DB_PATH") or "data/backend.db"),
             doc_dirs=tuple(d.strip() for d in dirs.split(",") if d.strip()),
             domain_pack=e.get("DOMAIN_PACK") or None,
         )
