@@ -20,6 +20,7 @@ from typing import Any
 import yaml
 
 from .config import KbSettings
+from .redact import redact
 
 
 def now_iso() -> str:
@@ -219,10 +220,14 @@ def note_docs(backend_db: Path) -> list[SourceDoc]:
 
 
 def collect(settings: KbSettings) -> list[SourceDoc]:
-    """출처 전부. 순서: 장애 → 해결 메모 → 런북 → 팩 동작."""
-    return (
+    """출처 전부. 순서: 장애 → 해결 메모 → 런북 → 팩 동작. 색인에 넣기 전에 IP·비밀값을 가린다(NFR-RAG-001)."""
+    docs = (
         incident_docs(settings.path(settings.shared_db_path))
         + note_docs(settings.path(settings.backend_db_path))
         + runbook_docs(settings.root, settings.doc_dirs)
         + pack_docs(settings.root, settings.domain_pack)
     )
+    for d in docs:
+        d.title = redact(d.title)
+        d.text = redact(d.text)
+    return docs
