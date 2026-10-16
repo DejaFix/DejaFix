@@ -53,3 +53,65 @@ def test_settings_defaults():
     s = KbSettings.from_env({})
     assert s.kb_db_path.as_posix() == "data/knowledge.db"
     assert s.domain_pack is None and s.doc_dirs == ("docs/demo", "docs/zabbix")
+
+
+def _notes_db(path, rows):
+    import sqlite3
+
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "create table resolution_notes(id integer primary key, incident_id integer, author_user_id integer,"
+        " root_cause text, action_taken text, result text, created_at text)"
+    )
+    conn.executemany(
+        "insert into resolution_notes(id, incident_id, author_user_id, root_cause, action_taken, result, created_at)"
+        " values (?,?,?,?,?,?,?)",
+        rows,
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_note_docs_from_backend_db(tmp_path):
+    from dejafix_kb.sources import note_docs
+
+    db = tmp_path / "backend.db"
+    _notes_db(
+        db,
+        [
+            (
+                1,
+                32,
+                2,
+                "백신 검사 프로세스 폭주",
+                "검사 일정 변경",
+                "CPU 정상화",
+                "2026-10-16T07:00:00Z",
+            )
+        ],
+    )
+    docs = note_docs(db)
+    assert [d.source_id for d in docs] == ["note:1"]
+    assert docs[0].source_type == "resolution_note"
+    assert "실제 원인: 백신 검사 프로세스 폭주" in docs[0].text
+    assert docs[0].meta == {"incident_id": 32, "note_id": 1}
+
+
+def test_note_docs_missing_table_or_db(tmp_path):
+    import sqlite3
+
+    from dejafix_kb.sources import note_docs
+
+    assert note_docs(tmp_path / "none.db") == []
+    db = tmp_path / "backend.db"
+    sqlite3.connect(db).close()
+    assert note_docs(db) == []
+
+
+def test_collect_includes_notes(settings, tmp_path):
+    from dataclasses import replace
+
+    db = tmp_path / "b.db"
+    _notes_db(db, [(7, 1, 2, "원인", "조치", "결과", "2026-10-16T07:00:00Z")])
+    docs = collect(replace(settings, backend_db_path=db))
+    assert "note:7" in {d.source_id for d in docs}
