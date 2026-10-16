@@ -13,6 +13,7 @@ from typing import Any
 
 from .collect import ToolCall, clock_iso
 from .packs import Pack
+from .tools import KB_TOOL
 
 
 def _num(value: Any) -> float | str | None:
@@ -53,6 +54,39 @@ def fallback_steps(
         }
         for aid in ids
     ]
+
+
+KB_FACT_LABEL = "과거 유사 사례"
+
+
+def kb_fact(calls: list[ToolCall]) -> dict[str, Any] | None:
+    """kb_search_knowledge 결과를 사실 1개로. 결과가 없거나 실패면 None (근거 없는 문장을 만들지 않음).
+
+    값은 검색된 문서 제목을 옮겨 적기만 한다. 티어·원인 판단에 쓰지 않는다 (결정 017).
+    """
+    kb = _by_tool(calls, KB_TOOL)
+    if kb is None or not kb.ok:
+        return None
+    data = kb.result.get("data") or {}
+    hits = data.get("hits") if isinstance(data, dict) else None
+    if not hits:
+        return None
+    parts = []
+    for h in hits[:3]:
+        host = (h.get("meta") or {}).get("host_name")
+        parts.append(
+            f"{h.get('title')}"
+            + (f" ({host})" if host else "")
+            + f" [{h.get('chunk_id')}]"
+        )
+    return {
+        "label": KB_FACT_LABEL,
+        "value": " / ".join(parts),
+        "unit": None,
+        "unknown_reason": None,
+        "evidence_ids": [kb.id],
+        "collected_at": kb.data_clock or kb.called_at,
+    }
 
 
 def build_draft(
@@ -100,6 +134,10 @@ def build_draft(
                     "collected_at": None,
                 }
             )
+
+    similar = kb_fact(calls)
+    if similar:
+        facts.append(similar)
 
     alias = classify_incident(calls, pack)
     ev_problem = [problem.id] if problem and problem.ok else []
