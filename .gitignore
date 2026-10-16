@@ -24,6 +24,7 @@ npm-debug.log*
 *.db-wal
 *.db-shm
 backups/
+data/logs/
 
 # Claude Code 개인 설정
 .claude/settings.local.json
