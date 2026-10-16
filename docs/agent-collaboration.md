@@ -73,14 +73,14 @@ dev 머지는 에이전트가 한다. **`main` 머지는 사람만** 한다(dev 
 
 ```
 작성자 에이전트: dev로 PR ──► 바로 자동 머지 예약(gh pr merge --auto --squash)
-                 └─ CI 빨강 → 고쳐 push(ci-failed) · 충돌 → origin/dev merge 후 일반 push(conflict) · 변경 요청 → 반영
+                 └─ CI 빨강 → 고쳐 git push origin <head 브랜치>(ci-failed) · 충돌 → origin/dev merge 후 같은 형태로 push(conflict) · 변경 요청 → 반영
 리뷰어 에이전트: 매 회차 먼저 남의 PR 최대 3개 ──► 승인(근거 한 줄) / 변경 요청(고칠 위치) / 애매하면 파트 라벨 코멘트만
 GitHub:          CI(python·frontend·safety) 초록 + 승인 충족 ──► dev 머지
 ```
 1. **작성자 에이전트**: PR을 올리면 바로 `gh pr merge <번호> --auto --squash`로 예약한다. 그 뒤 회차마다 내 PR을 보고 CI 빨강·충돌·변경 요청을 처리한다(`.claude/loop.md` 2단계).
 2. **리뷰어 에이전트**: 회차마다 가장 먼저, 작성자가 내가 아니고 승인이 없는 열린 PR을 최대 3개 리뷰한다. 계약 위반·테스트 누락·안전 규칙·하드코딩을 확인하고, 괜찮으면 승인(근거 한 줄), 문제면 변경 요청(고칠 위치). 판단이 어려우면 승인하지 않고 그 파트 라벨을 붙여 코멘트만 남긴다(`.claude/loop.md` 1단계).
 3. **승인 충족 조건**: 작성자가 아닌 승인 1명 이상, 남은 변경 요청 없음, `needs-human` 라벨 없음. `contracts/`를 바꾸는 PR은 승인 2명(계약 소유자 + 소비자, 3장).
-4. 변경 요청을 받으면 작성자가 고쳐 push하고, 변경을 요청한 리뷰어가 다시 확인해 승인한다.
+4. 변경 요청을 받으면 작성자가 고쳐 `git push origin <head 브랜치>`로 push하고, 변경을 요청한 리뷰어가 다시 확인해 승인한다.
 5. **dev가 빨간색이면 대기**: 최신 dev push CI가 `failure`면 작성자 에이전트는 자기 PR의 CI·merge queue 실패를 고치지 않고 통합 닥터의 revert를 기다린다(회차 보고에 `dev 빨강 대기`).
 6. **테스트 약화 검사**: 리뷰어는 테스트 파일의 assert 삭제·skip·xfail 추가·기대값 변경에 PR 본문 이유가 있고 코드 변경과 맞는지 보고, 없으면 변경 요청한다. 테스트 파일에 삭제 줄이 있는 PR은 승인 2명이 필요하다(`guard-merge.mjs`).
 
@@ -102,8 +102,8 @@ GitHub:          CI(python·frontend·safety) 초록 + 승인 충족 ──► d
 - 승인은 GitHub 계정 단위다. 작성자 본인 계정의 승인은 세지 않는다. 그래서 리뷰어 에이전트는 **다른 팀원의 세션**이어야 한다.
 - GitHub ruleset(10/16 적용): **`develop` → dev** — 승인 1명·필수 체크 `python`·`frontend`·`safety`·merge queue(SQUASH)·삭제/force push 금지. **`pr` → main** — 승인 1명·삭제/force push 금지. 훅은 그 앞에서 한 번 더 막는다(dev 외 대상, 승인 부족, 변경 요청, `needs-human`).
 - 에이전트는 머지를 되돌리지 않는다(force push 금지). 예외는 통합 닥터의 revert **PR**뿐이다(8장). 그 밖에 잘못 머지되면 `needs-human` Issue로 올린다.
-- **충돌 해결은 rebase가 아니라 merge**다: `git fetch origin` → `git merge origin/dev` → 테스트 → 일반 `git push`. force push는 어느 브랜치에서도 쓰지 않는다(`.claude/settings.json` deny 유지). dev는 squash 머지라 PR 브랜치의 merge 커밋은 dev 히스토리에 남지 않는다.
-- **스택 PR**(다른 PR 브랜치를 base로 둔 PR): 부모 PR이 dev에 머지되면 같은 방식으로 dev를 merge해 push하고, `gh pr edit <번호> --base dev`로 base를 dev로 바꾼 뒤 자동 머지를 다시 예약한다.
+- **충돌 해결은 rebase가 아니라 merge**다: `git fetch origin` → `git merge origin/dev` → 테스트 → 일반 push `git push origin <head 브랜치>`(인자 없는 `git push`·`origin HEAD`는 `guard-push.mjs`가 막는다). force push는 어느 브랜치에서도 쓰지 않는다(`.claude/settings.json` deny 유지). dev는 squash 머지라 PR 브랜치의 merge 커밋은 dev 히스토리에 남지 않는다.
+- **스택 PR**(다른 PR 브랜치를 base로 둔 PR): 부모 PR이 dev에 머지되면 같은 방식으로 dev를 merge해 `git push origin <head 브랜치>`로 push하고, `gh pr edit <번호> --base dev`로 base를 dev로 바꾼 뒤 자동 머지를 다시 예약한다.
 
 ## 8. 통합 닥터 — dev가 깨지면 되돌린다 (to-infra 루프 전용)
 상세 절차는 `.claude/loop.md` "통합 닥터".

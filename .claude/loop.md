@@ -35,10 +35,10 @@
 - PR을 올리면 **바로** `gh pr merge <번호> --auto --squash`로 예약한다.
   - `guard-merge.mjs` 훅이 승인 부족으로 막으면 그대로 두고 다음 회차에 다시 예약한다. 우회하지 않는다.
 - 회차마다 `gh pr list --author @me --base dev --state open --json number,headRefName,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest`로 상태를 본다.
-  - **CI 빨간색**: 실패 로그(`gh run view <run> --log-failed`)를 보고 고쳐서 push한다. 고치는 동안 `ci-failed` 라벨을 붙이고, 초록이 되면 뗀다.
-  - **충돌**(`mergeable=CONFLICTING`): rebase하지 않는다. `git fetch origin` → `git merge origin/dev`(충돌 해결) → 바꾼 영역 테스트 → **일반 `git push`**. 해결하는 동안 `conflict` 라벨. force push는 쓰지 않는다(`.claude/settings.json` deny).
-  - **스택 PR**(base가 다른 PR 브랜치): 부모 PR이 dev에 머지되면 같은 방식으로 `git fetch origin` → `git merge origin/dev` → 테스트 → 일반 `git push`, 그다음 `gh pr edit <번호> --base dev`로 base를 dev로 바꾸고 자동 머지를 다시 예약한다.
-  - **변경 요청**(`CHANGES_REQUESTED`): 요청을 반영해 push하고, 리뷰 코멘트에 "반영 내용 + 돌린 명령·결과"를 한 줄씩 답한다. 내 파트 폴더 밖은 고치지 않는다.
+  - **CI 빨간색**: 실패 로그(`gh run view <run> --log-failed`)를 보고 고쳐서 `git push origin <head 브랜치>`로 push한다. 고치는 동안 `ci-failed` 라벨을 붙이고, 초록이 되면 뗀다.
+  - **충돌**(`mergeable=CONFLICTING`): rebase하지 않는다. `git fetch origin` → `git merge origin/dev`(충돌 해결) → 바꾼 영역 테스트 → **일반 push: `git push origin <head 브랜치>`**(인자 없는 `git push`·`origin HEAD`·브랜치 뒤 플래그는 `guard-push.mjs`가 막는다). 해결하는 동안 `conflict` 라벨. force push는 쓰지 않는다(`.claude/settings.json` deny).
+  - **스택 PR**(base가 다른 PR 브랜치): 부모 PR이 dev에 머지되면 같은 방식으로 `git fetch origin` → `git merge origin/dev` → 테스트 → `git push origin <head 브랜치>`, 그다음 `gh pr edit <번호> --base dev`로 base를 dev로 바꾸고 자동 머지를 다시 예약한다.
+  - **변경 요청**(`CHANGES_REQUESTED`): 요청을 반영해 `git push origin <head 브랜치>`로 push하고, 리뷰 코멘트에 "반영 내용 + 돌린 명령·결과"를 한 줄씩 답한다. 내 파트 폴더 밖은 고치지 않는다.
   - push 뒤 예약이 풀렸으면 다시 예약한다.
 
 ## 3. 내 Issue — 내 라벨이고 담당자가 비어 있을 때만 잡는다
