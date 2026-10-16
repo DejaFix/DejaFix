@@ -134,6 +134,19 @@ async def _relay(
         )
 
 
+def _new_call(call_id: str) -> dict[str, Any]:
+    """비스트리밍 tool_calls[] 한 건. 계약(api.md API 18번)의 7개 키가 항상 있도록 비어 있는 값으로 채워 둔다."""
+    return {
+        "id": call_id,
+        "tool": None,
+        "args": {},
+        "ok": None,
+        "duration_ms": None,
+        "summary": None,
+        "data_clock": None,
+    }
+
+
 async def _collect(
     client: httpx.AsyncClient,
     response: httpx.Response,
@@ -149,13 +162,11 @@ async def _collect(
             if event == "meta":
                 conversation_id = data.get("conversation_id")
             elif event == "tool_call":
-                calls[data["id"]] = {
-                    "id": data["id"],
-                    "tool": data.get("tool"),
-                    "args": data.get("args", {}),
-                }
+                call = calls.setdefault(data["id"], _new_call(data["id"]))
+                call["tool"] = data.get("tool")
+                call["args"] = data.get("args", {})
             elif event == "tool_result":
-                call = calls.setdefault(data["id"], {"id": data["id"]})
+                call = calls.setdefault(data["id"], _new_call(data["id"]))
                 for key in ("ok", "duration_ms", "summary", "data_clock"):
                     call[key] = data.get(key)
             elif event == "final":
