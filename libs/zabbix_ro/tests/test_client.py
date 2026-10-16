@@ -61,6 +61,13 @@ def real_client(rec: Recorder, **env):
         "event.acknowledge",
         "",
         "PROBLEM.GET",
+        "Problem.Get",  # 대소문자가 다르면 다른 이름
+        " problem.get",  # 앞뒤 공백·줄바꿈이 붙으면 다른 이름
+        "problem.get ",
+        "problem.get\n",
+        "problem.get\x00",
+        "problem .get",
+        "problem.get,host.update",
     ],
 )
 def test_safe02_disallowed_method_raises_before_any_request(method):
@@ -69,6 +76,55 @@ def test_safe02_disallowed_method_raises_before_any_request(method):
     with pytest.raises(MethodNotAllowed):
         client.call(method, {"hostid": "1"})
     assert rec.requests == []  # 네트워크로 나가지 않았다
+
+
+class _StrSubclass(str):
+    """== 비교를 속이는 str 하위 클래스."""
+
+    def __eq__(self, other):
+        return True
+
+    __hash__ = str.__hash__
+
+
+@pytest.mark.safety_regression
+@pytest.mark.parametrize(
+    "method",
+    [
+        None,
+        123,
+        1.5,
+        True,
+        b"problem.get",
+        ["problem.get"],
+        ("problem.get",),
+        {"problem.get"},
+        {"method": "problem.get"},
+        _StrSubclass("host.update"),
+    ],
+)
+def test_safe02_non_string_method_is_method_not_allowed_not_type_error(method):
+    """list·dict 는 해시할 수 없어 `in` 검사가 TypeError 를 낸다 — 그래도 MethodNotAllowed 여야 한다."""
+    rec = Recorder()
+    client = real_client(rec)
+    with pytest.raises(MethodNotAllowed):
+        client.call(method, {})
+    assert rec.requests == []
+    with pytest.raises(MethodNotAllowed):
+        from_env({"ZABBIX_MOCK": "true"}).call(method, {})
+
+
+@pytest.mark.safety_regression
+@pytest.mark.parametrize(
+    "method", ["host.update", "user.login", "", None, ["host.get"]]
+)
+def test_safe02_request_itself_also_checks_the_allowlist(method):
+    """심층 방어: call() 을 건너뛰고 _request() 가 직접 불려도 요청은 나가지 않는다."""
+    rec = Recorder()
+    client = real_client(rec)
+    with pytest.raises(MethodNotAllowed):
+        client._request(method, {})
+    assert rec.requests == []
 
 
 @pytest.mark.safety_regression
@@ -143,14 +199,64 @@ def test_request_ids_increase():
 
 @pytest.mark.parametrize(
     "value,expected",
-    [(None, True), ("", True), ("true", True), ("false", False), ("0", False)],
+    [
+        (None, True),
+        ("", True),
+        ("  ", True),
+        ("true", True),
+        ("TRUE", True),
+        ("1", True),
+        ("yes", True),
+        ("on", True),
+        ("false", False),
+        ("False", False),
+        (" false ", False),
+        ("0", False),
+        ("no", False),
+        ("off", False),
+    ],
 )
 def test_verify_tls_flag(value, expected):
     env = {"ZABBIX_URL": URL, "ZABBIX_API_TOKEN": TOKEN}
     if value is not None:
         env["ZABBIX_VERIFY_TLS"] = value
-    client = from_env(env, transport=Recorder().transport())
+    rec = Recorder()
+    client = from_env(env, transport=rec.transport())
     assert client.verify_tls is expected
+    assert client.configured is True
+    client.call("problem.get", {})  # 알려진 값이면 정상 호출
+    assert len(rec.requests) == 1
+
+
+@pytest.mark.parametrize("value", ["ture", "flase", "tru", "2", "disable", "nope", "f"])
+def test_unknown_verify_tls_value_keeps_verification_on_and_fails_at_call(value):
+    """오타 하나로 TLS 검증이 조용히 꺼지면 안 된다. 만들 때는 예외 없이, 호출 때 ZabbixError."""
+    rec = Recorder()
+    env = {
+        "ZABBIX_URL": URL,
+        "ZABBIX_API_TOKEN": TOKEN,
+        "ZABBIX_MOCK": "false",
+        "ZABBIX_VERIFY_TLS": value,
+    }
+    client = from_env(env, transport=rec.transport())  # 예외 없이 만들어진다
+    assert client.verify_tls is True
+    assert client.configured is False
+    with pytest.raises(ZabbixError, match="ZABBIX_VERIFY_TLS"):
+        client.call("problem.get", {})
+    assert rec.requests == []  # 요청은 나가지 않았다
+
+
+def test_unknown_verify_tls_value_does_not_block_mock_mode():
+    client = from_env({"ZABBIX_MOCK": "true", "ZABBIX_VERIFY_TLS": "ture"})
+    assert client.call("apiinfo.version", {})  # 목 모드는 TLS 와 무관
+
+
+@pytest.mark.safety_regression
+def test_allowlist_is_checked_before_config_error():
+    """설정 오류가 있어도 쓰기 메서드는 MethodNotAllowed 가 먼저다."""
+    client = from_env({"ZABBIX_URL": URL, "ZABBIX_VERIFY_TLS": "ture"})
+    with pytest.raises(MethodNotAllowed):
+        client.call("host.update", {})
 
 
 # ---------------------------------------------------------------- 오류 → ZabbixError

@@ -19,8 +19,9 @@ problems = client.call("problem.get", {"output": "extend", "recent": True})  # J
 |---|---|
 | `ZABBIX_URL` | `.../api_jsonrpc.php` 주소. 실서버 모드에서 필수 |
 | `ZABBIX_API_TOKEN` | 읽기 전용 계정의 API 토큰. 실서버 모드에서 필수(값은 `.env`에만) |
-| `ZABBIX_VERIFY_TLS` | `false`면 TLS 인증서 검사를 끈다. 기본 `true` |
+| `ZABBIX_VERIFY_TLS` | `false`·`0`·`no`·`off`면 TLS 인증서 검사를 끈다. 비워 두면 `true`(검사 켬). **모르는 값(오타)은 검사를 켠 채로 두고 `call()`이 `ZabbixError`** — `ture` 한 글자로 검사가 조용히 꺼지지 않게 한다 |
 | `ZABBIX_MOCK` | `true`면 네트워크 없이 fixture 를 돌려준다. URL·토큰이 없어도 된다 |
+| `ZABBIX_MOCK_SCENARIO` | 목 모드에서 상황을 고른다. 비우면 `default`. 아래 "목 시나리오" 참고. **모르는 값은 `call()`이 `ZabbixError`** (조용히 `default`로 바뀌지 않음). 실서버 모드에서는 쓰이지 않는다 |
 
 ## 허용 메서드 (13개)
 
@@ -45,6 +46,19 @@ problems = client.call("problem.get", {"output": "extend", "recent": True})  # J
 - `history.get`은 `params.history`(0~3) 값에 맞는 파일을 쓴다.
 - `eventids`·`triggerids`·`hostids`·`itemids`·`objectids`·`limit` 파라미터로 간단히 거른다. 그 밖의 필터·정렬은 하지 않는다.
 - fixture 가 없는 허용 메서드(`hostgroup.get` 등)는 빈 목록.
+
+### 목 시나리오 (`ZABBIX_MOCK_SCENARIO`)
+
+| 값 | 상황 |
+|---|---|
+| `default` | 위의 실서버 응답 그대로 (호스트 DESKTOP-4V9JO99, 디스크 장애 1건) |
+| `demo` | **Scheduler·mcp-zabbix 목과 같은 ID**: CPU 장애 `30001`(trigger `20001`, host `10001` demo-host) 진행 중, 디스크 장애 `90002`(trigger `23002`, host `10602` MOCK-PC-02) 해결됨, 호스트 3대(MOCK-PC-03은 가용성 알 수 없음) |
+| `quiet` | `demo`의 호스트인데 문제가 없음 (`problem.get`·`event.get` 빈 목록) |
+| `host_down` | `demo`에서 demo-host의 에이전트 가용성이 2(불가) |
+| `empty` | 목록 메서드가 전부 빈 목록 (호스트 0대), `apiinfo.version`만 값 |
+| `outage` | 모든 호출이 `ZabbixError` (Zabbix 연결 불가, health는 `down`) |
+
+탈출 규칙 2(`ZABBIX_MOCK=true` + 녹화 영상)에서 Backend의 API 6번(문제 목록)과 Scheduler가 넣은 API 10번(장애 목록)이 서로 다른 장애를 보여 주지 않도록 `demo`를 쓴다. `tests/test_mock_scenarios.py`가 Scheduler 목(`scheduler/.../mock_zabbix.json`)·mcp-zabbix 목과 ID가 같은지 매번 검사한다.
 
 ## 테스트
 
