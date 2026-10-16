@@ -24,7 +24,7 @@
 ## 알아둘 점 (운영 기록)
 - **2026-10-16 06:05 KST에 MariaDB와 `zabbix-server`가 같은 초에 정지**했고, 약 6시간 뒤(오전 12시대) 수동으로 복구했다. 웹은 `Database error: No such file or directory`(DB 소켓 파일 없음), API는 `Internal error`를 냈다.
   - MariaDB 로그는 `Normal shutdown (initiated by: unknown)`이고 크래시가 아니었다. 디스크는 14% 사용으로 여유가 있었고, 재부팅은 없었다(`uptime -s` 2026-10-14 16:19).
-  - **원인은 확정하지 못했다.** 새벽 `unattended-upgrade`가 서비스를 멈추고 다시 올리지 못했을 가능성이 가장 높지만 06:0x 시각의 `apt history`는 확인하지 못했다.
+  - **유력한 원인: 새벽 자동 업그레이드.** `apt history`에 `unattended-upgrade`가 `systemd`·`udev`·`libsystemd0` 등 255.4-1ubuntu8.17 → 8.18 업그레이드를 **06:05:54에 끝냈고**(`End-Date`), 두 서비스는 그 1초 뒤(06:05:55)에 정지했다. 시각이 맞물리지만 업그레이드가 서비스를 멈춘 경로(패키지 설치 스크립트의 재시작)는 로그로 확인하지 못했다(`/var/log/unattended-upgrades/`에서 mariadb·zabbix·stop·restart 검색 결과 없음). 그래서 **원인은 미확정(유력)** 으로 둔다.
 - **재발 방지(결정 필요, 서버 설정 변경이라 서버 관리자 몫):** 데모 전까지 `apt-daily-upgrade.timer`를 끄거나 `50unattended-upgrades`의 `Package-Blacklist`에 `mariadb-*`·`zabbix-*`를 넣는다. 데모 후 되돌린다.
 - 복구 순서: `zabbix-server`가 `deactivating`에 걸려 있으면 `systemctl kill -s KILL zabbix-server` → `systemctl start mariadb` → `systemctl start zabbix-server`.
 
@@ -38,4 +38,4 @@
 | `mariadb-server`, `mariadb-client` | 1:10.11.14-0ubuntu0.24.04.1 (`noble-updates`) |
 
 ## 아직 확인 못 한 것
-- 06:05 정지의 정확한 원인: 06:0x 시각의 `apt history`·`/var/log/unattended-upgrades/` 확인이 남아 있다.
+- 업그레이드가 서비스를 멈춘 정확한 경로: `journalctl -b -u systemd-logind -u mariadb`나 `/var/log/apt/term.log`의 06:05 구간에서 확인할 수 있다. 확인되면 위 "유력한 원인"을 확정으로 고친다.
