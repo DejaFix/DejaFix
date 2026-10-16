@@ -21,5 +21,14 @@
 - `dejafix-readonly` 토큰으로 `problem.get`·`event.get`·`trigger.get`·`host.get`·`item.get`·`history.get` 성공 → `mcp-live-test.md`
 - 로컬 개발 서버에서는 허용 목록 밖 `user.get`이 차단되는 것을 확인했다(`verification/api-probe-2026-10-14/`).
 
-## 아직 없는 것
-- **`host.update` 호출 시 권한 오류 캡처**(FR-ZBX-004, NFR-SAFE-001 증빙). `libs/zabbix_ro`가 쓰기 메서드를 요청 전에 막기 때문에 라이브러리로는 못 보이고, 토큰과 `curl`/`Invoke-RestMethod`로 직접 호출해야 한다. 캡처(토큰·주소 가림)를 이 문서에 추가한다.
+## `host.update` 권한 오류 증빙 (FR-ZBX-004, NFR-SAFE-001)
+2026-10-15, `dejafix-readonly` 토큰으로 `Invoke-RestMethod`(PowerShell)를 직접 호출했다. `libs/zabbix_ro`는 쓰기 메서드를 요청 전에 막기 때문에 라이브러리로는 못 보이고, 헤더 `Authorization: Bearer <토큰>`으로 API를 바로 불렀다. 존재하지 않는 `hostid`(`"0"`)를 써서 권한이 있더라도 아무것도 바뀌지 않게 했다. 토큰·주소는 출력에 나타나지 않는다.
+
+`host.update` (쓰기) → **거부**:
+```json
+{"jsonrpc": "2.0", "error": {"code": -32500, "message": "Application error.", "data": "No permissions to call \"host.update\"."}, "id": 1}
+```
+
+`problem.get` (읽기, 같은 토큰) → **성공**: `result`에 문제 1건(`eventid`, `severity`, `name` 등)이 돌아왔다.
+
+같은 토큰으로 읽기는 되고 쓰기는 Zabbix 서버가 거부한다는 증빙이다. 이 보호는 `libs/zabbix_ro`(허용 목록, SAFE-02)와 별개로 서버 쪽 역할 허용 목록이 한 번 더 막는 것이다.
