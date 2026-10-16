@@ -28,7 +28,8 @@
   - `guard-merge.mjs` 훅이 승인 부족으로 막으면 그대로 두고 다음 회차에 다시 예약한다. 우회하지 않는다.
 - 회차마다 `gh pr list --author @me --base dev --state open --json number,headRefName,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest`로 상태를 본다.
   - **CI 빨간색**: 실패 로그(`gh run view <run> --log-failed`)를 보고 고쳐서 push한다. 고치는 동안 `ci-failed` 라벨을 붙이고, 초록이 되면 뗀다.
-  - **충돌**(`mergeable=CONFLICTING`): `git fetch origin && git rebase origin/dev`로 해결하고 `git push --force-with-lease`(내 PR 브랜치만). 해결하는 동안 `conflict` 라벨.
+  - **충돌**(`mergeable=CONFLICTING`): rebase하지 않는다. `git fetch origin` → `git merge origin/dev`(충돌 해결) → 바꾼 영역 테스트 → **일반 `git push`**. 해결하는 동안 `conflict` 라벨. force push는 쓰지 않는다(`.claude/settings.json` deny).
+  - **스택 PR**(base가 다른 PR 브랜치): 부모 PR이 dev에 머지되면 같은 방식으로 `git fetch origin` → `git merge origin/dev` → 테스트 → 일반 `git push`, 그다음 `gh pr edit <번호> --base dev`로 base를 dev로 바꾸고 자동 머지를 다시 예약한다.
   - **변경 요청**(`CHANGES_REQUESTED`): 요청을 반영해 push하고, 리뷰 코멘트에 "반영 내용 + 돌린 명령·결과"를 한 줄씩 답한다. 내 파트 폴더 밖은 고치지 않는다.
   - push 뒤 예약이 풀렸으면 다시 예약한다.
 
@@ -48,7 +49,7 @@
 - 안전 규칙(SAFE-01~18), 범위([필수] 밖), 비용 증가, 되돌릴 수 없는 일(`main`, 데이터 삭제, 실메일, 계정·비밀값)
 
 ## 하지 않는 것
-- `main` 대상 머지, `--admin` 머지, 남의 브랜치·`dev`·`main` force push
+- `main` 대상 머지, `--admin` 머지, force push(어느 브랜치든), rebase 후 push
 - revert (통합 닥터의 revert **PR**만 예외 — 아래)
 - `needs-human` 라벨 떼기, Issue 닫기
 - 다른 파트 폴더 파일 수정, `.env` 읽기·편집
