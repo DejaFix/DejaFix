@@ -29,7 +29,7 @@
 - 시각 인자(`since`, `time_from`, `time_till`)는 **UTC ISO8601 문자열 또는 유닉스 초(정수·문자열)** 둘 다 받는다.
 
 ### 2-2. 오래된 값 판정 (FR-MCP-008, SAFE-09)
-`stale = (now - lastclock) > max(delay초 × 3, 600초)`. `delay`는 `30s`·`1m`·`1h` 같은 문자열이라 MCP가 초로 바꾼다. 사용자 매크로(`{$...}`)라 해석이 안 되면 600초를 쓴다. `lastclock`이 `"0"`이거나 없으면 `stale: true`.
+`stale = (now - lastclock) > max(delay초 × 3, 600초)`. `delay`는 `30s`·`1m`·`1h` 같은 문자열이라 MCP가 초로 바꾼다. 사용자 매크로(`{$...}`)라 해석이 안 되면 600초를 쓴다. `delay`가 `0`(종속 아이템 등)이면 `max(0, 600)`이라 600초다. `30s;50/1-7,00:00-24:00`처럼 유연한 간격이 붙으면 첫 항목(`30s`)만 본다. `lastclock`이 `"0"`이거나 없으면 `stale: true`.
 
 ### 2-3. 보내지 않는 값
 - 호스트 인터페이스의 `ip`·`dns`는 넘기지 않는다(외부 LLM으로 사설 주소가 나가지 않게). 인터페이스는 종류·가용성만.
@@ -65,6 +65,7 @@
 - 인자: `hostid`(필수)
 - 매핑: `host.get(hostids, selectHostGroups=[groupid,name], output=[hostid,host,name,status,active_available,maintenance_status])` + `hostinterface.get(hostids)` + `maintenance.get(hostids)`
 - 없으면 `NOT_FOUND`
+- Zabbix 7.x `host.get`은 그룹을 `hostgroups` 키로 준다. MCP는 이를 `groups`로 이름을 바꿔 돌려준다(Agent는 `groups`만 본다). 인터페이스는 실측 호스트처럼 빈 배열일 수 있다.
 - `data`: 객체. `available`은 액티브 에이전트 가용성(`active_available`: 0 알 수 없음·1 사용 가능·2 사용 불가).
 ```json
 {"hostid": "10642", "host": "<기술 이름>", "name": "<표시 이름>", "available": "1",
@@ -91,6 +92,7 @@
  "last_clock": "1792026930", "stale": false}
 ```
 - 점이 0개면 `ok:true`, `points: []`(소비자는 `NO_DATA`).
+- **`data`는 배열이 아니라 객체다**(#34 결정 3). 오래된 값 판정에 필요한 `last_clock`·`stale`을 같이 주기 때문이다. 소비자는 점을 `data.points[]`에서 읽고 개수는 `len(data.points)`로 센다(`data` 자체의 길이가 아님).
 
 ## 4. 도구 이름 전체 (Agent 허용 명시 집합, 12개)
 | 이름 | 등급 | 서버 등록 |
@@ -109,3 +111,4 @@ planned 7개의 인자·응답은 기획서 7-3을 따르고, 구현할 때 이 
 
 ## 변경 이력
 - v0 (2026-10-15): 필수 5도구 상세, 공통 봉투, 값 형식(원본 문자열 유지), `get_problem.data.items` 필수, 인터페이스 IP 제외. Issue #34·#28.
+- v0.1 (2026-10-15): `get_history.data`가 객체임을 못박음(#34 결정 3), stale 규칙에 `delay` 0·유연한 간격 추가, `host.get` `hostgroups`→`groups` 매핑 명시. 구현은 PR #77과 일치. `docs/plan.md` 7-3은 동결 문서라 고치지 않고 계약이 우선한다(루트 CLAUDE.md 0).

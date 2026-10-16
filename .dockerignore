@@ -1,0 +1,22 @@
+# 비밀값·로컬 데이터는 이미지에 넣지 않는다 (SAFE-13). 값은 compose env_file 로만.
+.env
+.env.*
+!.env.example
+data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+
+# 빌드 산출물·캐시
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/node_modules/
+frontend/dist/
+
+# 저장소·에디터
+.git/
+.claude/

@@ -44,4 +44,5 @@ print('ok')
 | 6 | 네트워크 Warning, 분석 실패 | `failed` | 리포트 없음, run error |
 
 - `action_id`의 `seed_` 값은 예시다. 실제 동작 ID는 `packs/<domain>/actions.yaml`에서 온다.
+- 장애 1 계획 3단계(프로세스 강제 종료)는 `actions.yaml`에 **없는** 동작이라 `action_id`가 `NULL`이고 C다. 화면에서 "목록에 없으면 C"(SAFE-06)를 보여 주는 예시다.
 - 시각은 2026-10-15 UTC 기준이다. #5의 "오늘 리포트 수"(KST 자정 기준)는 실행 날짜에 따라 0이 될 수 있다.

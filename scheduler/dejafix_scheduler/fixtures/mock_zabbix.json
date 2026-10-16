@@ -1,9 +1,9 @@
 {
-  "_comment": "ZABBIX_MOCK=true 용 고정 응답 (FR-SCH-005). problem.get(recent=true)·trigger.get(selectHosts) 모양, Zabbix 처럼 숫자도 문자열.",
+  "_comment": "ZABBIX_MOCK=true 용 고정 응답 (FR-SCH-005). problem.get(recent=true)·trigger.get(selectHosts) 모양, Zabbix 처럼 숫자도 문자열. 첫 장애 ID(eventid 30001·trigger 20001·host 10001)는 mcp-zabbix fixture 와 같게 맞춰 목 모드 E2E 에서 Agent 수집이 이어진다.",
   "problems": [
     {
-      "eventid": "90001",
-      "objectid": "23001",
+      "eventid": "30001",
+      "objectid": "20001",
       "clock": "1792027200",
       "r_eventid": "0",
       "r_clock": "0",
@@ -25,7 +25,7 @@
     }
   ],
   "triggers": {
-    "23001": { "hostid": "10601", "name": "MOCK-PC-01" },
+    "20001": { "hostid": "10001", "name": "demo-host" },
     "23002": { "hostid": "10602", "name": "MOCK-PC-02" }
   }
 }
