@@ -18,10 +18,11 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from shared_db import open_db
 
 from . import chat, worker
+from .collect import _call
 from .config import Settings
 from .mcp_client import McpToolClient, startup_check
 from .packs import load_pack
-from .tools import RoutedToolClient, ToolClient, UnavailableToolClient
+from .tools import KB_TOOL, RoutedToolClient, ToolClient, UnavailableToolClient
 
 log = logging.getLogger("dejafix.agent")
 
@@ -139,6 +140,34 @@ def create_app(
                 },
             )
             try:
+                client = request.app.state.tool_client
+                if getattr(client, "kb_enabled", False):
+                    # 과거 장애·런북 검색 1회 (FR-RAG-008). 순서: meta → tool_call → tool_result → token → final
+                    args = chat.kb_query_args(message, started.context)
+                    call = await asyncio.to_thread(_call, client, 1, KB_TOOL, args)
+                    await asyncio.to_thread(
+                        chat.save_tool_call, db_path, started.run_id, call
+                    )
+                    yield chat.sse(
+                        "tool_call",
+                        {
+                            "id": call.id,
+                            "tool": KB_TOOL,
+                            "args": args,
+                            "started_at": call.called_at,
+                        },
+                    )
+                    yield chat.sse(
+                        "tool_result",
+                        {
+                            "id": call.id,
+                            "ok": call.ok,
+                            "duration_ms": call.duration_ms,
+                            "summary": call.summary,
+                            "data_clock": call.data_clock,
+                        },
+                    )
+                    started.context[chat.KB_CONTEXT_KEY] = chat.kb_context(call)
                 ans = await asyncio.to_thread(
                     chat.answer, settings, pack, message, started.context
                 )
