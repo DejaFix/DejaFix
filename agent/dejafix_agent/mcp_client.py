@@ -19,7 +19,12 @@ from typing import Any
 from mcp import Client
 from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 
-from .tools import ALLOWED_TOOLS, ForbiddenToolError, check_tool_list
+from .tools import (
+    ALLOWED_TOOLS,
+    ZABBIX_SERVER_TOOLS,
+    ForbiddenToolError,
+    check_tool_list,
+)
 
 log = logging.getLogger("dejafix.agent.mcp")
 
@@ -52,8 +57,13 @@ def envelope_of(result: Any) -> dict[str, Any]:
 
 class McpToolClient:
     def __init__(
-        self, url: str, token: str = "", read_timeout: float = READ_TIMEOUT_SEC
+        self,
+        url: str,
+        token: str = "",
+        read_timeout: float = READ_TIMEOUT_SEC,
+        allowed: frozenset[str] = ZABBIX_SERVER_TOOLS,
     ):
+        self.allowed = allowed  # 이 서버가 내놓아도 되는 도구 집합 (SAFE-03, 서버별)
         self._url = url
         self._token = token
         self._read_timeout = read_timeout
@@ -78,19 +88,21 @@ class McpToolClient:
     async def alist_tools(self) -> list[str]:
         async with self._http() as http, self._client(http) as client:
             names = await self._names(client)
-        check_tool_list(names)  # 허용 밖 도구 → ForbiddenToolError (SAFE-03)
+        check_tool_list(
+            names, self.allowed
+        )  # 허용 밖 도구 → ForbiddenToolError (SAFE-03)
         return names
 
     async def acall(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
-        if tool not in ALLOWED_TOOLS:
+        if tool not in self.allowed:
             raise ForbiddenToolError(tool)
         result = None
         async with self._http() as http, self._client(http) as client:
             names = await self._names(client)
             # 허용 밖 도구가 하나라도 있으면 허용된 도구도 부르지 않는다
-            if not set(names) - ALLOWED_TOOLS and tool in names:
+            if not set(names) - self.allowed and tool in names:
                 result = await client.call_tool(tool, args)
-        check_tool_list(names)
+        check_tool_list(names, self.allowed)
         if result is None:
             return _fail(f"MCP 서버에 {tool} 도구가 없음")
         return envelope_of(result)
@@ -102,7 +114,7 @@ class McpToolClient:
         return asyncio.run(self.acall(tool, args))
 
 
-async def startup_check(client: Any) -> None:
+async def startup_check(client: Any, allowed: frozenset[str] = ALLOWED_TOOLS) -> None:
     """기동 시 도구 목록 검사 (SAFE-03).
 
     허용 밖 도구가 있으면 예외를 그대로 올려 기동을 멈춘다. MCP 서버에 아직 닿지 않으면
@@ -113,7 +125,7 @@ async def startup_check(client: Any) -> None:
             names = await client.alist_tools()
         else:
             names = await asyncio.to_thread(client.list_tools)
-            check_tool_list(names)
+            check_tool_list(names, allowed)
     except ForbiddenToolError:
         raise
     except Exception as exc:  # 연결 실패는 기동을 막지 않는다

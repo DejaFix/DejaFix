@@ -6,6 +6,7 @@ from dejafix_backend.config import ROOT, Settings, get_settings
 from dejafix_backend.db import db_file, init_backend_db, open_db, split_zones
 
 
+@pytest.mark.safety_regression
 def test_attach_write_is_rejected(env, helpers):
     """FR-BE-014: Backend 연결로 shared.incidents 에 쓰면 readonly 오류."""
     helpers.build_shared_db(env.shared)
@@ -46,6 +47,7 @@ def test_shared_missing_is_waiting_not_error(env, helpers):
         db.close()
 
 
+@pytest.mark.safety_regression
 def test_backend_zone_only_no_shadow_tables(env):
     """구역을 섞어 적용하면 backend.db 에 그림자 incidents 가 생긴다 — backend 구역만 적용했는지."""
     init_backend_db(get_settings())
