@@ -2,7 +2,8 @@
 
 - 장애 리포트·팩 동작·해결 메모: 문서 1개 = 청크 1개 (요약·원인·조치·결과가 한 덩어리여야 검색 결과가 그대로 근거가 된다)
 - 런북(마크다운): 제목(#) 단위로 나누고, 한 절이 MAX_TOKENS 를 넘으면 문단 단위로 다시 나누며 OVERLAP_TOKENS 만큼 겹친다
-- 코드 블록(```)과 표(| 로 시작하는 줄 묶음)는 쪼개지 않는다
+- 코드 블록(```)과 표(| 로 시작하는 줄 묶음)는 쪼개지 않는다(코드 블록 안 '#' 줄은 제목으로 보지 않음)
+- 문단 하나가 MAX_TOKENS 를 넘으면 줄 단위로, 줄도 길면 글자 단위로 나눈다
 - 토큰 수는 글자 수 / CHARS_PER_TOKEN 으로 어림한다(한국어·영어 섞인 문서 기준 보수적으로 2)
 - 청크 ID 는 kb_<해시>: 출처·순번·본문이 같으면 같은 ID (재색인해도 근거 ID 가 바뀌지 않음)
 """
@@ -93,8 +94,12 @@ def _sections(text: str, title: str) -> list[tuple[str, list[str]]]:
     path: list[str] = []
     body: list[str] = []
     heading = title
+    in_code = False
     for ln in text.splitlines():
-        m = _HEADING.match(ln)
+        if ln.strip().startswith("```"):
+            in_code = not in_code
+        # 코드 블록 안의 '# 주석' 줄은 제목이 아니다 (코드 블록은 쪼개지 않는다)
+        m = None if in_code or ln.strip().startswith("```") else _HEADING.match(ln)
         if m:
             if any(b.strip() for b in body):
                 sections.append((heading, body))
@@ -109,6 +114,32 @@ def _sections(text: str, title: str) -> list[tuple[str, list[str]]]:
     return sections
 
 
+def _split_oversized(blocks: list[str], max_chars: int) -> list[str]:
+    """한 문단이 max_chars 를 넘으면 줄 단위(그래도 길면 글자 단위)로 나눈다. 코드 블록·표는 나누지 않는다."""
+    out: list[str] = []
+    for b in blocks:
+        atomic = b.lstrip().startswith("```") or b.lstrip().startswith("|")
+        if atomic or len(b) <= max_chars:
+            out.append(b)
+            continue
+        cur = ""
+        for ln in b.split("\n"):
+            while len(ln) > max_chars:  # 줄 하나가 너무 길면 글자 단위
+                if cur:
+                    out.append(cur)
+                    cur = ""
+                out.append(ln[:max_chars])
+                ln = ln[max_chars:]
+            if cur and len(cur) + 1 + len(ln) > max_chars:
+                out.append(cur)
+                cur = ln
+            else:
+                cur = f"{cur}\n{ln}" if cur else ln
+        if cur:
+            out.append(cur)
+    return out
+
+
 def _pack(blocks: list[str]) -> list[str]:
     """덩어리를 MAX_TOKENS 이하로 담고, 다음 청크 앞에 OVERLAP_TOKENS 만큼 이어 붙인다."""
     max_chars = MAX_TOKENS * CHARS_PER_TOKEN
@@ -116,7 +147,8 @@ def _pack(blocks: list[str]) -> list[str]:
     pieces: list[str] = []
     cur: list[str] = []
     size = 0
-    for b in blocks:
+    # 겹침(tail)과 구분자까지 더해도 상한을 넘지 않게, 나눌 때는 그만큼 작게 자른다
+    for b in _split_oversized(blocks, max_chars - overlap_chars - 2):
         if cur and size + len(b) > max_chars:
             pieces.append("\n\n".join(cur))
             tail = pieces[-1][-overlap_chars:]
