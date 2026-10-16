@@ -1,0 +1,82 @@
+# dev 자동 머지의 필수 체크 (docs/agent-collaboration.md 7장).
+# job 이름 python·frontend·safety는 dev ruleset의 required status checks 이름과 같아야 한다. 바꾸지 않는다.
+# 경로 필터를 쓰지 않는다: 필수 체크는 모든 PR·merge queue 항목에서 항상 보고되어야 한다.
+name: ci
+
+on:
+  pull_request:
+    branches: [dev]
+  merge_group:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+# 같은 PR(또는 같은 ref)의 이전 실행은 취소한다. dev push는 커밋마다 결과가 남아야 통합 닥터가 원인 커밋을 찾을 수 있어 취소하지 않는다.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  python:
+    name: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # tsconfig.json은 references만 있어(files: []) 앱 설정을 직접 지정한다
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      - run: npm run build
+
+  safety:
+    name: safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+      - name: 안전 회귀 세트 (SAFE)
+        run: uv run pytest -m safety_regression -q
+      - name: 엔진 하드코딩 검사 (루트 CLAUDE.md ⑨, 테스트·fixture·목·주석 제외 0건)
+        run: |
+          pattern='system\.cpu\.util|vm\.memory\.util|vfs\.fs\.size|check_top_process|check_disk_usage|restart_service|clean_temp_files|reboot_host|delete_recursive'
+          if grep -rnIE "$pattern" agent backend scheduler mcp-zabbix libs frontend/src \
+              --exclude-dir=tests --exclude-dir=fixtures --exclude-dir=mocks --exclude-dir=node_modules --exclude-dir=__pycache__ \
+              --exclude=fixtures.py --exclude=mock.ts --exclude='test_*.py' --exclude='*.test.*' --exclude='*.md' \
+            | grep -vE '^[^:]+:[0-9]+:[[:space:]]*(#|//|\*)'; then
+            echo "::error::엔진 코드에 IT 전용 키·동작 ID가 하드코딩됐다. packs/\${DOMAIN_PACK}/ 에서 읽도록 바꾼다."
+            exit 1
+          fi
+          echo "하드코딩 0건"
+      - name: contracts/ 스키마 검증
+        run: uv run --with jsonschema python .github/scripts/check_contracts.py
