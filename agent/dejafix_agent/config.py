@@ -32,6 +32,7 @@ class Settings:
     llm_model: str
     llm_fallback_model: str
     llm_timeout_sec: int
+    llm_reasoning_effort: str
     llm_fake: bool
     domain_pack: str
     analyze_min_severity: int
@@ -49,6 +50,7 @@ class Settings:
             llm_model=e.get("LLM_MODEL", ""),
             llm_fallback_model=e.get("LLM_FALLBACK_MODEL", ""),
             llm_timeout_sec=_int(e.get("LLM_TIMEOUT_SEC"), 45),
+            llm_reasoning_effort=(e.get("LLM_REASONING_EFFORT") or "").strip(),
             llm_fake=_bool(e.get("LLM_FAKE")),
             domain_pack=e.get("DOMAIN_PACK") or DEFAULT_DOMAIN_PACK,
             analyze_min_severity=_int(e.get("ANALYZE_MIN_SEVERITY"), 2),
