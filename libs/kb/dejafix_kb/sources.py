@@ -4,13 +4,14 @@
 - incident_report: shared.db 장애 + 최신 리포트(요약·원인) + 변경 계획 단계 (장애 1건 = 문서 1개)
 - runbook: KB_DOC_DIRS 의 마크다운 문서
 - pack_action: packs/<DOMAIN_PACK>/actions.yaml 의 동작 설명(제목·티어·효과·위험·사전 확인·롤백)
-- resolution_note: 사람이 쓴 해결 메모 (FR-RAG-010 에서 추가)
+- resolution_note: 사람이 쓴 해결 메모 — backend.db resolution_notes(있을 때만, FR-RAG-010)
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -176,13 +177,76 @@ def pack_docs(root: Path, domain_pack: str | None) -> list[SourceDoc]:
     return docs
 
 
+NOTES_TABLE = "resolution_notes"
+# Issue #153 제안 DDL 기준. contracts/db-schema.sql 계약 PR(DB 담당)이 머지되면 그 이름에 맞춘다
+NOTES_COLUMNS = (
+    "id",
+    "incident_id",
+    "root_cause",
+    "action_taken",
+    "result",
+    "created_at",
+)
+log = logging.getLogger(__name__)
+
+
+def note_docs(backend_db: Path) -> list[SourceDoc]:
+    """사람이 쓴 해결 메모. 테이블이 아직 없으면(Backend 미구현) 빈 목록. AI 가 쓴 문장은 없다."""
+    if not backend_db.exists():
+        return []
+    conn = _ro(backend_db)
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (NOTES_TABLE,),
+        ).fetchone()
+        if not exists:
+            return []
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({NOTES_TABLE})")}
+        missing = [c for c in NOTES_COLUMNS if c not in cols]
+        if missing:
+            # 컬럼 이름이 다르면 해결 메모만 건너뛴다(장애·런북 색인은 계속)
+            log.warning(
+                "resolution_notes 컬럼이 예상과 달라 해결 메모 색인을 건너뜀: 없는 컬럼 %s",
+                ",".join(missing),
+            )
+            return []
+        rows = conn.execute(
+            f"SELECT {', '.join(NOTES_COLUMNS)} FROM {NOTES_TABLE} ORDER BY id"
+        ).fetchall()
+    finally:
+        conn.close()
+    docs = []
+    for r in rows:
+        lines = [f"# 해결 메모 #{r['id']} (장애 #{r['incident_id']})"]
+        for key, label in (
+            ("root_cause", "실제 원인"),
+            ("action_taken", "한 조치"),
+            ("result", "결과"),
+        ):
+            if r[key]:
+                lines.append(f"- {label}: {r[key]}")
+        lines.append(f"- 작성 시각: {r['created_at']}")
+        docs.append(
+            SourceDoc(
+                "resolution_note",
+                f"note:{r['id']}",
+                f"해결 메모 #{r['id']} (장애 #{r['incident_id']})",
+                "\n".join(lines),
+                meta={"incident_id": r["incident_id"], "note_id": r["id"]},
+            )
+        )
+    return docs
+
+
 def collect(settings: KbSettings) -> list[SourceDoc]:
-    """출처 전부. 순서: 장애 → 런북 → 팩 동작.
+    """출처 전부. 순서: 장애 → 해결 메모 → 런북 → 팩 동작.
 
     색인에 넣기 전에 제목·본문·meta 의 IP·비밀값을 가린다(NFR-RAG-001). 원본은 바꾸지 않는다.
     """
     docs = (
         incident_docs(settings.path(settings.shared_db_path))
+        + note_docs(settings.path(settings.backend_db_path))
         + runbook_docs(settings.root, settings.doc_dirs)
         + pack_docs(settings.root, settings.domain_pack)
     )
