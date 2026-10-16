@@ -102,3 +102,38 @@ def test_to_dict_trims_snippet(tmp_path):
     hits, _ = search(conn, "디스크 드라이브")
     d = hits[0].to_dict()
     assert set(d) >= {"chunk_id", "source_id", "score", "text", "meta"}
+
+
+def test_like_wildcards_and_one_char_terms_do_not_match_everything(tmp_path):
+    """'%'·'_'·1글자 질의가 모든 청크에 걸려 '기준 미달이면 결과 없음'을 무력화하지 않는다 (#139 리뷰 2번)."""
+    conn = build(tmp_path, embed=False)
+    assert keyword_ranks(conn, "%") == []
+    assert keyword_ranks(conn, "_") == []
+    assert keyword_ranks(conn, "a 1 #") == []
+    assert keyword_ranks(conn, "%%") == []  # 2글자지만 글자 그대로 '%%' 를 찾는다
+    hits, _ = search(conn, "% _ 1")
+    assert hits == []
+    assert keyword_ranks(conn, "9%")  # '99%' 안의 '9%' 는 글자 그대로 찾는다
+
+
+def test_query_is_redacted_before_embedding(tmp_path):
+    """질의의 IP·비밀값이 외부 /embeddings 로 나가지 않는다 (#139 리뷰 1번)."""
+    conn = build(tmp_path)
+    seen = []
+
+    class Spy(KeywordEmbedder):
+        def embed(self, texts):
+            seen.extend(texts)
+            return super().embed(texts)
+
+    search(conn, "192.0.2.10 디스크 password=hunter22", embedder=Spy())
+    assert seen and "192.0.2.10" not in seen[0] and "hunter22" not in seen[0]
+
+
+def test_min_cosine_from_env():
+    from dejafix_kb.search import MIN_COSINE, min_cosine_from_env
+
+    assert min_cosine_from_env({}) == MIN_COSINE
+    assert min_cosine_from_env({"KB_MIN_COSINE": "0.8"}) == 0.8
+    assert min_cosine_from_env({"KB_MIN_COSINE": "abc"}) == MIN_COSINE
+    assert min_cosine_from_env({"KB_MIN_COSINE": "5"}) == MIN_COSINE

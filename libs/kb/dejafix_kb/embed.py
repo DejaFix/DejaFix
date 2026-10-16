@@ -20,6 +20,8 @@ from typing import Callable, Protocol
 
 import httpx
 
+from .redact import redact
+
 BATCH = 16
 RETRY_BASE_SEC = 5.0
 RETRY_MAX_SEC = 60.0
@@ -61,6 +63,7 @@ class EmbedSettings:
             base_url=e.get("KB_EMBED_BASE_URL") or e.get("LLM_BASE_URL") or "",
             api_key=e.get("KB_EMBED_API_KEY") or e.get("LLM_API_KEY") or "",
             model=e.get("KB_EMBED_MODEL") or "",
+            # 768 은 임시 기본값 (TODO: 추후결정 — 결정 017 미결: 벡터 차원)
             dim=_int(e.get("KB_EMBED_DIM"), 768),
             batch_size=_int(e.get("KB_EMBED_BATCH"), BATCH),
             pause_sec=_float(e.get("KB_EMBED_PAUSE_SEC"), 1.0),
@@ -126,7 +129,7 @@ class HttpEmbedder:
                 wait = float(resp.headers.get("retry-after", ""))
             except ValueError:
                 wait = RETRY_BASE_SEC * (2**attempt)
-            self._sleep(min(wait, RETRY_MAX_SEC))
+            self._sleep(max(0.0, min(wait, RETRY_MAX_SEC)))  # 음수 Retry-After 방어
             attempt += 1
 
     def embed(self, texts: list[str]) -> list[list[float]]:
@@ -165,7 +168,8 @@ def embed_missing(
         if i and pause_sec:
             sleep(pause_sec)
         part = rows[i : i + size]
-        vecs = embedder.embed([f"{r['heading']}\n{r['text']}" for r in part])
+        # 외부 /embeddings 로 나가기 직전에 한 번 더 가린다 (NFR-RAG-001, 결정 017)
+        vecs = embedder.embed([redact(f"{r['heading']}\n{r['text']}") for r in part])
         with conn:
             for r, v in zip(part, vecs):
                 conn.execute(

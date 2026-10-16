@@ -115,3 +115,28 @@ def test_collect_includes_notes(settings, tmp_path):
     _notes_db(db, [(7, 1, 2, "원인", "조치", "결과", "2026-10-16T07:00:00Z")])
     docs = collect(replace(settings, backend_db_path=db))
     assert "note:7" in {d.source_id for d in docs}
+
+
+def test_note_columns_differ_skips_notes_only(settings, tmp_path, caplog):
+    """컬럼 이름이 계약과 다르면 해결 메모만 건너뛰고 로그를 남긴다. 장애·런북 색인은 멈추지 않는다 (#155 리뷰 2번)."""
+    import logging
+    import sqlite3
+    from dataclasses import replace
+
+    from dejafix_kb.sources import note_docs
+
+    db = tmp_path / "b.db"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "create table resolution_notes(id integer primary key, incident_id integer, cause text, created_at text)"
+    )
+    conn.execute(
+        "insert into resolution_notes values (1, 1, '원인', '2026-10-16T07:00:00Z')"
+    )
+    conn.commit()
+    conn.close()
+    with caplog.at_level(logging.WARNING, logger="dejafix_kb.sources"):
+        assert note_docs(db) == []
+    assert "root_cause" in caplog.text
+    docs = collect(replace(settings, backend_db_path=db))
+    assert docs and not any(d.source_type == "resolution_note" for d in docs)

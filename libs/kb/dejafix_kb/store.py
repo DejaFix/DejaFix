@@ -17,7 +17,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from .chunker import Chunk, chunk_doc
+from .chunker import CHUNKER_VERSION, Chunk, chunk_doc
 from .sources import SourceDoc, now_iso
 
 SCHEMA = """
@@ -49,6 +49,10 @@ CREATE VIRTUAL TABLE IF NOT EXISTS kb_chunks_fts USING fts5(
 );
 CREATE TABLE IF NOT EXISTS kb_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
+
+
+# 수집기가 관리하는(지워도 다시 모을 수 있는) 출처. resolution_note 는 사람이 쓴 것이라 제외
+PRUNED_TYPES = {"incident_report", "runbook", "pack_action"}
 
 
 def open_kb(path: Path) -> sqlite3.Connection:
@@ -110,16 +114,38 @@ def _insert_chunks(conn: sqlite3.Connection, chunks: list[Chunk]) -> None:
 
 
 def upsert(
-    conn: sqlite3.Connection, docs: list[SourceDoc], prune: bool = True
+    conn: sqlite3.Connection,
+    docs: list[SourceDoc],
+    prune: bool = True,
+    prune_types: set[str] | None = None,
 ) -> IndexStats:
     """문서 해시가 같으면 건너뛰고, 바뀌면 그 문서의 청크를 통째로 다시 쓴다.
 
-    prune=True 면 이번 수집에 없는 문서(같은 source_type)는 지운다. 단 사람이 쓴 resolution_note 는 지우지 않는다.
+    prune=True 면 prune_types(기본: 수집기가 관리하는 출처 전체 PRUNED_TYPES)에 속한 문서 중
+    이번 수집에 없는 것을 지운다. 이번 수집에 그 종류가 0건이어도(예: shared.db 없음) 옛 문서를 지운다.
+    사람이 쓴 resolution_note 는 지우지 않는다. 청킹 규칙(CHUNKER_VERSION)이 바뀌면 전부 다시 청킹한다.
     """
     stats = IndexStats()
     now = now_iso()
     seen: set[str] = set()
     with conn:
+        row = conn.execute(
+            "SELECT value FROM kb_meta WHERE key = 'chunker_version'"
+        ).fetchone()
+        if row is None or row["value"] != CHUNKER_VERSION:
+            # 규칙이 바뀌면 해시가 같아도 청크가 달라지므로 기존 색인을 비우고 다시 쓴다
+            conn.execute("DELETE FROM kb_chunks_fts")
+            conn.execute("DELETE FROM kb_chunks")
+            conn.execute(
+                "DELETE FROM kb_documents WHERE source_type != 'resolution_note'"
+            )
+            conn.execute(
+                "UPDATE kb_documents SET content_hash = '' WHERE source_type = 'resolution_note'"
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO kb_meta(key, value) VALUES ('chunker_version', ?)",
+                (CHUNKER_VERSION,),
+            )
         for d in docs:
             seen.add(d.source_id)
             row = conn.execute(
@@ -151,8 +177,10 @@ def upsert(
             _insert_chunks(conn, chunks)
             stats.chunks_written += len(chunks)
         if prune:
-            types = {d.source_type for d in docs} - {"resolution_note"}
-            for t in types:
+            types = (PRUNED_TYPES if prune_types is None else set(prune_types)) - {
+                "resolution_note"
+            }
+            for t in sorted(types):
                 for r in conn.execute(
                     "SELECT source_id FROM kb_documents WHERE source_type = ?", (t,)
                 ).fetchall():
