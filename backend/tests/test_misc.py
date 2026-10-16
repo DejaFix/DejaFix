@@ -37,6 +37,7 @@ def test_utc_now_iso_format():
 # ---- #5·#6 (T32 전까지 스텁): 모양이 계약과 같은지만 확인한다
 
 
+@pytest.mark.safety_regression
 def test_summary_values_are_all_measured(client, oncall):
     body = client.get("/api/dashboard/summary", headers=oncall).json()
     data = body["data"]

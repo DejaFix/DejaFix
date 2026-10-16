@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     chat_streaming: bool = True
     chat_first_event_timeout_sec: float = 3.0
+    # Agent 가 이 시간 동안 조용하면 SSE 주석 ": ping" 을 보내 프록시가 연결을 끊지 않게 한다
+    chat_keepalive_sec: float = 15.0
 
     @property
     def cors_origin_list(self) -> list[str]:

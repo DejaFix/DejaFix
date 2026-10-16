@@ -383,3 +383,12 @@ def test_scheduler_interface_names_exist():
     assert callable(zabbix_ro.from_env({"ZABBIX_MOCK": "true"}).call)
     for name in ("MethodNotAllowed", "ZabbixError", "ZabbixRoError"):
         assert hasattr(zabbix_ro, name)
+
+
+def test_httpx_request_log_hidden():
+    # 실서버 모드에서 httpx INFO 로그(요청 URL = 서버 주소)가 남지 않는다
+    import logging
+
+    import zabbix_ro.client  # noqa: F401
+
+    assert not logging.getLogger("httpx").isEnabledFor(logging.INFO)
