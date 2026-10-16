@@ -114,3 +114,62 @@ def test_make_tool_client_routes_only_when_kb_url_set():
         Settings.from_env({**base, "MCP_KB_URL": "http://kb:8300/mcp"})
     )
     assert isinstance(client, RoutedToolClient)
+
+
+def test_per_server_allowlists():
+    import asyncio
+
+    from dejafix_agent.mcp_client import startup_check
+    from dejafix_agent.tools import KB_SERVER_TOOLS, ZABBIX_SERVER_TOOLS
+
+    class Lists:
+        def __init__(self, names):
+            self.names = names
+
+        def list_tools(self):
+            return self.names
+
+    # mcp-kb 가 zabbix 도구를 내놓으면 기동 거부
+    with pytest.raises(ForbiddenToolError):
+        asyncio.run(
+            startup_check(
+                Lists(["kb_search_knowledge", "zabbix_get_history"]), KB_SERVER_TOOLS
+            )
+        )
+    # mcp-zabbix 가 kb 도구를 내놓아도 기동 거부
+    with pytest.raises(ForbiddenToolError):
+        asyncio.run(
+            startup_check(
+                Lists(["zabbix_get_problem", "kb_search_knowledge"]),
+                ZABBIX_SERVER_TOOLS,
+            )
+        )
+    asyncio.run(startup_check(Lists(["kb_search_knowledge"]), KB_SERVER_TOOLS))
+    asyncio.run(startup_check(Lists(["zabbix_get_problem"]), ZABBIX_SERVER_TOOLS))
+
+
+def test_kb_client_built_with_kb_only_allowlist():
+    from dejafix_agent.tools import KB_SERVER_TOOLS, ZABBIX_SERVER_TOOLS
+
+    client = make_tool_client(
+        Settings.from_env(
+            {
+                "SHARED_DB_PATH": "x.db",
+                "MCP_ZABBIX_URL": "http://z:8200/mcp",
+                "MCP_KB_URL": "http://kb:8300/mcp",
+            }
+        )
+    )
+    assert (
+        client.kb.allowed == KB_SERVER_TOOLS
+        and client.main.allowed == ZABBIX_SERVER_TOOLS
+    )
+
+
+def test_kb_exception_reason_is_kb_error(test_pack):
+    class Boom(Kb):
+        def call(self, tool, args):
+            raise RuntimeError("down")
+
+    calls = collect(INC, RoutedToolClient(Zbx(), Boom([])), test_pack)
+    assert calls[-1].result["reason"] == "KB_ERROR" and not calls[-1].ok

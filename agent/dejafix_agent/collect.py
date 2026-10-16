@@ -93,7 +93,10 @@ def _call(client: ToolClient, seq: int, tool: str, args: dict[str, Any]) -> Tool
     try:
         result = client.call(tool, args)
     except Exception as exc:  # 도구 예외를 LLM·화면에 그대로 넘기지 않는다
-        result = {"ok": False, "reason": "ZABBIX_ERROR", "message": type(exc).__name__}
+        reason = (
+            "KB_ERROR" if tool.startswith("kb_") else "ZABBIX_ERROR"
+        )  # 계약 2장·6장
+        result = {"ok": False, "reason": reason, "message": type(exc).__name__}
     duration = int((time.monotonic() - start) * 1000)
     ok = bool(result.get("ok"))
     data = result.get("data")

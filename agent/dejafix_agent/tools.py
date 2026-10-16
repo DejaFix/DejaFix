@@ -28,14 +28,17 @@ ALLOWED_TOOLS = frozenset(
     }
 )
 KB_TOOL = "kb_search_knowledge"
+# 서버별 기대 집합 (contracts/mcp-tools.md 6장: mcp-kb 에는 kb_search_knowledge 하나만, mcp-zabbix 에는 kb_ 없음)
+ZABBIX_SERVER_TOOLS = ALLOWED_TOOLS - {KB_TOOL}
+KB_SERVER_TOOLS = frozenset({KB_TOOL})
 
 
 class ForbiddenToolError(RuntimeError):
     """MCP 도구 목록에 허용 목록 밖 도구가 있음 → 기동 실패 (SAFE-03)."""
 
 
-def check_tool_list(names: list[str]) -> None:
-    extra = sorted(set(names) - ALLOWED_TOOLS)
+def check_tool_list(names: list[str], allowed: frozenset[str] = ALLOWED_TOOLS) -> None:
+    extra = sorted(set(names) - allowed)
     if extra:
         raise ForbiddenToolError(f"허용 목록 밖 MCP 도구: {extra}")
 

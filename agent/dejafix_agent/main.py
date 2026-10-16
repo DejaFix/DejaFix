@@ -22,7 +22,14 @@ from .collect import _call
 from .config import Settings
 from .mcp_client import McpToolClient, startup_check
 from .packs import load_pack
-from .tools import KB_TOOL, RoutedToolClient, ToolClient, UnavailableToolClient
+from .tools import (
+    KB_SERVER_TOOLS,
+    KB_TOOL,
+    ZABBIX_SERVER_TOOLS,
+    RoutedToolClient,
+    ToolClient,
+    UnavailableToolClient,
+)
 
 log = logging.getLogger("dejafix.agent")
 
@@ -58,7 +65,10 @@ def make_tool_client(settings: Settings) -> ToolClient:
     )
     if settings.mcp_kb_url:  # RAG 지식 검색 (결정 017) — 없으면 기존과 같다
         return RoutedToolClient(
-            main, McpToolClient(settings.mcp_kb_url, settings.internal_token)
+            main,
+            McpToolClient(
+                settings.mcp_kb_url, settings.internal_token, allowed=KB_SERVER_TOOLS
+            ),
         )
     return main
 
@@ -78,11 +88,13 @@ def create_app(
         pack = load_pack(settings.domain_pack, packs_dir)  # PackError → 기동 실패
         app.state.pack = pack
         client = tool_client or make_tool_client(settings)
-        if isinstance(client, RoutedToolClient):  # 서버마다 따로 검사 (SAFE-03)
-            await startup_check(client.main)
-            await startup_check(client.kb)
+        if isinstance(
+            client, RoutedToolClient
+        ):  # 서버마다 기대 집합으로 따로 검사 (SAFE-03)
+            await startup_check(client.main, ZABBIX_SERVER_TOOLS)
+            await startup_check(client.kb, KB_SERVER_TOOLS)
         else:
-            await startup_check(client)  # 허용 밖 도구 → 기동 실패 (SAFE-03)
+            await startup_check(client, ZABBIX_SERVER_TOOLS)  # 허용 밖 → 기동 실패
         app.state.tool_client = client
         open_db(settings.shared_db_path, "shared").close()
 
