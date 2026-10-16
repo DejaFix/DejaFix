@@ -11,7 +11,7 @@
 | 1 | 사전 점검 | 1장 체크리스트 | 전부 ✔ | T-60분 |
 | 2 | 서비스 기동 | `scripts\dev-up.ps1`(로컬) 또는 compose | 5개 OK | 1~2분 |
 | 3 | 시드·DB 준비 | 3장 (백업 → 시드) | `/api/incidents` 6건 | 10초 |
-| 4 | 장애 주입 | 목: 자동 / 실서버: `inject-cpu.ps1 -Minutes 5` | 새 장애가 목록 맨 위 | 목 ≤ 15초 · 실서버 ≤ 3분 |
+| 4 | 장애 주입 | 목: 자동 / 실서버: `inject-cpu.ps1 -Minutes 3`(결정 016) | 새 장애가 목록 맨 위 | 목 ≤ 15초 · 실서버 ≤ 3분 |
 | 5 | D-MAIN | 장애 상세 → 리포트·근거·계획·메일 | 5장 표 | 1분 30초 |
 | 6 | D-UNKNOWN | 어시스턴트에 "이 서버 백업 작업이 원인인가?" | "확인할 수 없음 · NOT_COLLECTED" | 30초 |
 | 7 | 정리 | `infra\scripts\cleanup.ps1`, `scripts\dev-down.ps1` | 부하 0개 | 1분 |
@@ -84,9 +84,9 @@ Remove-Item data\shared.db*, data\backend.db* ; uv run --no-project --python 3.1
 
 ### 4-2. 실서버 모드 (`ZABBIX_MOCK=false`) — 경로 A
 ```powershell
-powershell -ExecutionPolicy Bypass -File infra\scripts\inject-cpu.ps1 -Minutes 5    # 데모 PC에서
+powershell -ExecutionPolicy Bypass -File infra\scripts\inject-cpu.ps1 -Minutes 3    # 데모 PC에서. 5분 이상이면 원본 Warning 트리거가 같이 떠 장애 2건(결정 016)
 ```
-- 1분 평균 CPU 트리거(High, T59) → Zabbix Problem → Scheduler 다음 주기(기본 30초) → `incidents` → Agent 분석(10초 주기).
+- 1분 평균 CPU 트리거(High, T59, 주입 후 약 2분 — 실측 104초, 목표 120초, 결정 016) → Zabbix Problem → Scheduler 다음 주기(기본 30초) → `incidents` → Agent 분석(10초 주기).
 - 합격선: 주입부터 화면 리포트까지 **3분 이내**(리허설 2회 연속). 측정은 `docs/demo/README.md` 리허설 표.
 - 전제: 팀 VM Zabbix 주소·읽기 전용 토큰(#59), 데모 PC 호스트 등록·트리거(T59). **10/15 밤 기준 미확보** → 11:00 점검에서 실패하면 탈출 규칙 2.
 
