@@ -121,6 +121,7 @@ if (-not $NoFrontend) {
         $results += [pscustomobject]@{ service = "frontend"; status = "SKIP"; detail = "포트 $FrontendPort 이미 사용 중" }
     } else {
         $env:VITE_MSW = "off"
+        $env:DEV_API_TARGET = "http://127.0.0.1:$BackendPort"   # vite.config.ts 프록시 대상 (-BackendPort 와 맞춤)
         $out = Join-Path $LogDir "frontend.log"
         $err = Join-Path $LogDir "frontend.err.log"
         $p = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev", "--", "--port", "$FrontendPort", "--strictPort") `
