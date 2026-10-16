@@ -128,7 +128,7 @@ def test_body_copies_stored_report_only(dbs):
     assert "특정 프로세스의 CPU 과다 사용 (확신도: medium)" in llm
     assert "백업 작업 여부 · NOT_COLLECTED" in llm
     assert "메모리 사용률 · STALE" in llm
-    assert "[C] 서버 재부팅" in llm and "최고 티어 C" in llm
+    assert "[C] 프로세스 강제 종료" in llm and "최고 티어 C" in llm
     assert "미리보기 — 실행되지 않음" in llm
     assert "2026-10-15 10:20:00 KST" in llm  # 장애 시작 01:20Z → KST
     assert "execute" not in llm and "실행했" not in llm
@@ -198,3 +198,13 @@ def test_start_and_stop_worker(dbs, monkeypatch):
 
     asyncio.run(scenario())
     assert len(mail_rows(dbs.backend)) == 2
+
+
+def test_lifespan_starts_and_stops_worker(make_client):
+    """#72: 백엔드 기동 시 메일 워커가 뜨고, 종료 시 태스크가 정리된다."""
+    client = make_client()
+    task = client.app.state.mail_worker_task
+    assert task is not None and not task.done()
+    client.__exit__(None, None, None)
+    assert client.app.state.mail_worker_task is None
+    assert task.done()
