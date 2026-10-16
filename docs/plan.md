@@ -930,7 +930,7 @@ CREATE TABLE IF NOT EXISTS metrics_daily (                -- 매일 03:00 전일
 );
 
 CREATE TABLE IF NOT EXISTS scheduler_jobs (
-  job          TEXT PRIMARY KEY,            -- poll_problems | daily_collect | retention ([검토 반영] poll_problems 행만 [필수])
+  job          TEXT PRIMARY KEY,            -- poll_problems | daily_collect | retention | kb_reindex | kb_notes ([검토 반영] poll_problems 행만 [필수], kb_* 는 [이후] 결정 017)
   last_run_at  TEXT, last_ok_at TEXT,
   status       TEXT, message TEXT
 );
