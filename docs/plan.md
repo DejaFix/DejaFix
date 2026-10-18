@@ -1231,7 +1231,7 @@ fallback_plans:
 | 1 | `POST /api/auth/login` | 공개 | `{username,password}` → `{token, user}` | backend.db | P0 |
 | 2 | `POST /api/auth/logout` | 로그인 | 감사 기록 | backend.db | P1 |
 | 3 | `GET /api/auth/me` | 로그인 | 현재 사용자 | backend.db | P0 |
-| 4 | `GET /api/health` | 로그인 | `{zabbix, agent, mcp_zabbix, shared_db, backend_db, scheduler_last_ok}` | 전체 | P0 |
+| 4 | `GET /api/health` | 로그인 | `{zabbix, agent, mcp_zabbix, shared_db, backend_db, scheduler, scheduler_last_ok}` | 전체 | P0 |
 | 5 | `GET /api/dashboard/summary` | viewer | KPI 4종(`Measured`), 오늘 LLM 사용량(선택) | Zabbix + shared | P0 |
 | 6 | `GET /api/problems?severity_min=&hostid=` | viewer | Zabbix 실시간 문제 목록 (+ DejaFix incident_id 매칭), 최대 200건·새 문제가 위, 초과 시 `meta.truncated` | Zabbix `problem.get` | P0 |
 | 7 | `GET /api/hosts` | viewer | 호스트 목록·가용성·주요 지표 최신값 | Zabbix `host.get`,`item.get` | P0 |
