@@ -141,7 +141,7 @@ code,
   display: inline-flex;
   padding: 2px;
   background: var(--track);
-  border-radius: 9px;
+  border-radius: 999px;
 }
 .seg button {
   border: 0;
@@ -149,12 +149,12 @@ code,
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 7px;
+  border-radius: 999px;
   color: var(--text-2);
 }
 .seg button.on {
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   color: var(--text);
 }
 .search {
@@ -168,7 +168,7 @@ code,
   padding: 0 12px;
   height: 36px;
   background: var(--track);
-  border-radius: 10px;
+  border-radius: 999px;
   color: var(--text-3);
 }
 .search input {
@@ -202,8 +202,8 @@ code,
   align-items: center;
   gap: 6px;
   height: 36px;
-  padding: 0 14px;
-  border-radius: 10px;
+  padding: 0 16px;
+  border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: var(--surface);
   font-weight: 600;
@@ -232,7 +232,7 @@ code,
   height: 30px;
   padding: 0 10px;
   font-size: 13px;
-  border-radius: 8px;
+  border-radius: 999px;
 }
 .btn:disabled {
   opacity: 0.45;
@@ -933,9 +933,13 @@ a.list-row:hover {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  padding: 6px 6px 6px 16px;
+  border: 1px solid transparent;
+  background: var(--track);
+  border-radius: 999px;
+}
+.composer:focus-within {
+  border-color: var(--text);
 }
 .composer input {
   flex: 1;
@@ -1034,10 +1038,16 @@ a.list-row:hover {
 }
 .field input {
   height: 42px;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--track);
+  color: var(--text);
+  padding: 0 14px;
   font: inherit;
+}
+.field input:focus {
+  border-color: var(--text);
+  outline: none;
 }
 .empty {
   text-align: center;
@@ -1197,12 +1207,12 @@ table.data tr.hl td {
 .select {
   height: 32px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 13px;
-  padding: 0 8px;
+  padding: 0 12px;
 }
 .perm-yes {
   color: var(--risk-low);

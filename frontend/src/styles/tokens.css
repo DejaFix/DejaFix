@@ -1,31 +1,31 @@
 /* 레이아웃: 좌측 메뉴 + 상단 바 + 본문, 우측에 AI 패널이 밀고 들어오는 관리형 대시보드.
    색은 모두 토큰으로만 쓴다. 라이트가 기본이고, 다크는 같은 이름의 토큰을 다시 정의한다. */
 :root {
-  --bg: #f5f6f6;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #fafbfb;
-  --text: #1c2120;
-  --text-2: #4f5755;
-  --text-3: #818a88;
-  --border: rgba(20, 40, 36, 0.09);
-  --border-strong: rgba(20, 40, 36, 0.16);
-  --hover: rgba(20, 40, 36, 0.045);
-  --track: rgba(20, 40, 36, 0.07);
+  --surface-2: #f3f3f3;
+  --text: #141414;
+  --text-2: #4d4d4d;
+  --text-3: #707070;
+  --border: rgba(20, 20, 20, 0.08);
+  --border-strong: rgba(20, 20, 20, 0.16);
+  --hover: rgba(20, 20, 20, 0.045);
+  --track: #f3f3f3;
 
-  --primary: #0f5e54;
-  --primary-hover: #0b4a42;
-  --primary-soft: #e4f0ee;
+  --primary: #141414;
+  --primary-hover: #262626;
+  --primary-soft: #f3f3f3;
   --on-primary: #ffffff;
   --accent: #a8731a;
   --accent-soft: #f6eedd;
 
   --sidebar-bg: rgba(255, 255, 255, 0.8);
-  --topbar-bg: rgba(245, 246, 246, 0.84);
-  --code-bg: #1c2120;
+  --topbar-bg: rgba(255, 255, 255, 0.84);
+  --code-bg: #141414;
   --code-fg: #f1f4f3;
-  --chip-neutral-bg: rgba(20, 40, 36, 0.07);
-  --skeleton-a: #e9eceb;
-  --skeleton-b: #f4f6f5;
+  --chip-neutral-bg: #f0f0f0;
+  --skeleton-a: #ececec;
+  --skeleton-b: #f6f6f6;
 
   /* 심각도 */
   --sev-info: #3c6e9e;
@@ -59,14 +59,15 @@
   --heat-2: #d13f36;
   --heat-3: #8f1d1d;
 
-  --radius-lg: 18px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --shadow-sm: none;
   --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.12);
 
   --font:
-    -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', 'Segoe UI', sans-serif;
+    'Inter', -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI',
+    sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --sidebar-w: 232px;
@@ -76,29 +77,29 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0e1312;
-    --surface: #161c1b;
-    --surface-2: #1b2322;
-    --text: #edf1f0;
-    --text-2: #b4bebb;
-    --text-3: #8a9693;
+    --bg: #0f0f0f;
+    --surface: #171717;
+    --surface-2: #1f1f1f;
+    --text: #f2f2f2;
+    --text-2: #b8b8b8;
+    --text-3: #8c8c8c;
     --border: rgba(255, 255, 255, 0.09);
     --border-strong: rgba(255, 255, 255, 0.17);
     --hover: rgba(255, 255, 255, 0.06);
-    --track: rgba(255, 255, 255, 0.1);
-    --primary: #3fae9c;
-    --primary-hover: #55c0ae;
-    --primary-soft: rgba(63, 174, 156, 0.16);
-    --on-primary: #04201b;
+    --track: #232323;
+    --primary: #f2f2f2;
+    --primary-hover: #ffffff;
+    --primary-soft: rgba(255, 255, 255, 0.1);
+    --on-primary: #141414;
     --accent: #d9a441;
     --accent-soft: rgba(217, 164, 65, 0.16);
-    --sidebar-bg: rgba(22, 28, 27, 0.82);
-    --topbar-bg: rgba(14, 19, 18, 0.84);
-    --code-bg: #0a0e0d;
+    --sidebar-bg: rgba(23, 23, 23, 0.82);
+    --topbar-bg: rgba(15, 15, 15, 0.84);
+    --code-bg: #0a0a0a;
     --code-fg: #e3eae8;
     --chip-neutral-bg: rgba(255, 255, 255, 0.1);
-    --skeleton-a: #1b2322;
-    --skeleton-b: #232d2b;
+    --skeleton-a: #1f1f1f;
+    --skeleton-b: #292929;
     --sev-info: #7fb0dc;
     --sev-info-soft: rgba(127, 176, 220, 0.16);
     --sev-warning: #dcae45;
@@ -125,36 +126,36 @@
     --heat-1: #5a3a3a;
     --heat-2: #d9544a;
     --heat-3: #ff8f86;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: none;
     --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.55);
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #0e1312;
-  --surface: #161c1b;
-  --surface-2: #1b2322;
-  --text: #edf1f0;
-  --text-2: #b4bebb;
-  --text-3: #8a9693;
+  --bg: #0f0f0f;
+  --surface: #171717;
+  --surface-2: #1f1f1f;
+  --text: #f2f2f2;
+  --text-2: #b8b8b8;
+  --text-3: #8c8c8c;
   --border: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.17);
   --hover: rgba(255, 255, 255, 0.06);
-  --track: rgba(255, 255, 255, 0.1);
-  --primary: #3fae9c;
-  --primary-hover: #55c0ae;
-  --primary-soft: rgba(63, 174, 156, 0.16);
-  --on-primary: #04201b;
+  --track: #232323;
+  --primary: #f2f2f2;
+  --primary-hover: #ffffff;
+  --primary-soft: rgba(255, 255, 255, 0.1);
+  --on-primary: #141414;
   --accent: #d9a441;
   --accent-soft: rgba(217, 164, 65, 0.16);
-  --sidebar-bg: rgba(22, 28, 27, 0.82);
-  --topbar-bg: rgba(14, 19, 18, 0.84);
-  --code-bg: #0a0e0d;
+  --sidebar-bg: rgba(23, 23, 23, 0.82);
+  --topbar-bg: rgba(15, 15, 15, 0.84);
+  --code-bg: #0a0a0a;
   --code-fg: #e3eae8;
   --chip-neutral-bg: rgba(255, 255, 255, 0.1);
-  --skeleton-a: #1b2322;
-  --skeleton-b: #232d2b;
+  --skeleton-a: #1f1f1f;
+  --skeleton-b: #292929;
   --sev-info: #7fb0dc;
   --sev-info-soft: rgba(127, 176, 220, 0.16);
   --sev-warning: #dcae45;
@@ -181,7 +182,7 @@
   --heat-1: #5a3a3a;
   --heat-2: #d9544a;
   --heat-3: #ff8f86;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: none;
   --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
