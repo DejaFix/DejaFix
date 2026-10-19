@@ -323,7 +323,9 @@ def test_chat_kb_search_events_and_rule_answer(seeded, packs_dir):
     assert call_id.startswith("ev_") and events[2][1]["id"] == call_id
     assert kb.args["exclude_source_ids"] == ["incident:1"]
     final = events[-1][1]
-    assert "kb_0123456789ab" in final["content"] and final["evidence_ids"] == [call_id]
+    assert "kb_0123456789ab" in final["content"] and call_id in final["evidence_ids"]
+    # 붙은 근거는 모두 답변 본문에 실제로 인용된 것 (추정 단락의 리포트 근거 포함, SAFE-08)
+    assert all(e in final["content"] for e in final["evidence_ids"])
     db = sqlite3.connect(seeded.shared_db_path)
     assert (
         db.execute("select tool from tool_calls where id = ?", (call_id,)).fetchone()[0]
@@ -388,7 +390,9 @@ def test_incident_question_keeps_report_answer_and_appends_kb(seeded, packs_dir)
         )
     final = events[-1][1]
     content = final["content"]
-    assert content.startswith("LAB-PC-07")  # 리포트 기반 답이 먼저
+    assert content.index("LAB-PC-07") < content.index(
+        "kb_0123456789ab"
+    )  # 리포트 기반 답이 먼저
     assert content.index("96.1") < content.index("kb_0123456789ab")  # 과거 사례는 뒤에
     assert events[1][1]["id"] in final["evidence_ids"]
 
@@ -411,3 +415,84 @@ def test_history_words_come_from_pack(test_pack):
 
     assert _asks_history("전에 어떻게 했어?", test_pack)
     assert not _asks_history("전에 어떻게 했어?", replace(test_pack, history_words=()))
+
+
+def _report_evidence_ids(db_path, incident_id):
+    db = sqlite3.connect(db_path)
+    row = db.execute(
+        "select causes_json from analysis_reports where incident_id=? order by version desc",
+        (incident_id,),
+    ).fetchone()
+    db.close()
+    return {e for c in json.loads(row[0]) for e in c.get("evidence_ids") or []}
+
+
+def test_unknown_answer_states_unknown_first_then_hypothesis(seeded, packs_dir):
+    """모르는 질문: 첫 줄은 '확인할 수 없음', 그다음 리포트 근거로 만든 추정과 확인 방법."""
+    with client_for(seeded, packs_dir) as c:
+        final = parse(
+            post(
+                c,
+                {
+                    "message": "이 서버 백업 작업이 원인인가?",
+                    "context": {"incident_id": 1},
+                },
+            ).text
+        )[-1][1]
+    lines = final["content"].splitlines()
+    assert lines[0].startswith("확인할 수 없음") and "NOT_COLLECTED" in lines[0]
+    assert (
+        "[추정 · 확신도 낮음]" in final["content"] and "확인 방법:" in final["content"]
+    )
+    assert final["unknowns"] == [
+        {"label": "이 서버 백업 작업이 원인인가?", "reason": "NOT_COLLECTED"}
+    ]
+    # 추정의 근거는 리포트 원인 후보에 이미 있던 근거만 (새 값을 만들지 않음, SAFE-08)
+    assert final["evidence_ids"]
+    assert set(final["evidence_ids"]) <= _report_evidence_ids(seeded.shared_db_path, 1)
+    assert all(e in final["content"] for e in final["evidence_ids"])
+
+
+def test_hypothesis_needs_cause_with_evidence():
+    report = {
+        "causes": [
+            {
+                "rank": 1,
+                "title": "근거 없는 원인",
+                "confidence": "high",
+                "evidence_ids": [],
+            }
+        ],
+        "next_checks": ["상위 프로세스 확인"],
+    }
+    text, ids = chat._hypothesis(report)
+    assert ids == [] and "[추정" not in text
+    assert (
+        text == "추정할 근거가 부족합니다." + chr(10) + "확인 방법: 상위 프로세스 확인"
+    )
+
+
+def test_llm_hypothesis_evidence_only_from_report(seeded, packs_dir, monkeypatch):
+    known = sorted(_report_evidence_ids(seeded.shared_db_path, 1))[0]
+    monkeypatch.setattr(
+        chat,
+        "complete_text",
+        lambda s, p: chr(10).join(
+            [
+                "확인할 수 없음 · NOT_COLLECTED",
+                f"[추정 · 확신도 낮음] 고부하 프로세스 ({known}, ev_zz)",
+                "확인 방법: 상위 프로세스",
+            ]
+        ),
+    )
+    with client_for(real(seeded), packs_dir) as c:
+        final = parse(
+            post(
+                c,
+                {
+                    "message": "이 서버 백업 작업이 원인인가?",
+                    "context": {"incident_id": 1},
+                },
+            ).text
+        )[-1][1]
+    assert final["evidence_ids"] == [known]  # 리포트에 없는 ev_zz 는 붙이지 않는다
