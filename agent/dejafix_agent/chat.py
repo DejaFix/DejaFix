@@ -4,7 +4,8 @@
   장애를 열지 않은 질문이면 shared.db 의 열린 장애 목록(Scheduler 수집분, 최대 OVERVIEW_LIMIT 건)을 맥락으로 쓴다.
   Scheduler 마지막 수집이 없거나 OVERVIEW_STALE_SEC 보다 오래되면 목록 대신 '확인할 수 없음 · STALE/NOT_COLLECTED'.
 - LLM 이 없거나 실패하면 규칙 기반 답변: 최신 리포트 요약 + 수집된 사실만.
-  질문 대상이 수집되지 않았으면 "확인할 수 없음 · NOT_COLLECTED".
+  질문 대상이 수집되지 않았으면 첫 줄에 "근거가 수집된 데이터에 없다"는 문장, 이어서 리포트 근거로 관련 답·확인 방법.
+  기록용 unknowns 에는 NOT_COLLECTED 를 남긴다.
 - 저장: conversations, messages(user·assistant), agent_runs(kind='chat').
 SQLite 연결은 단계마다 새로 열고 닫는다(스트림 중 스레드가 바뀔 수 있음).
 """
@@ -353,9 +354,11 @@ def _report_answer(message: str, context: dict[str, Any], pack: Pack) -> Answer:
                 )
                 evidence += f["evidence_ids"]
         return Answer(head + "\n" + "\n".join(lines), evidence, unknowns, False)
+    # 수집하지 않는 내용을 물은 경우: 코드 대신 문장으로 근거가 없다고 먼저 말하고, 관련 근거로 이어서 답한다.
+    # 기록용 unknowns 에는 NOT_COLLECTED 를 그대로 남긴다(FR-AG-009).
     hypothesis, evidence = _hypothesis(report)
     return Answer(
-        "확인할 수 없음 · 질문하신 내용은 수집 대상이 아닙니다 (NOT_COLLECTED).\n"
+        "질문하신 내용에 대한 근거는 수집된 데이터에 없습니다.\n"
         + head
         + f" 리포트 요약: {report['summary']}\n\n"
         + hypothesis,
@@ -380,8 +383,8 @@ def _hypothesis(report: dict[str, Any]) -> tuple[str, list[str]]:
     ids = list(top["evidence_ids"])
     how = top.get("verify") or (checks[0] if checks else "")
     lines = [
-        "[추정 · 확신도 낮음]",
-        f"수집된 근거로는 리포트 원인 후보 1순위 '{top['title']}' 쪽일 가능성이 더 큽니다 (근거 {', '.join(ids)}).",
+        f"수집된 근거로 보면 원인은 리포트 원인 후보 1순위 '{top['title']}' 쪽입니다"
+        f" (근거 {', '.join(ids)}) (추정 · 확신도 낮음)",
     ]
     if top.get("reasoning"):
         lines.append(f"- 이유: {top['reasoning']}")
