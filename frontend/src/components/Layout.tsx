@@ -105,9 +105,7 @@ export function Layout() {
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="brand-mark">
-            <Icon name="logo" size={18} />
-          </span>
+          <img className="brand-logo" src="/logo-mark.png" alt="" width={32} height={32} />
           <span className="brand-name">DejaFix</span>
         </div>
         {items.map((n) => (
@@ -124,11 +122,6 @@ export function Layout() {
           </NavLink>
         ))}
         <SystemList health={health.data?.data} checkedAt={checkedAt} />
-        <div className="sidebar-foot">
-          조회 전용 · Zabbix에 쓰지 않음
-          <br />
-          (변경 계획은 승인까지만)
-        </div>
       </aside>
       <div className={`main ${open ? 'panel-open' : ''}`}>
         <header className="topbar">

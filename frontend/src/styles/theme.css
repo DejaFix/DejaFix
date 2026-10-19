@@ -1,6 +1,6 @@
 /* 테마: 인디고 팔레트 + 각진(모서리 0) 모양. 라이트 테마의 토큰과 컴포넌트 모양을 덮어쓴다.
    다크 테마 토큰은 선택자가 더 강해서 그대로 유지된다. 이전 모양으로 돌리려면 main.tsx의 theme.css import 한 줄을 빼면 된다.
-   글꼴은 외부(Google Fonts)에서 받지 않고 시스템 글꼴로 대체한다. */
+   글꼴은 Pretendard(index.html의 CDN)를 쓴다. */
 :root {
   --bg: #f6f6fb;
   --surface: #ffffff;
@@ -32,8 +32,8 @@
   --radius-md: 18px;
   --radius-sm: 12px;
   --shadow-sm: 0 1px 2px rgba(35, 35, 69, 0.05), 0 6px 18px rgba(35, 35, 69, 0.05);
-  --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic',
-    'Segoe UI', sans-serif;
+  --font:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
   --blue-grad: linear-gradient(135deg, #7c7ce8, #5b5bd6);
   --on-primary-ink: #ffffff;
 
@@ -45,10 +45,6 @@
 .sidebar {
   border-right: 0;
   box-shadow: 1px 0 0 var(--border);
-}
-.brand-mark {
-  border-radius: 30%;
-  background: var(--primary);
 }
 .nav-item {
   border-radius: 999px;
