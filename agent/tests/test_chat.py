@@ -495,4 +495,69 @@ def test_llm_hypothesis_evidence_only_from_report(seeded, packs_dir, monkeypatch
                 },
             ).text
         )[-1][1]
-    assert final["evidence_ids"] == [known]  # 리포트에 없는 ev_zz 는 붙이지 않는다
+    # 리포트에 없는 ev_zz 는 붙이지 않는다. 대안 원인을 짚지 않은 답이라 1순위 원인 근거가 덧붙을 수 있다 (#180)
+    assert known in final["evidence_ids"]
+    assert "ev_zz" not in final["evidence_ids"]
+    assert set(final["evidence_ids"]) <= _report_evidence_ids(seeded.shared_db_path, 1)
+
+
+def _top_cause(db_path, incident_id):
+    db = sqlite3.connect(db_path)
+    row = db.execute(
+        "select causes_json from analysis_reports where incident_id=? order by version desc",
+        (incident_id,),
+    ).fetchone()
+    db.close()
+    causes = [c for c in json.loads(row[0]) if c.get("evidence_ids")]
+    return min(causes, key=lambda c: c.get("rank") or 99)
+
+
+def _ask_llm(seeded, packs_dir, monkeypatch, content):
+    monkeypatch.setattr(chat, "complete_text", lambda s, p: content)
+    with client_for(real(seeded), packs_dir) as c:
+        return parse(
+            post(
+                c,
+                {
+                    "message": "이 서버 백업 작업이 원인인가?",
+                    "context": {"incident_id": 1},
+                },
+            ).text
+        )[-1][1]
+
+
+def test_llm_unknown_without_alternative_gets_top_cause(seeded, packs_dir, monkeypatch):
+    """LLM 이 물어본 원인의 근거 없음만 말하면, 리포트 1순위 원인을 대안 추정으로 덧붙인다 (#180)."""
+    top = _top_cause(seeded.shared_db_path, 1)
+    final = _ask_llm(
+        seeded,
+        packs_dir,
+        monkeypatch,
+        chr(10).join(
+            [
+                "확인할 수 없음 · NO_DATA",
+                "[추정 · 확신도 낮음] 백업 작업과 관련된 근거는 수집되지 않았습니다.",
+                "확인 방법: 백업 작업 로그를 확인합니다.",
+            ]
+        ),
+    )
+    assert final["content"].startswith("확인할 수 없음")
+    assert top["title"] in final["content"]  # 대안 원인을 이름으로 제시
+    assert set(top["evidence_ids"]) <= set(final["evidence_ids"])
+    # 덧붙인 근거도 리포트에 있는 것만 (SAFE-08)
+    assert set(final["evidence_ids"]) <= _report_evidence_ids(seeded.shared_db_path, 1)
+
+
+def test_llm_answer_with_alternative_is_kept(seeded, packs_dir, monkeypatch):
+    """LLM 이 이미 리포트 원인 후보를 짚었으면 그대로 둔다 (중복 추정 없음)."""
+    top = _top_cause(seeded.shared_db_path, 1)
+    content = chr(10).join(
+        [
+            "확인할 수 없음 · NOT_COLLECTED",
+            f"[추정 · 확신도 낮음] 백업보다는 '{top['title']}'일 가능성이 큽니다 ({top['evidence_ids'][0]}).",
+            "확인 방법: 상위 프로세스와 백업 스케줄을 확인하세요.",
+        ]
+    )
+    final = _ask_llm(seeded, packs_dir, monkeypatch, content)
+    assert final["content"] == content
+    assert final["content"].count("[추정") == 1

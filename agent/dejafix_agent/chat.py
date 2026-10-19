@@ -414,11 +414,28 @@ def answer(
         if h.get("chunk_id") and h["chunk_id"] in content
     ]
     evidence = [sk["evidence_id"]] if cited else []
+    content = _ensure_alternative(content, context)
     # 추정 단락이 인용한 근거 ID 도 리포트에 실제로 있는 것만 붙인다 (SAFE-08)
     evidence += [
         e for e in _report_evidence(context) if e in content and e not in evidence
     ]
     return Answer(content, evidence, [], True)
+
+
+def _ensure_alternative(content: str, context: dict[str, Any]) -> str:
+    """'확인할 수 없음'으로 답하면서 리포트 원인 후보를 하나도 짚지 않았으면 대안 추정을 덧붙인다.
+
+    LLM 이 물어본 원인(예: 백업)의 근거 없음만 반복하는 경우를 막는다. 덧붙이는 문장은
+    _hypothesis 가 리포트에 이미 있는 원인·근거로만 만든다 (새 수치 없음, SAFE-08).
+    """
+    report = context.get("report") or {}
+    if not content.lstrip().startswith("확인할 수 없음"):
+        return content
+    causes = [c for c in report.get("causes") or [] if c.get("evidence_ids")]
+    if not causes or any(c.get("title") and c["title"] in content for c in causes):
+        return content
+    hyp, _ = _hypothesis(report)
+    return content.rstrip() + "\n\n" + hyp
 
 
 def _report_evidence(context: dict[str, Any]) -> list[str]:
