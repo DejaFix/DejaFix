@@ -1438,9 +1438,6 @@ table.data tr.hl td {
   padding: 12px 10px 4px;
   border-top: 1px solid var(--border);
 }
-.syslist + .sidebar-foot {
-  margin-top: 0;
-}
 .syslist-head {
   padding: 0 4px 6px;
   font-size: 12px;
