@@ -60,7 +60,7 @@ export default function IncidentDetail({ embedded = false }: { embedded?: boolea
         <div className="embedded-actions">
           <button
             className="btn dark"
-            onClick={() => ask(`의 '' 장애 원인을 알려줘`)}
+            onClick={() => ask(`${incident.host.name ?? '이 서버'}의 '${incident.title}' 장애 원인을 알려줘`)}
           >
             <Icon name="sparkle" size={16} />
             AI에게 묻기
