@@ -9,6 +9,8 @@ import { AuthProvider } from './state/AuthProvider'
 import { PrefsProvider } from './state/PrefsProvider'
 import './styles/tokens.css'
 import './styles/global.css'
+import './styles/theme.css'
+import './styles/shell.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },

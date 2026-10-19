@@ -16,7 +16,7 @@ import { ApiError } from '../lib/http'
 import { useIncidentDetail } from '../lib/queries'
 import { useAssistant } from '../state/assistant'
 
-export default function IncidentDetail() {
+export default function IncidentDetail({ embedded = false }: { embedded?: boolean }) {
   const { id = '' } = useParams()
   const { ask } = useAssistant()
   const { data: res, isLoading, isError, error } = useIncidentDetail(id)
@@ -25,6 +25,7 @@ export default function IncidentDetail() {
   const data = res?.data
   const known = useMemo(() => new Set((data?.evidence ?? []).map((e) => e.id)), [data])
 
+  if (embedded && !data) return null // 요약 화면이 불러오는 중·없음 상태를 먼저 처리한다
   if (isLoading)
     return (
       <div className="page">
@@ -54,7 +55,20 @@ export default function IncidentDetail() {
   const toggle = (evId: string) => setOpenEv((cur) => (cur === evId ? null : evId))
 
   return (
-    <div className="page">
+    <div className={embedded ? 'embedded' : 'page'}>
+      {embedded && (
+        <div className="embedded-actions">
+          <button
+            className="btn dark"
+            onClick={() => ask(`의 '' 장애 원인을 알려줘`)}
+          >
+            <Icon name="sparkle" size={16} />
+            AI에게 묻기
+          </button>
+        </div>
+      )}
+      {!embedded && (
+      <>
       <div className="crumb">
         <Link to="/">현황 · 장애 대응</Link> / 장애 상세
       </div>
@@ -77,6 +91,8 @@ export default function IncidentDetail() {
           AI에게 묻기
         </button>
       </div>
+      </>
+      )}
       {isError && <p className="card-sub">갱신 실패 — 마지막으로 받은 내용을 표시 중입니다.</p>}
 
       {!report ? (
