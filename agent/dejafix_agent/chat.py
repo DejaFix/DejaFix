@@ -206,6 +206,7 @@ def _load_context(conn: sqlite3.Connection, incident_id: int | None) -> dict[str
             "facts": json.loads(rep["facts_json"]),
             "unknowns": json.loads(rep["unknowns_json"]),
             "causes": json.loads(rep["causes_json"]),
+            "next_checks": json.loads(rep["next_checks_json"]),
         }
     return ctx
 
@@ -352,13 +353,41 @@ def _report_answer(message: str, context: dict[str, Any], pack: Pack) -> Answer:
                 )
                 evidence += f["evidence_ids"]
         return Answer(head + "\n" + "\n".join(lines), evidence, unknowns, False)
+    hypothesis, evidence = _hypothesis(report)
     return Answer(
-        head
-        + f" 리포트 요약: {report['summary']}\n질문하신 내용은 수집되지 않아 확인할 수 없습니다.",
-        [],
+        "확인할 수 없음 · 질문하신 내용은 수집 대상이 아닙니다 (NOT_COLLECTED).\n"
+        + head
+        + f" 리포트 요약: {report['summary']}\n\n"
+        + hypothesis,
+        evidence,
         [{"label": message[:40], "reason": "NOT_COLLECTED"}],
         False,
     )
+
+
+def _hypothesis(report: dict[str, Any]) -> tuple[str, list[str]]:
+    """모르는 질문에 덧붙이는 추정. 새 값을 만들지 않고 리포트의 원인 후보·확인할 것만 다시 쓴다 (SAFE-08)."""
+    causes = [c for c in report.get("causes") or [] if c.get("evidence_ids")]
+    checks = report.get("next_checks") or []
+    if not causes:
+        how = (
+            checks[0]
+            if checks
+            else "장애 상세의 근거 패널에서 수집된 지표를 확인하세요."
+        )
+        return f"추정할 근거가 부족합니다.\n확인 방법: {how}", []
+    top = min(causes, key=lambda c: c.get("rank") or 99)
+    ids = list(top["evidence_ids"])
+    how = top.get("verify") or (checks[0] if checks else "")
+    lines = [
+        "[추정 · 확신도 낮음]",
+        f"수집된 근거로는 리포트 원인 후보 1순위 '{top['title']}' 쪽일 가능성이 더 큽니다 (근거 {', '.join(ids)}).",
+    ]
+    if top.get("reasoning"):
+        lines.append(f"- 이유: {top['reasoning']}")
+    if how:
+        lines.append(f"확인 방법: {how}")
+    return "\n".join(lines), ids
 
 
 def answer(
@@ -385,7 +414,21 @@ def answer(
         if h.get("chunk_id") and h["chunk_id"] in content
     ]
     evidence = [sk["evidence_id"]] if cited else []
+    # 추정 단락이 인용한 근거 ID 도 리포트에 실제로 있는 것만 붙인다 (SAFE-08)
+    evidence += [
+        e for e in _report_evidence(context) if e in content and e not in evidence
+    ]
     return Answer(content, evidence, [], True)
+
+
+def _report_evidence(context: dict[str, Any]) -> list[str]:
+    report = context.get("report") or {}
+    ids: list[str] = []
+    for item in (report.get("facts") or []) + (report.get("causes") or []):
+        for e in item.get("evidence_ids") or []:
+            if e not in ids:
+                ids.append(e)
+    return ids
 
 
 def finish(
