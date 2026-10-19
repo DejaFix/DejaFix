@@ -428,7 +428,7 @@ def _report_evidence_ids(db_path, incident_id):
 
 
 def test_unknown_answer_states_unknown_first_then_hypothesis(seeded, packs_dir):
-    """모르는 질문: 첫 줄은 '확인할 수 없음', 그다음 리포트 근거로 만든 추정과 확인 방법."""
+    """모르는 질문: 첫 줄은 근거가 없다는 문장(코드 대신), 그다음 리포트 근거로 만든 관련 답과 확인 방법."""
     with client_for(seeded, packs_dir) as c:
         final = parse(
             post(
@@ -440,10 +440,14 @@ def test_unknown_answer_states_unknown_first_then_hypothesis(seeded, packs_dir):
             ).text
         )[-1][1]
     lines = final["content"].splitlines()
-    assert lines[0].startswith("확인할 수 없음") and "NOT_COLLECTED" in lines[0]
+    # 첫 줄은 사람이 읽는 문장: 근거가 없다는 사실을 먼저, 사유 코드는 쓰지 않는다
+    assert lines[0] == "질문하신 내용에 대한 근거는 수집된 데이터에 없습니다."
+    assert "확인할 수 없음" not in final["content"]
+    assert "NOT_COLLECTED" not in final["content"] and "NO_DATA" not in final["content"]
     assert (
-        "[추정 · 확신도 낮음]" in final["content"] and "확인 방법:" in final["content"]
+        "(추정 · 확신도 낮음)" in final["content"] and "확인 방법:" in final["content"]
     )
+    # 기록용 unknowns 에는 NOT_COLLECTED 를 그대로 남긴다(FR-AG-009)
     assert final["unknowns"] == [
         {"label": "이 서버 백업 작업이 원인인가?", "reason": "NOT_COLLECTED"}
     ]
@@ -466,7 +470,7 @@ def test_hypothesis_needs_cause_with_evidence():
         "next_checks": ["상위 프로세스 확인"],
     }
     text, ids = chat._hypothesis(report)
-    assert ids == [] and "[추정" not in text
+    assert ids == [] and "추정 · 확신도" not in text
     assert (
         text == "추정할 근거가 부족합니다." + chr(10) + "확인 방법: 상위 프로세스 확인"
     )
@@ -479,8 +483,8 @@ def test_llm_hypothesis_evidence_only_from_report(seeded, packs_dir, monkeypatch
         "complete_text",
         lambda s, p: chr(10).join(
             [
-                "확인할 수 없음 · NOT_COLLECTED",
-                f"[추정 · 확신도 낮음] 고부하 프로세스 ({known}, ev_zz)",
+                "백업 작업이 원인이라는 근거는 수집된 데이터에 없습니다.",
+                f"수집된 근거로 보면 고부하 프로세스 쪽입니다 ({known}, ev_zz) (추정 · 확신도 낮음)",
                 "확인 방법: 상위 프로세스",
             ]
         ),
