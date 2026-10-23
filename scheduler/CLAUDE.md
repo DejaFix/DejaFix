@@ -9,7 +9,8 @@
 - [이후] 일일 지표 요약·사양 수집·보관 정리 — 지금 만들지 않는다
 
 ## 하지 않는 것
-- Agent·Backend·LLM 호출 (구조도에 없는 화살표)
+- Agent·Backend 호출, LLM 문장 생성 호출 (구조도에 없는 화살표)
+  - 예외([이후] 재색인): `kb_jobs`가 부르는 `libs/kb` 색인기는 임베딩 API(`KB_EMBED_*`)를 호출한다. 임베딩은 문장을 만들지 않고 숫자 벡터만 받으므로 결정 017 "Agent 밖 임베딩 호출"에 따라 허용된다. 보내기 전 IP·비밀값 가림(NFR-RAG-001)은 `libs/kb`(`redact`)가 하고, 키가 없으면 키워드 색인만 한다
 - 자기 테이블(`incidents`, `scheduler_jobs`) 밖 쓰기, `backend.db` 직접 접근(해결 메모는 `libs/kb`가 `mode=ro`로만 읽음)
 - Zabbix 직접 HTTP 호출 — 반드시 `libs/zabbix_ro` 경유
 
