@@ -20,6 +20,7 @@ from dejafix_backend.routers import (
     dashboard,
     health,
     incidents,
+    orchestrator,
     problems,
 )
 from dejafix_backend.seed import ensure_seed_users
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
         problems.router,
         incidents.router,
         chat.router,
+        orchestrator.router,
     ):
         app.include_router(router, prefix="/api")
     return app

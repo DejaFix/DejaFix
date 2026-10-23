@@ -71,6 +71,9 @@ def test_required_routes_are_exposed(client):
         ("get", "/api/incidents/{incident_id}"),
         ("post", "/api/chat"),
         ("get", "/healthz"),
+        # [선택] 확장: 총괄 읽기 중계 (contracts/api.md 6장, 읽기 전용 GET 두 개)
+        ("get", "/api/orchestrator/incidents"),
+        ("get", "/api/orchestrator/departments"),
     }
     exposed = {(m, p) for p, ops in paths.items() for m in ops}
     assert exposed == expected  # [선택]·[이후] API 를 미리 만들지 않았다

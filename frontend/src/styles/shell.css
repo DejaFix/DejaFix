@@ -56,6 +56,11 @@
   color: var(--side-text);
   font-weight: 600;
 }
+.sidebar .nav-item.sub {
+  padding: 9px 18px 9px 48px;
+  font-size: 13px;
+  font-weight: 500;
+}
 .sidebar .nav-item:hover {
   background: var(--side-line);
 }
@@ -117,7 +122,8 @@
   padding: 0;
   justify-content: center;
 }
-.shell.collapsed .sidebar .nav-item {
+.shell.collapsed .sidebar .nav-item,
+.shell.collapsed .sidebar .nav-item.sub {
   justify-content: center;
   padding: 13px 0;
 }

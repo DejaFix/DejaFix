@@ -1,0 +1,155 @@
+/* 관리자 > 총괄 에이전트 화면. 색·모서리는 전부 토큰(tokens.css)만 쓴다. 공통 컴포넌트(common-frontend)의 클래스는 건드리지 않는다. */
+.orch-section {
+  margin: 28px 0 12px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+.orch-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.orch-grade {
+  margin-left: 6px;
+}
+.orch-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-align: left;
+}
+.orch-link:hover {
+  text-decoration: underline;
+}
+.orch-incident > .card {
+  min-width: 0;
+}
+.orch-log {
+  max-height: 240px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--code-bg);
+  color: var(--code-fg);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+.orch-log .t {
+  color: var(--text-3);
+  margin-right: 12px;
+}
+.orch-log .lv {
+  font-weight: 700;
+  margin-right: 10px;
+}
+.orch-log .lv.info {
+  color: #6bb8ff;
+}
+.orch-log .lv.warn {
+  color: #f1c463;
+}
+.orch-summary {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.8;
+  font-size: 13.5px;
+}
+
+/* 부서 에이전트: 왼쪽 카드 목록 + 오른쪽 상세 */
+.orch-dept-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .orch-dept-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.orch-dept-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.orch-dept-list > .card {
+  margin-top: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.orch-dept.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.orch-dept-head,
+.orch-dept-foot,
+.orch-detail-head {
+  display: flex;
+  justify-content: space-between;
+}
+.orch-dept-head {
+  align-items: flex-start;
+}
+.orch-dept-foot {
+  align-items: flex-end;
+  margin-top: 10px;
+}
+.orch-dept-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.orch-dept-num {
+  font-size: 20px;
+  font-weight: 800;
+}
+.orch-dept-num small {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.orch-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+}
+.orch-dot.ok {
+  background: var(--primary);
+}
+.orch-dot.bad {
+  background: var(--sev-high);
+}
+.orch-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.orch-detail > .card,
+.orch-detail > .grid {
+  margin-top: 0;
+}
+.orch-detail-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+.orch-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.orch-spark-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}

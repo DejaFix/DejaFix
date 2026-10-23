@@ -18,6 +18,7 @@ interface NavDef {
   end?: boolean
   adminOnly?: boolean
   soon?: boolean // L1 예정 메뉴: '준비 중' 표시(FR-FE-013)
+  sub?: boolean // 위 메뉴 아래에 들여 쓴 하위 메뉴(관리자 > 총괄 에이전트)
 }
 
 const nav: NavDef[] = [
@@ -27,7 +28,8 @@ const nav: NavDef[] = [
   { to: '/reports', label: '리포트', icon: 'report' },
   { to: '/plans', label: '변경 계획', icon: 'plan' },
   { to: '/alerts', label: '알림', icon: 'bell' },
-  { to: '/admin', label: '관리자', icon: 'admin', adminOnly: true },
+  { to: '/admin', label: '관리자', icon: 'admin', end: true, adminOnly: true },
+  { to: '/admin/orchestrator', label: '총괄 에이전트', icon: 'agent', adminOnly: true, sub: true },
 ]
 
 export function Layout() {
@@ -101,7 +103,15 @@ export function Layout() {
             aria-expanded={!collapsed}
             onClick={toggleSidebar}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -113,7 +123,7 @@ export function Layout() {
             key={n.to}
             to={n.to}
             end={n.end}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${n.sub ? 'sub' : ''} ${isActive ? 'active' : ''}`}
           >
             <Icon name={n.icon} />
             <span className="nav-label">{n.label}</span>
@@ -125,7 +135,10 @@ export function Layout() {
       </aside>
       <div className={`main ${open ? 'panel-open' : ''}`}>
         <header className="topbar">
-          <UrgentBanner incidents={openIncidents.isError ? undefined : openIncidents.data?.data} failed={openIncidents.isError} />
+          <UrgentBanner
+            incidents={openIncidents.isError ? undefined : openIncidents.data?.data}
+            failed={openIncidents.isError}
+          />
           <div className="seg" role="group" aria-label="시간대">
             {(['KST', 'UTC'] as const).map((z) => (
               <button key={z} className={tz === z ? 'on' : ''} onClick={() => setTz(z)}>
