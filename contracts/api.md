@@ -49,6 +49,7 @@
 | 422 | `VALIDATION_ERROR` | 요청 본문·쿼리 형식 오류, 잘못된 `cursor` |
 | 502 | `AGENT_UNAVAILABLE` | #18 비스트리밍에서 Agent 연결 실패·중단. 스트림 모드는 `event: error` |
 | 503 | `ZABBIX_UNAVAILABLE` | #6 Zabbix 조회 실패. 상단 경고 배너 |
+| 503 | `ORCHESTRATOR_UNAVAILABLE` | #26·#27 총괄이 연결되지 않았거나 응답하지 않음. 화면은 "확인할 수 없음" |
 | 503 | `SHARED_DB_UNAVAILABLE` | #10·#11 `shared.db` 가 아직 없음(Agent·Scheduler 기동 전). 요청마다 재시도 |
 | 500 | `INTERNAL_ERROR` | 처리되지 않은 서버 오류 |
 
@@ -320,3 +321,52 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 
 - 계약 변경은 **계약 PR → 구현 PR** 순서, 2인 승인. 이 파일을 바꾸면 `docs/plan.md` 7장의 해당 줄도 같은 PR 에서 고친다.
 - FastAPI OpenAPI(`/docs`)와 프론트 MSW 가 이 문서와 일치해야 한다(FR-INF-008).
+
+## 6. 확장 엔드포인트 — 총괄(orchestrator) 읽기 중계 [선택]
+
+DejaFix 장애 대응에서 부서 에이전트들이 한 일을 모아 두는 **총괄 에이전트**의 기록을 관리자 화면(`/admin/orchestrator`)에서 본다.
+필수 8개와 별개의 [선택] 확장이고, 2장 표와 필수 8개 테스트에는 들어가지 않는다.
+
+| # | 메서드·경로 | 최소 역할 | 데이터 출처 |
+|---|---|---|---|
+| 26 | `GET /api/orchestrator/incidents` | admin | 총괄 `GET /api/incidents` 읽기 중계 |
+| 27 | `GET /api/orchestrator/departments` | admin | 총괄 `GET /api/departments` 읽기 중계 |
+
+공통 규칙
+- **읽기 전용**: Backend 가 총괄로 보내는 요청은 위 두 GET 뿐이다. 승인·장애 주입 같은 쓰기 경로는 중계하지 않고, 화면에도 실행·승인 버튼이 없다(SAFE-04).
+- **그대로 중계**: 분석·원인·티어·문장을 만들거나 바꾸지 않는다. 단계(`steps[]`)의 결과 본문 `output`만 뺀다.
+- 총괄 주소는 `ORCHESTRATOR_URL`(비어 있으면 연결 안 됨). 총괄이 없거나 5초 안에 정상 응답하지 않으면 **503 `ORCHESTRATOR_UNAVAILABLE`** 이고, 화면은 "확인할 수 없음"으로 그린다(지어낸 값 금지, SAFE-08).
+- 봉투는 필수 API 와 같다: `{data, meta}`. `meta.source` 는 항상 `"orchestrator"`, `meta.mock` 은 총괄이 목 모드인지.
+
+### #26 `GET /api/orchestrator/incidents`
+`data` = 사건 배열(오래된 것부터). 한 사건:
+```json
+{
+  "context_id": "ctx_inc_ab12cd34ef56", "kind": "scenario_a", "title": "payment 장애 감지 (error_rate_5xx)",
+  "component": "payment", "status": "open | resolved | degraded",
+  "opened_at": "2026-10-23T01:00:00Z", "closed_at": "2026-10-23T01:00:05Z",
+  "steps": [{"step_id": "diagnose", "skill": "diagnose_incident", "label": "원인 진단 (infra)", "dept": "infra",
+             "status": "pending | running | completed | failed | held | skipped | rejected_by_human | transfer_queued",
+             "attempts": 1, "note": "", "grade": "read | A | B | C", "started_at": "...", "finished_at": "...",
+             "transferred_to": null, "reason_code": null}],
+  "events": [{"at": "...", "message": "사건 시작: ..."}],
+  "summary": ["원인 진단 (infra) [infra] 완료"],
+  "metrics": {"mttr_seconds": 4.2, "steps_total": 12, "steps_completed": 12, "held": 0, "transfers": 0, "retries": 0, "auto_rate": 1.0},
+  "pending_holds": [{"step_id": "rollback", "skill": "rollback_deployment", "label": "원인 배포 롤백 (B)"}]
+}
+```
+
+### #27 `GET /api/orchestrator/departments`
+`data` = 부서 배열. `meta` 에 `window_seconds`(그래프 구간, 600)·`bucket_seconds`(30).
+```json
+{
+  "name": "marketing", "owner": "재헌", "mode": "mock | real", "available": true, "unavailable_reason": null,
+  "skills": [{"id": "publish_notice", "grade": "A", "priority": "required", "orchestrator": true,
+              "calls": 5, "errors": 1, "success_rate": 0.8, "avg_ms": 702, "retries": 1,
+              "series": [{"t": "...", "calls": 0, "errors": 0, "avg_ms": null}]}],
+  "usage": {"calls": 9, "errors": 1, "waiting": 0, "success_rate": 0.889, "avg_ms": 702, "p95_ms": 716, "retries": 1, "last_called_at": "..."},
+  "series": [{"t": "...", "calls": 0, "errors": 0, "avg_ms": null}],
+  "recent": [{"at": "...", "skill": "publish_notice", "status": "completed", "outcome": null, "duration_ms": 703, "context_id": "ctx_inc_..."}]
+}
+```
+사용량은 **총괄이 그 부서를 부른 호출을 센 실측**이다. 호출이 없으면 `success_rate`·`avg_ms` 는 `null`(0 으로 지어내지 않는다). 부서 내부의 CPU·메모리는 알 수 없어 없다.

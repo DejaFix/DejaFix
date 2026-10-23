@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dejafix/common-frontend": "git+https://github.com/DejaFix/common-frontend.git#v0.1.0",
     "@tanstack/react-query": "^5.104.2",
     "echarts": "^6.1.0",
     "react": "^19.2.8",

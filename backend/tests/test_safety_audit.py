@@ -103,9 +103,10 @@ def test_llm_pattern_does_not_flag_contract_names_and_error_codes(line):
     assert not re.search(LLM_CLIENT_PATTERN, line, re.IGNORECASE), line
 
 
-# Backend 가 HTTP 로 부르는 곳은 Agent(채팅 중계)와 Agent·MCP 상태 확인뿐이다. 새 호출처가 생기면 여기서 걸린다.
+# Backend 가 HTTP 로 부르는 곳은 Agent(채팅 중계)와 Agent·MCP 상태 확인, 총괄(orchestrator) 읽기 중계(GET 두 개,
+# contracts/api.md 6장)뿐이다. 새 호출처가 생기면 여기서 걸린다.
 HTTP_CLIENT_IMPORT = r"^\s*(import|from)\s+(httpx|requests|aiohttp|urllib3|urllib\.request|http\.client)\b"
-HTTP_ALLOWED = {"chat.py", "health.py"}
+HTTP_ALLOWED = {"chat.py", "health.py", "orchestrator.py"}
 
 
 def http_client_users(paths):

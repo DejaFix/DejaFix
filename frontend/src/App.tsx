@@ -7,6 +7,7 @@ import ComingSoon from './pages/ComingSoon'
 import Dashboard from './pages/Dashboard'
 import IncidentSummary from './pages/IncidentSummary'
 import Login from './pages/Login'
+import Orchestrator from './pages/Orchestrator'
 import PlanDetail from './pages/PlanDetail'
 import Plans from './pages/Plans'
 import Reports from './pages/Reports'
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="compare" element={<ComingSoon title="서버 비교" />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="admin" element={<Admin />} />
+        <Route path="admin/orchestrator" element={<Orchestrator />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

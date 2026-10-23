@@ -45,6 +45,7 @@ uv run pytest backend -q -k <키워드>      # backend 만, 일부만
 | `ZABBIX_URL`·`ZABBIX_API_TOKEN` | (없음) | 실서버 모드에서 필수(`.../api_jsonrpc.php`, 읽기 전용 토큰) |
 | `ZABBIX_VERIFY_TLS` | (비움=검증 켬) | `false`·`0`·`no`·`off`면 인증서 검사 끔 |
 | `AGENT_URL`·`MCP_ZABBIX_URL` | `http://agent:8100`·`http://mcp-zabbix:8200/mcp` | Agent 채팅 중계·health 확인 주소 |
+| `ORCHESTRATOR_URL` | (비움) | [선택] 총괄(orchestrator) 읽기 중계(#26·#27) 주소. 예 `http://localhost:8001`. 비어 있으면 503 `ORCHESTRATOR_UNAVAILABLE` |
 | `INTERNAL_TOKEN` | (비움) | [선택] Backend→Agent 공유 비밀 |
 | `ANALYZE_MIN_SEVERITY` | `2` | 이 심각도 미만 장애는 분석 대상이 아님(`analysis.status` skipped/pending 구분) |
 | `CORS_ORIGINS` | `http://localhost:5173` | 쉼표 구분 |
@@ -68,7 +69,7 @@ uv run pytest backend -q -k <키워드>      # backend 만, 일부만
 | 위치 | 하는 일 |
 |---|---|
 | `dejafix_backend/main.py` | 앱 조립·기동(스키마 적용·시드 계정). 메일 워커 기동 연결은 PR 86 머지 후 |
-| `routers/` | API 8개(`auth`·`health`·`dashboard`·`problems`·`incidents`·`chat`) |
+| `routers/` | API 8개(`auth`·`health`·`dashboard`·`problems`·`incidents`·`chat`) + [선택] `orchestrator`(총괄 읽기 중계 #26·#27, `contracts/api.md` 6장) |
 | `db.py`·`deps.py` | DB 연결(shared 읽기 전용 ATTACH)·현재 사용자·역할 검사 |
 | `mail/` | 메일 워커(리포트당 수신자별 1회, 재시도, 본문 7항목) |
 | `envelope.py`·`errors.py` | 응답 봉투·오류 형식 |

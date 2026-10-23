@@ -10,6 +10,9 @@ import type {
   IncidentDetail,
   IncidentStatus,
   ListMeta,
+  OrchestratorDepartment,
+  OrchestratorIncident,
+  OrchestratorMeta,
   Problem,
   ProblemsMeta,
 } from './types'
@@ -40,6 +43,8 @@ export const queryKeys = {
   problems: (params: ProblemsParams) => ['problems', params] as const,
   incidents: (params: IncidentsParams) => ['incidents', params] as const,
   incidentDetail: (id: number) => ['incidents', 'detail', id] as const,
+  orchestratorIncidents: ['orchestrator', 'incidents'] as const,
+  orchestratorDepartments: ['orchestrator', 'departments'] as const,
 }
 
 /** #4 GET /api/health — 상단 연결 상태. 실패 중에는 data가 undefined(연결 상태를 '확인할 수 없음'으로) */
@@ -104,4 +109,32 @@ export function useIncidentDetail(id: number | string | undefined) {
     enabled: valid,
     ...polling,
   })
+}
+
+// 총괄 읽기 중계(#26·#27, contracts/api.md 6장). 사건이 몇 초 만에 진행되어서 이 화면만 5초마다 다시 조회한다.
+// (현황 홈·장애 상세·연결 상태의 15초 규칙(FR-FE-012)과 별개 — 총괄 화면은 필수 화면이 아니다.)
+// 총괄이 없으면 error.code 'ORCHESTRATOR_UNAVAILABLE'(503)이고 data는 undefined → 화면은 '확인할 수 없음'을 그린다.
+export const ORCHESTRATOR_REFETCH_MS = 5_000
+const orchestratorPolling = { refetchInterval: ORCHESTRATOR_REFETCH_MS, retry } as const
+
+export function useOrchestratorIncidents(enabled = true) {
+  const query = useQuery<ApiResponse<OrchestratorIncident[], OrchestratorMeta>, ApiError>({
+    queryKey: queryKeys.orchestratorIncidents,
+    queryFn: ({ signal }) =>
+      apiRequest<OrchestratorIncident[], OrchestratorMeta>('/api/orchestrator/incidents', { signal }),
+    enabled,
+    ...orchestratorPolling,
+  })
+  return hideDataOnError(query)
+}
+
+export function useOrchestratorDepartments(enabled = true) {
+  const query = useQuery<ApiResponse<OrchestratorDepartment[], OrchestratorMeta>, ApiError>({
+    queryKey: queryKeys.orchestratorDepartments,
+    queryFn: ({ signal }) =>
+      apiRequest<OrchestratorDepartment[], OrchestratorMeta>('/api/orchestrator/departments', { signal }),
+    enabled,
+    ...orchestratorPolling,
+  })
+  return hideDataOnError(query)
 }

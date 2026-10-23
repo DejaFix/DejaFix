@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 import { dashboardSummary, health, incidentDetails, incidentList, problems } from '../lib/mock'
 import type { AuthUser, ChatEvent, DashboardSummary, Health, Incident, Measured } from '../lib/types'
+import { orchestratorDepartments, orchestratorDepartmentsMeta, orchestratorIncidents } from './orchestratorSample'
 import { passthroughGroups, type ApiGroup } from './passthrough'
 
 // 개발용 목(mock). 응답 형식은 plan.md 7장·노션 요청서 3장: 성공 {data, meta}, 실패 {error:{code, message}}.
@@ -20,7 +21,7 @@ const TOKEN_PREFIX = 'mock-jwt.'
 // 페이지를 다시 불러오기 전까지 유지된다.
 // - zabbix_down: health.zabbix='down', #5 호스트 KPI는 unknown(TOOL_ERROR), #6은 503 ZABBIX_UNAVAILABLE
 // - agent_down: health.agent='down', #18 채팅은 error 이벤트 AGENT_UNAVAILABLE(실제 백엔드가 Agent 없이 주는 응답과 같음)
-const SCENARIOS = ['normal', 'zabbix_down', 'agent_down'] as const
+const SCENARIOS = ['normal', 'zabbix_down', 'agent_down', 'orchestrator_down'] as const
 export type MockScenario = (typeof SCENARIOS)[number]
 const requested: unknown =
   new URLSearchParams(globalThis.location?.search ?? '').get('scenario') ?? import.meta.env.VITE_MOCK_SCENARIO
@@ -58,6 +59,24 @@ function userFromRequest(request: Request): AuthUser | null {
 }
 
 const unauthorized = () => error(401, 'UNAUTHORIZED', '로그인이 필요합니다')
+
+// ---- 총괄 읽기 중계(#26·#27) 샘플: 실제 총괄이 준 응답을 지금 기준으로 시각만 옮겨서 돌려준다 ----
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
+function shiftTimes<T>(value: T, shiftMs: number): T {
+  if (typeof value === 'string' && ISO_TIME.test(value)) {
+    return new Date(Date.parse(value) + shiftMs).toISOString().replace(/\.\d{3}Z$/, 'Z') as T
+  }
+  if (Array.isArray(value)) return value.map((v) => shiftTimes(v, shiftMs)) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shiftTimes(v, shiftMs)])) as T
+  }
+  return value
+}
+/** 샘플의 마지막 사건이 방금 끝난 것처럼 보이게 옮길 시간 */
+const orchestratorShiftMs = () => {
+  const last = orchestratorIncidents[orchestratorIncidents.length - 1]
+  return Date.now() - 20_000 - Date.parse(last?.closed_at ?? new Date().toISOString())
+}
 
 // ---- 시나리오별 데이터 ----
 function currentHealth(): Health {
@@ -236,6 +255,36 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
       await delay(RESPONSE_DELAY_MS)
       const detail = incidentDetails[Number(params.id)]
       return detail ? ok(detail) : error(404, 'NOT_FOUND', '장애를 찾을 수 없습니다')
+    }),
+  ],
+
+  orchestrator: [
+    // #26 총괄 사건 목록 — admin 전용 읽기 중계. 총괄이 없을 때(시나리오 orchestrator_down)는 503
+    http.get('/api/orchestrator/incidents', async ({ request }) => {
+      const user = userFromRequest(request)
+      if (!user) return unauthorized()
+      if (user.role !== 'admin') return error(403, 'FORBIDDEN', '권한이 없습니다')
+      await delay(RESPONSE_DELAY_MS)
+      if (SCENARIO === 'orchestrator_down') {
+        return error(503, 'ORCHESTRATOR_UNAVAILABLE', '총괄(orchestrator)에 연결할 수 없습니다')
+      }
+      return ok(shiftTimes(orchestratorIncidents, orchestratorShiftMs()), { source: 'orchestrator', mock: true })
+    }),
+
+    // #27 총괄 부서별 카드·사용량 — admin 전용
+    http.get('/api/orchestrator/departments', async ({ request }) => {
+      const user = userFromRequest(request)
+      if (!user) return unauthorized()
+      if (user.role !== 'admin') return error(403, 'FORBIDDEN', '권한이 없습니다')
+      await delay(RESPONSE_DELAY_MS)
+      if (SCENARIO === 'orchestrator_down') {
+        return error(503, 'ORCHESTRATOR_UNAVAILABLE', '총괄(orchestrator)에 연결할 수 없습니다')
+      }
+      return ok(shiftTimes(orchestratorDepartments, orchestratorShiftMs()), {
+        ...orchestratorDepartmentsMeta,
+        source: 'orchestrator',
+        mock: true,
+      })
     }),
   ],
 
