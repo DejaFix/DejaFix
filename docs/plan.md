@@ -1238,7 +1238,7 @@ fallback_plans:
 | 8 | `GET /api/hosts/{hostid}` | viewer | 상세 + 최근 사양 스냅샷 | Zabbix + shared | P1 |
 | 9 | `GET /api/hosts/{hostid}/metrics?keys=cpu,mem,disk&range=1h` | viewer | 시계열 | Zabbix `history.get`/`trend.get` | P1 |
 | 10 | `GET /api/incidents?status=&severity_min=` | viewer | 수집된 장애 + 분석 상태 | shared | P0 |
-| 11 | `GET /api/incidents/{id}` | viewer | 장애 + 최신 리포트 + 근거 + 최신 계획 + 메일 기록 | shared + backend | P0 |
+| 11 | `GET /api/incidents/{id}` | viewer | 장애 + 최신 리포트 + 근거 + 최신 계획 + 메일 기록 + (선택) `knowledge_hits[]`(과거 유사 사례, 저장된 검색 결과 옮김) | shared + backend | P0 |
 | 12 | `POST /api/incidents/{id}/analyze` | operator | 다시 분석 → Agent 중계, `202 {run_id}` | Agent | P1 |
 | 13 | `GET /api/runs/{run_id}` | viewer | 분석 진행 상태(폴링) | shared | P1 |
 | 14 | `GET /api/reports?incident_id=` / `GET /api/reports/{id}` | viewer | 리포트 목록·상세(근거 포함) | shared | P0 |
