@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { ResolutionNotes } from '../components/ResolutionNotes'
 import {
   AnalysisBadge,
   ConfidenceChip,
@@ -229,6 +230,8 @@ export default function IncidentDetail({ embedded = false }: { embedded?: boolea
           ))}
         </section>
       )}
+
+      {incident.status === 'resolved' && <ResolutionNotes incidentId={incident.id} />}
 
       <section className="card">
         <div className="card-head">

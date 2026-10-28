@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 import { dashboardSummary, health, incidentDetails, incidentList, problems } from '../lib/mock'
 import type { AuthUser, ChatEvent, DashboardSummary, Health, Incident, Measured } from '../lib/types'
+import { notesHandlers } from './notesHandlers'
 import { passthroughGroups, type ApiGroup } from './passthrough'
 
 // 개발용 목(mock). 응답 형식은 plan.md 7장·노션 요청서 3장: 성공 {data, meta}, 실패 {error:{code, message}}.
@@ -237,6 +238,9 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
       const detail = incidentDetails[Number(params.id)]
       return detail ? ok(detail) : error(404, 'NOT_FOUND', '장애를 찾을 수 없습니다')
     }),
+
+    // 해결 메모(이슈 #153 제안, 계약 전) — 목 전용
+    ...notesHandlers(userFromRequest),
   ],
 
   chat: [
