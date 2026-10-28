@@ -5,7 +5,7 @@ import { NOTE_MAX_LENGTH, type ResolutionNote } from '../lib/notesApi'
 const notes: ResolutionNote[] = [
   {
     id: 1,
-    incident_id: 2,
+    incident_id: 9,
     author_user_id: 2,
     author_name: '당직자',
     root_cause: '배치 작업이 임시 파일을 지우지 않아 디스크가 찼음',
