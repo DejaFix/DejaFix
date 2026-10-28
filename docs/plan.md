@@ -877,7 +877,7 @@ QUEUED → COLLECTING → ANALYZING → VALIDATING → REPORTED → PLANNING →
 |---|---|---|
 | incidents, hosts_snapshot, metrics_daily, scheduler_jobs | shared | Scheduler |
 | agent_runs, tool_calls, analysis_reports, change_plans, plan_steps, conversations, messages | shared | Agent |
-| users, notification_recipients, mail_logs, plan_reviews, audit_logs | backend | Backend |
+| users, notification_recipients, mail_logs, plan_reviews, audit_logs, **[이후]** resolution_notes | backend | Backend |
 
 ### 5-2. `shared.db` DDL 초안
 
@@ -1091,6 +1091,18 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   ip          TEXT,
   created_at  TEXT NOT NULL
 );
+
+
+-- [이후] 해결 메모 (Issue #153). 사람만 작성, incident_id 는 FK 없이 앱에서 존재 확인
+CREATE TABLE IF NOT EXISTS resolution_notes (
+  id             INTEGER PRIMARY KEY,
+  incident_id    INTEGER NOT NULL,          -- shared.incidents.id
+  author_user_id INTEGER NOT NULL REFERENCES users(id),
+  root_cause     TEXT,
+  action_taken   TEXT,
+  result         TEXT,
+  created_at     TEXT NOT NULL              -- UTC ISO8601
+);
 ```
 
 ### 5-4. 보관 기간 (Scheduler retention 작업)
@@ -1253,6 +1265,8 @@ fallback_plans:
 | 23 | `GET/POST/PATCH/DELETE /api/notification-recipients` | admin | 수신자 관리 | backend | P1 |
 | 24 | `GET /api/admin/users` | admin | 사용자 목록 | backend | P2 |
 | 25 | `GET /api/cost/*` | viewer | MVP는 `501 NOT_IMPLEMENTED` | — | L1 |
+| 26 | `GET /api/incidents/{id}/notes` | viewer | **[이후]** 해결 메모 목록(최신 먼저, `author{id,display_name}`). 상세는 `contracts/api.md` #26 | backend | L1 |
+| 27 | `POST /api/incidents/{id}/notes` | operator | **[이후]** `{root_cause, action_taken, result}` 각 1000자 이하, 전부 비면 422. 작성자는 토큰에서만. 사람만 쓴다 | backend (+ shared 존재 확인) | L1 |
 
 - **[B 수정] 등급 매핑**: 위 P 열과 별개로 금요일 등급은 2-4 표를 따른다. [필수] 11개 = #1, #3, #4, #5, #6, #7, #10, #11, #14, #15, #18. v1에서 P0였던 #14·#15는 #11(장애 상세) 응답에 리포트·계획이 이미 들어가므로 **#11이 먼저**, 목록 화면용 #14·#15는 같은 쿼리를 재사용해 마지막에 붙인다. #18 채팅은 SSE가 막히면 비스트리밍 JSON(`{content, evidence_ids, unknowns, tool_calls[]}`)으로 낮춘다(2-4 탈출 규칙 1).
 - **[검토 반영]** **필수 8개로 축소**: #7·#14·#15를 [선택]으로 옮긴다. #7은 KPI 호스트 수를 #5가 직접 계산하고, #14·#15는 소비하는 [필수] 화면(리포트 목록·변경 계획 목록)이 없으며 #11이 리포트·계획을 이미 포함한다. SAFE-04 확인(`execute` 필드 없음, `mode:"preview"`)은 #11 응답에서 한다. 프론트 MSW 핸들러도 8개.
