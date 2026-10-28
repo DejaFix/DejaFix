@@ -10,7 +10,7 @@ import type { DashboardSummary, Incident, Measured, Severity } from '../lib/type
 import { Collapsible } from '../components/Collapsible'
 import { EChart } from '../components/EChart'
 import { AnalysisBadge, SeverityInfoChip, Unknown } from '../components/IncidentParts'
-import { kstShort } from '../components/incidentFormat'
+import { kstShort, readableTitle } from '../components/incidentFormat'
 
 /** Measured 하나를 화면 값으로. unknown이거나 value가 null이면 0·빈칸 대신 UnknownValue(SAFE-10). */
 function MeasuredText({ m }: { m: Measured | undefined }) {
@@ -24,7 +24,9 @@ function IncidentRow({ i }: { i: Incident }) {
     <Link className="alert-row" to={`/incidents/${i.id}`}>
       <SeverityInfoChip severity={i.severity} />
       <div className="alert-main">
-        <div className="alert-name">{i.title}</div>
+        <div className="alert-name" title={i.title}>
+          {readableTitle(i.title)}
+        </div>
         <div className="alert-meta">
           <span className="mono">{i.host.name ?? <Unknown reason="NOT_COLLECTED" />}</span>
           {i.status === 'resolved' && <span className="repeat">해결됨</span>}
@@ -244,7 +246,9 @@ function UrgentCard({ incident, nowMs, loading }: { incident: Incident | undefin
       ) : (
         <Link to={`/incidents/${incident.id}`} className={`urgent sev-${SEV_KEY[incident.severity.level]}`}>
           <span className="urgent-chip">{severityName[incident.severity.level]}</span>
-          <span className="urgent-title">{incident.title}</span>
+          <span className="urgent-title" title={incident.title}>
+            {readableTitle(incident.title)}
+          </span>
           <span className="urgent-meta">
             <span>
               <small>호스트</small>
