@@ -11,6 +11,7 @@ import {
   SeverityInfoChip,
   Unknown,
 } from '../components/IncidentParts'
+import { SimilarCasesCard } from '../components/SimilarCasesCard'
 import { analysisNotes, kstShort } from '../components/incidentFormat'
 import { ApiError } from '../lib/http'
 import { useIncidentDetail } from '../lib/queries'
@@ -196,6 +197,8 @@ export default function IncidentDetail({ embedded = false }: { embedded?: boolea
           </div>
         </div>
       )}
+
+      {report && <SimilarCasesCard report={report} hits={data.knowledge_hits} onPick={pick} />}
 
       {report && (
         <section className="card">
