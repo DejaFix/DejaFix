@@ -4,4 +4,3 @@
 
 | 날짜 | 화면 | 내용 | 제안자 |
 |---|---|---|---|
-| 10/15 | 공통(로그인) | clearLegacy 제거 — `frontend/src/lib/tokenStorage.ts`의 예전 목업 키(`dejafix.user`·`dejafix.session`) 정리 코드, 데모 후 삭제 | 장재현 |
