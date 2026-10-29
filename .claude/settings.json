@@ -44,6 +44,7 @@
       "Bash(gh pr edit * --add-label *)",
       "Bash(gh pr edit * --remove-label ci-failed*)",
       "Bash(gh pr edit * --remove-label conflict*)",
+      "Bash(gh pr edit * --remove-label stale*)",
       "Bash(gh run list*)",
       "Bash(gh run view *)",
       "Bash(gh api user*)",

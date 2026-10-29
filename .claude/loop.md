@@ -37,6 +37,7 @@
 - 회차마다 `gh pr list --author @me --base dev --state open --json number,headRefName,mergeable,reviewDecision,statusCheckRollup,autoMergeRequest`로 상태를 본다.
   - **CI 빨간색**: 실패 로그(`gh run view <run> --log-failed`)를 보고 고쳐서 `git push origin <head 브랜치>`로 push한다. 고치는 동안 `ci-failed` 라벨을 붙이고, 초록이 되면 뗀다.
   - **충돌**(`mergeable=CONFLICTING`): rebase하지 않는다. `git fetch origin` → `git merge origin/dev`(충돌 해결) → 바꾼 영역 테스트 → **일반 push: `git push origin <head 브랜치>`**(인자 없는 `git push`·`origin HEAD`·브랜치 뒤 플래그는 `guard-push.mjs`가 막는다). 해결하는 동안 `conflict` 라벨. force push는 쓰지 않는다(`.claude/settings.json` deny).
+  - **스택은 2단까지만**: 새 PR의 base를 다른 PR 브랜치(부모)로 두려면 먼저 `gh pr list --head <부모 브랜치> --state open --json baseRefName --jq '.[0].baseRefName'` → 결과가 `dev`가 아니면(부모도 다른 PR 위에 쌓인 스택) 그 결과 브랜치로 `gh pr list --head <그 브랜치> --state open --json number --jq length`를 보고, 1 이상이면 새 스택을 만들지 않는다. 부모 PR이 dev에 머지될 때까지 기다리거나 dev에서 따서 올린다.
   - **스택 PR**(base가 다른 PR 브랜치): 부모 PR이 dev에 머지되면 같은 방식으로 `git fetch origin` → `git merge origin/dev` → 테스트 → `git push origin <head 브랜치>`, 그다음 `gh pr edit <번호> --base dev`로 base를 dev로 바꾸고 자동 머지를 다시 예약한다.
   - **변경 요청**(`CHANGES_REQUESTED`): 요청을 반영해 `git push origin <head 브랜치>`로 push하고, 리뷰 코멘트에 "반영 내용 + 돌린 명령·결과"를 한 줄씩 답한다. 내 파트 폴더 밖은 고치지 않는다.
   - push 뒤 예약이 풀렸으면 다시 예약한다.
@@ -49,6 +50,7 @@
 - `contracts/`가 바뀌는 요청이면 계약 PR을 먼저 낸다(`docs/agent-collaboration.md` 3장).
 
 ## 4. 새 작업 — 1~3이 모두 비었을 때만
+- **WIP 한도**: 시작 전에 `gh pr list --author @me --base dev --state open --json number --jq length`. 결과가 **3 이상이면 새 T를 시작하지 않고** 회차 보고에 `WIP 한도`를 적는다(열린 PR을 먼저 머지시킨다).
 - `docs/work-order.md` 3장 레인에서 내 파트의 **다음 T 하나**를 고른다(앞 T가 끝났고, 열린 PR·Issue가 없는 것). [필수]가 남아 있으면 [선택]은 고르지 않는다(루트 CLAUDE.md ⑥).
 - 작업 브랜치 → PR → 2단계 자동 머지 예약. 노션 현황표 체크는 사람에게 알린다.
 
@@ -64,7 +66,7 @@
 - 다른 파트 폴더 파일 수정, `.env` 읽기·편집
 
 ## 회차 끝 보고
-한 줄로: `리뷰 승인 N/변경 요청 N/보류 N · 내 PR 예약 N/CI 수정 N/충돌 N/반영 N · Issue 잡음 N · 새 T <번호|없음> · needs-human N` (dev가 빨강이면 끝에 `· dev 빨강 대기`)
+한 줄로: `리뷰 승인 N/변경 요청 N/보류 N · 내 PR 예약 N/CI 수정 N/충돌 N/반영 N · Issue 잡음 N · 새 T <번호|없음> · needs-human N` (dev가 빨강이면 끝에 `· dev 빨강 대기`, 열린 내 PR이 3개 이상이라 새 T를 안 잡았으면 `· WIP 한도`)
 
 ---
 
@@ -98,7 +100,11 @@
 5. 원인이 코드가 아닌 것 같으면(외부 서비스, 간헐 실패, 러너 문제) revert하지 않고 `needs-human` Issue로 올린다.
 
 ## D3. 아침 8:30 — 밤사이 요약 보고
+- **먼저 stale 정리**: 24시간 넘게 아무 변화가 없는 열린 dev PR(draft 제외)에 `stale` 라벨을 붙인다.
+  - 대상: `gh pr list --base dev --state open --search "draft:false updated:<$(date -u -d '-24 hours' +%Y-%m-%dT%H:%M:%SZ)" --limit 100 --json number,title,author,labels,reviewDecision,updatedAt`
+  - 붙이기: `gh pr edit <번호> --add-label stale` / 이미 `stale`인데 위 목록에 없으면(그사이 갱신됨) `gh pr edit <번호> --remove-label stale`
 - `docs/reports/YYMMDD-0830.md` (KST). 범위: 전날 18:00 ~ 오늘 08:30.
+  0. **맨 위: stale PR** — `stale` 라벨 PR 목록(번호·제목·작성자·마지막 갱신 KST·막힌 이유·누구 차례). 없으면 "stale 없음"
   1. **머지**: dev에 머지된 PR 목록(번호·제목·파트)
   2. **revert**: `auto-revert` PR·Issue와 상태
   3. **막힌 PR**: `ci-failed`·`conflict`·`CHANGES_REQUESTED`·승인 대기 6시간 이상(번호·막힌 이유·누구 차례)
