@@ -805,12 +805,14 @@ name = "scheduler"
 version = "0.1.0"
 source = { editable = "scheduler" }
 dependencies = [
+    { name = "kb" },
     { name = "shared-db" },
     { name = "zabbix-ro" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "kb", editable = "libs/kb" },
     { name = "shared-db", editable = "libs/shared_db" },
     { name = "zabbix-ro", editable = "libs/zabbix_ro" },
 ]
