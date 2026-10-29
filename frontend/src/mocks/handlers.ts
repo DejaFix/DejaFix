@@ -239,7 +239,8 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
       return detail ? ok(detail) : error(404, 'NOT_FOUND', '장애를 찾을 수 없습니다')
     }),
 
-    // 해결 메모(이슈 #153 제안, 계약 전) — 목 전용
+    // 해결 메모(계약 PR #191, Issue #153) — 목 전용. incidents 묶음 안에 있어서 VITE_MSW_PASSTHROUGH=incidents로
+    // 실제 백엔드를 쓰면 백엔드 API(#197)가 머지되기 전에는 이 경로가 없어 "메모를 불러오지 못했습니다"가 보인다.
     ...notesHandlers(userFromRequest),
   ],
 

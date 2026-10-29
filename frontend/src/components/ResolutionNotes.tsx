@@ -55,7 +55,7 @@ export function ResolutionNotes({ incidentId }: { incidentId: number }) {
           {notes.map((n) => (
             <li key={n.id}>
               <strong>
-                {n.author_name} · {kstShort(n.created_at) ?? '—'}
+                {n.author.display_name} · {kstShort(n.created_at) ?? '—'}
               </strong>
               {FIELDS.map(
                 (f) =>
