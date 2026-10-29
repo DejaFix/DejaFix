@@ -8,6 +8,7 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1                 # 목 모드(ZABBIX_MOCK=true), 기본 포트
 #   powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1 -Live           # 실서버 모드(.env 의 ZABBIX_MOCK 그대로)
 #   powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1 -Seed           # data\*.db 가 없으면 시드부터
+#   powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1 -Live -Kb      # RAG(mcp-kb :8300)도 같이. knowledge.db 가 없으면 색인 1회 (결정 017). 안 주면 MCP_KB_URL 을 건드리지 않아 RAG 꺼짐
 #   powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1 -McpPort 18200 -AgentPort 18100 -BackendPort 18000 -FrontendPort 15173 -DataDir C:\tmp\dejafix-data
 [CmdletBinding()]
 param(
@@ -15,12 +16,14 @@ param(
     [int]$AgentPort = 8100,
     [int]$BackendPort = 8000,
     [int]$FrontendPort = 5173,
+    [int]$KbPort = 8300,
     [string]$DataDir = "",          # 비우면 .env 의 SHARED_DB_PATH·BACKEND_DB_PATH 를 그대로 쓴다
     [string]$LogDir = "",           # 기본: <저장소>\data\logs
     [int]$PollSec = 10,             # Scheduler INCIDENT_POLL_SEC (최소 5)
     [switch]$Live,                  # 주면 ZABBIX_MOCK 을 덮어쓰지 않는다
     [switch]$Seed,                  # shared.db·backend.db 가 없을 때만 시드 (있으면 건드리지 않음)
     [switch]$NoFrontend,
+    [switch]$Kb,                    # 주면 mcp-kb(RAG)를 agent 보다 먼저 띄우고 Agent 에 MCP_KB_URL 을 넘긴다
     [int]$TimeoutSec = 90
 )
 
@@ -73,9 +76,40 @@ if ($Seed) {
     }
 }
 
+$results = @()
+
+# ---- RAG (-Kb): 색인이 없으면 1회 만들고, 성공해야 Agent 에 MCP_KB_URL 을 넘긴다 ----
+$kbReady = $false
+if ($Kb) {
+    $env:KB_ROOT = $Root
+    if ($DataDir) { $env:KB_DB_PATH = (Join-Path $DataDir "knowledge.db") }
+    $kbDb = if ($env:KB_DB_PATH) { $env:KB_DB_PATH } else { Join-Path $Root "data\knowledge.db" }
+    if (Test-Path $kbDb) {
+        Write-Host "[kb] $kbDb 가 이미 있어 색인을 건너뜀 (다시 만들려면 python -m dejafix_kb index 를 직접 실행)"
+        $kbReady = $true
+    } else {
+        Write-Host "[kb] 색인 만드는 중 -> $kbDb"
+        & uv run --with python-dotenv --package kb python scripts/run_with_env.py module dejafix_kb index | Out-Null
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $kbDb)) { $kbReady = $true }
+        else { $results += [pscustomobject]@{ service = "mcp-kb"; status = "FAIL"; detail = "색인 실패 - RAG 없이 계속 (uv run ... python -m dejafix_kb index 를 직접 실행해 오류 확인)" } }
+    }
+    if ($kbReady) {
+        $env:MCP_KB_HOST = "127.0.0.1"
+        $env:MCP_KB_PORT = "$KbPort"
+        $env:MCP_KB_URL = "http://127.0.0.1:$KbPort/mcp"
+    }
+}
+
 $services = @(
     @{ name = "mcp-zabbix"; port = $McpPort; health = "http://127.0.0.1:$McpPort/healthz";
-       args = @("run", "--with", "python-dotenv", "--package", "mcp-zabbix", "python", "scripts/run_with_env.py", "module", "mcp_zabbix") },
+       args = @("run", "--with", "python-dotenv", "--package", "mcp-zabbix", "python", "scripts/run_with_env.py", "module", "mcp_zabbix") }
+)
+if ($kbReady) {
+    # agent 가 기동 시 MCP_KB_URL 을 보므로 agent 보다 먼저
+    $services += @{ name = "mcp-kb"; port = $KbPort; health = "http://127.0.0.1:$KbPort/healthz";
+       args = @("run", "--with", "python-dotenv", "--package", "mcp-kb", "python", "scripts/run_with_env.py", "module", "mcp_kb") }
+}
+$services += @(
     @{ name = "agent"; port = $AgentPort; health = "http://127.0.0.1:$AgentPort/healthz";
        args = @("run", "--with", "python-dotenv", "--package", "agent", "python", "scripts/run_with_env.py", "asgi", "dejafix_agent.main:app", "$AgentPort") },
     @{ name = "scheduler"; port = 0; health = "";
@@ -85,7 +119,6 @@ $services = @(
 )
 
 $started = @()
-$results = @()
 foreach ($s in $services) {
     if ($s.port -and (Test-PortBusy $s.port)) {
         $results += [pscustomobject]@{ service = $s.name; status = "SKIP"; detail = "포트 $($s.port) 이미 사용 중 (떠 있는 프로세스는 건드리지 않음)" }
