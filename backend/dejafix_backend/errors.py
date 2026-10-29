@@ -51,6 +51,8 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def _unhandled(_: Request, exc: Exception):
-        log.exception("unhandled error", exc_info=exc)
+    async def _unhandled(request: Request, exc: Exception):
+        # 접근 로그의 request_id 와 같은 값을 남겨 두 줄을 짝지어 찾을 수 있게 한다(응답에는 넣지 않는다)
+        request_id = getattr(request.state, "request_id", None)
+        log.exception("unhandled error request_id=%s", request_id, exc_info=exc)
         return error_response(500, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다")

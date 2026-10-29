@@ -4,7 +4,8 @@
   장애를 열지 않은 질문이면 shared.db 의 열린 장애 목록(Scheduler 수집분, 최대 OVERVIEW_LIMIT 건)을 맥락으로 쓴다.
   Scheduler 마지막 수집이 없거나 OVERVIEW_STALE_SEC 보다 오래되면 목록 대신 '확인할 수 없음 · STALE/NOT_COLLECTED'.
 - LLM 이 없거나 실패하면 규칙 기반 답변: 최신 리포트 요약 + 수집된 사실만.
-  질문 대상이 수집되지 않았으면 "확인할 수 없음 · NOT_COLLECTED".
+  질문 대상이 수집되지 않았으면 첫 줄에 "근거가 수집된 데이터에 없다"는 문장, 이어서 리포트 근거로 관련 답·확인 방법.
+  기록용 unknowns 에는 NOT_COLLECTED 를 남긴다.
 - 저장: conversations, messages(user·assistant), agent_runs(kind='chat').
 SQLite 연결은 단계마다 새로 열고 닫는다(스트림 중 스레드가 바뀔 수 있음).
 """
@@ -206,6 +207,7 @@ def _load_context(conn: sqlite3.Connection, incident_id: int | None) -> dict[str
             "facts": json.loads(rep["facts_json"]),
             "unknowns": json.loads(rep["unknowns_json"]),
             "causes": json.loads(rep["causes_json"]),
+            "next_checks": json.loads(rep["next_checks_json"]),
         }
     return ctx
 
@@ -352,13 +354,43 @@ def _report_answer(message: str, context: dict[str, Any], pack: Pack) -> Answer:
                 )
                 evidence += f["evidence_ids"]
         return Answer(head + "\n" + "\n".join(lines), evidence, unknowns, False)
+    # 수집하지 않는 내용을 물은 경우: 코드 대신 문장으로 근거가 없다고 먼저 말하고, 관련 근거로 이어서 답한다.
+    # 기록용 unknowns 에는 NOT_COLLECTED 를 그대로 남긴다(FR-AG-009).
+    hypothesis, evidence = _hypothesis(report)
     return Answer(
-        head
-        + f" 리포트 요약: {report['summary']}\n질문하신 내용은 수집되지 않아 확인할 수 없습니다.",
-        [],
+        "질문하신 내용에 대한 근거는 수집된 데이터에 없습니다.\n"
+        + head
+        + f" 리포트 요약: {report['summary']}\n\n"
+        + hypothesis,
+        evidence,
         [{"label": message[:40], "reason": "NOT_COLLECTED"}],
         False,
     )
+
+
+def _hypothesis(report: dict[str, Any]) -> tuple[str, list[str]]:
+    """모르는 질문에 덧붙이는 추정. 새 값을 만들지 않고 리포트의 원인 후보·확인할 것만 다시 쓴다 (SAFE-08)."""
+    causes = [c for c in report.get("causes") or [] if c.get("evidence_ids")]
+    checks = report.get("next_checks") or []
+    if not causes:
+        how = (
+            checks[0]
+            if checks
+            else "장애 상세의 근거 패널에서 수집된 지표를 확인하세요."
+        )
+        return f"추정할 근거가 부족합니다.\n확인 방법: {how}", []
+    top = min(causes, key=lambda c: c.get("rank") or 99)
+    ids = list(top["evidence_ids"])
+    how = top.get("verify") or (checks[0] if checks else "")
+    lines = [
+        f"수집된 근거로 보면 원인은 리포트 원인 후보 1순위 '{top['title']}' 쪽입니다"
+        f" (근거 {', '.join(ids)}) (추정 · 확신도 낮음)",
+    ]
+    if top.get("reasoning"):
+        lines.append(f"- 이유: {top['reasoning']}")
+    if how:
+        lines.append(f"확인 방법: {how}")
+    return "\n".join(lines), ids
 
 
 def answer(
@@ -385,7 +417,21 @@ def answer(
         if h.get("chunk_id") and h["chunk_id"] in content
     ]
     evidence = [sk["evidence_id"]] if cited else []
+    # 추정 단락이 인용한 근거 ID 도 리포트에 실제로 있는 것만 붙인다 (SAFE-08)
+    evidence += [
+        e for e in _report_evidence(context) if e in content and e not in evidence
+    ]
     return Answer(content, evidence, [], True)
+
+
+def _report_evidence(context: dict[str, Any]) -> list[str]:
+    report = context.get("report") or {}
+    ids: list[str] = []
+    for item in (report.get("facts") or []) + (report.get("causes") or []):
+        for e in item.get("evidence_ids") or []:
+            if e not in ids:
+                ids.append(e)
+    return ids
 
 
 def finish(

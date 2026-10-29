@@ -6,9 +6,10 @@ import { useAssistant } from '../state/assistant'
 import { useAuth } from '../state/auth'
 import { usePrefs } from '../state/prefs'
 import { AssistantPanel } from './AssistantPanel'
-import { ConnectionStatus, ZabbixBanner } from './ConnectionStatus'
+import { ZabbixBanner } from './ConnectionStatus'
+import { SystemList, UrgentBanner } from './TopStatus'
+import { UserMenu } from './UserMenu'
 import { Icon, type IconName } from './Icon'
-import { kstShort } from './incidentFormat'
 
 interface NavDef {
   to: string
@@ -40,12 +41,27 @@ export function Layout() {
   const health = useHealth()
   const incidents = useIncidents({ limit: 50 })
   const checkedAt = health.data?.meta.checked_at
-  const baseTime = checkedAt ? (tz === 'KST' ? kstShort(checkedAt) : checkedAt.slice(5, 16).replace('T', ' ')) : null
   // 현황 배지: 진행 중 장애 건수. 목록을 다 받지 못했으면 '+'를 붙이고, 못 받았거나 갱신에 실패했으면 숨긴다(오래된 숫자 금지, SAFE-09).
   const openIncidents = useIncidents({ status: 'problem', limit: 100 })
   const openCount = openIncidents.isError ? undefined : openIncidents.data?.data.length
   const openBadge = openCount ? `${openCount}${openIncidents.data?.meta.next_cursor ? '+' : ''}` : null
   const items = nav.filter((n) => !n.adminOnly || role === 'admin')
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('dejafix.sidebar') === 'collapsed'
+    } catch {
+      return false
+    }
+  })
+  const toggleSidebar = () =>
+    setCollapsed((v) => {
+      try {
+        localStorage.setItem('dejafix.sidebar', v ? 'open' : 'collapsed')
+      } catch {
+        /* 저장이 막혀도 화면은 동작한다 */
+      }
+      return !v
+    })
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -75,16 +91,22 @@ export function Layout() {
   }
 
   return (
-    <div className="shell">
+    <div className={`shell${collapsed ? ' collapsed' : ''}`}>
       <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark">
-            <Icon name="logo" size={18} />
-          </span>
-          <span>
-            DejaFix
-            <small className="brand-sub">Zabbix AI</small>
-          </span>
+        <div className="side-top">
+          <button
+            type="button"
+            className="hamburger"
+            aria-label={collapsed ? '메뉴 펼치기' : '메뉴 접기'}
+            aria-expanded={!collapsed}
+            onClick={toggleSidebar}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <img className="brand-logo" src="/logo-mark.png" alt="" width={32} height={32} />
+          <span className="brand-name">DejaFix</span>
         </div>
         {items.map((n) => (
           <NavLink
@@ -94,24 +116,16 @@ export function Layout() {
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <Icon name={n.icon} />
-            {n.label}
+            <span className="nav-label">{n.label}</span>
             {n.soon ? <span className="nav-soon">준비 중</span> : null}
             {n.to === '/' && openBadge ? <span className="nav-badge">{openBadge}</span> : null}
           </NavLink>
         ))}
-        <div className="sidebar-foot">
-          조회 전용 · Zabbix에 쓰지 않음
-          <br />
-          (변경 계획은 승인까지만)
-          <br />
-          <br />
-          {user?.display_name ?? user?.username} · {roleLabel[role]}
-        </div>
+        <SystemList health={health.data?.data} checkedAt={checkedAt} />
       </aside>
       <div className={`main ${open ? 'panel-open' : ''}`}>
         <header className="topbar">
-          <span className="topbar-time">{baseTime ? `확인 ${baseTime}` : '확인 시각 확인할 수 없음'}</span>
-          <ConnectionStatus health={health.data?.data} />
+          <UrgentBanner incidents={openIncidents.isError ? undefined : openIncidents.data?.data} failed={openIncidents.isError} />
           <div className="seg" role="group" aria-label="시간대">
             {(['KST', 'UTC'] as const).map((z) => (
               <button key={z} className={tz === z ? 'on' : ''} onClick={() => setTz(z)}>
@@ -137,12 +151,14 @@ export function Layout() {
             />
             <span className="kbd">Ctrl K</span>
           </label>
+          <UserMenu name={user?.display_name ?? user?.username ?? ''} role={roleLabel[role]} onLogout={logout} />
+          <NavLink to="/alerts" className="bell" aria-label="알림">
+            <Icon name="bell" size={20} />
+            {openCount ? <i className="bell-dot" /> : null}
+          </NavLink>
           <button className="btn dark" onClick={() => setOpen(!open)}>
             <Icon name="sparkle" size={16} />
             AI 어시스턴트
-          </button>
-          <button className="btn" onClick={logout}>
-            로그아웃
           </button>
         </header>
         <nav className="mobile-nav" aria-label="메뉴">

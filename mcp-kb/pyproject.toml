@@ -1,0 +1,21 @@
+[project]
+name = "mcp-kb"
+version = "0.1.0"
+description = "DejaFix RAG 지식 검색 MCP 서버 (읽기 전용, 결정 017)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "kb",
+    "mcp>=2.3.0",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "mcp_kb"
+module-root = ""
+
+[tool.uv.sources]
+kb = { workspace = true }

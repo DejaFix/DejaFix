@@ -4,10 +4,10 @@ import { EvidenceTrace } from './EvidenceTrace'
 import { Icon } from './Icon'
 
 const suggestions = [
-  '어떤 질문 할 수 있어?',
   '지금 확인해야 할 장애 뭐 있어?',
-  'CPU 피크 높은 서버 10대',
-  '통신 끊긴 서버 있어?',
+  '이 장애 원인이 뭐야?',
+  '이 서버 백업 작업이 원인인가?',
+  'CPU 사용률 지금 몇 %야?',
 ]
 
 export function AssistantPanel() {
@@ -109,7 +109,7 @@ export function AssistantPanel() {
             <Icon name="send" size={16} />
           </button>
         </div>
-        <div className="assistant-note">Enter 보내기 · Esc 닫기 · 목업 응답입니다</div>
+        <div className="assistant-note">Enter 보내기 · Esc 닫기</div>
       </form>
     </aside>
   )

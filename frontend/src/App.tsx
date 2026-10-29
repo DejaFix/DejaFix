@@ -5,7 +5,7 @@ import Admin from './pages/Admin'
 import Alerts from './pages/Alerts'
 import ComingSoon from './pages/ComingSoon'
 import Dashboard from './pages/Dashboard'
-import IncidentDetail from './pages/IncidentDetail'
+import IncidentSummary from './pages/IncidentSummary'
 import Login from './pages/Login'
 import PlanDetail from './pages/PlanDetail'
 import Plans from './pages/Plans'
@@ -30,7 +30,7 @@ export default function App() {
         }
       >
         <Route index element={<Dashboard />} />
-        <Route path="incidents/:id" element={<IncidentDetail />} />
+        <Route path="incidents/:id" element={<IncidentSummary />} />
         <Route path="plans" element={<Plans />} />
         <Route path="plans/:id" element={<PlanDetail />} />
         <Route path="reports" element={<Reports />} />

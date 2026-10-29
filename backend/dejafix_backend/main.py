@@ -13,6 +13,7 @@ from dejafix_backend.config import get_settings
 from dejafix_backend.db import init_backend_db
 from dejafix_backend.errors import register_error_handlers
 from dejafix_backend.mail import start_mail_worker, stop_mail_worker
+from dejafix_backend.observability import AccessLogMiddleware, configure_access_log
 from dejafix_backend.routers import (
     auth,
     chat,
@@ -50,6 +51,9 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    # 나중에 넣은 것이 바깥쪽: CORS preflight 요청도 접근 로그에 남는다
+    app.add_middleware(AccessLogMiddleware)
+    configure_access_log()
     register_error_handlers(app)
 
     @app.get("/healthz", tags=["health"])
