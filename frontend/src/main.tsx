@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { AppRouter } from './AppRouter'
-import { tokenStorage } from './lib/tokenStorage'
 import { AssistantProvider } from './state/AssistantProvider'
 import { AuthProvider } from './state/AuthProvider'
 import { PrefsProvider } from './state/PrefsProvider'
@@ -22,8 +21,6 @@ async function enableMocking() {
   const { worker } = await import('./mocks/browser')
   await worker.start({ onUnhandledFrame: 'bypass' })
 }
-
-tokenStorage.clearLegacy()
 
 enableMocking().then(() => {
   createRoot(document.getElementById('root')!).render(
