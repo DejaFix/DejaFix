@@ -37,7 +37,8 @@ function IncidentRow({ i }: { i: Incident }) {
       <span className="alert-time">{kstShort(i.started_at) ?? '—'}</span>
     </Link>
   )
-}function DiskForecast() {
+}
+function DiskForecast() {
   const { data } = useQuery({ queryKey: ['disk'], queryFn: api.diskForecasts })
   if (!data) return <div className="skeleton" />
   const color = (d: number) => (d <= 7 ? sevCss.high : d <= 30 ? sevCss.warning : sevCss.info)
@@ -226,9 +227,7 @@ function ServerMap({ list, okHosts, loading }: { list: Incident[]; okHosts: Meas
         ))}
         <div className="tile ok">
           <span className="tile-name">정상</span>
-          <span className="tile-count">
-            {loading ? '…' : <MeasuredText m={okHosts} />}대
-          </span>
+          <span className="tile-count">{loading ? '…' : <MeasuredText m={okHosts} />}대</span>
         </div>
       </div>
     </section>
@@ -315,7 +314,9 @@ function SummaryTiles({ s, loading }: { s: DashboardSummary | undefined; loading
               </>
             )}
           </span>
-          <small>{s && !s.hosts.unknown.unknown && s.hosts.unknown.value ? `확인 불가 ${s.hosts.unknown.value}대` : '대'}</small>
+          <small>
+            {s && !s.hosts.unknown.unknown && s.hosts.unknown.value ? `확인 불가 ${s.hosts.unknown.value}대` : '대'}
+          </small>
         </div>
         <div className="sum-tile">
           <span className="sum-label">
@@ -347,17 +348,21 @@ function StaleBanner({ stale, scheduler, dataAsOf }: { stale?: boolean; schedule
 export default function Dashboard() {
   const health = useHealth()
   const summary = useDashboardSummary()
-  const incidents = useIncidents({ limit: 50 })
+  // 진행 중 장애는 상단 배너(Layout)와 같은 조회로 받는다. 최근 50건 안에서만 고르면 오래전에 시작한
+  // 높은 심각도 장애가 목록에서 빠져 배너·헤드라인과 어긋난다.
+  const incidents = useIncidents({ status: 'problem', limit: 100 })
+  const recent = useIncidents({ limit: 50 })
   const list = incidents.data?.data
+  const recentList = recent.data?.data
   const nowMs = incidents.dataUpdatedAt
   // 우선순위 = 해결되지 않은 장애를 심각도 높은 순, 같으면 최근 시작 순. 나머지(해결됨 포함)는 접어 둔다.
   const { top, rest, first } = useMemo(() => {
     const open = (list ?? [])
       .filter((i) => i.status === 'problem')
       .sort((a, b) => b.severity.level - a.severity.level || Date.parse(b.started_at) - Date.parse(a.started_at))
-    const resolved = (list ?? []).filter((i) => i.status !== 'problem')
+    const resolved = (recentList ?? []).filter((i) => i.status !== 'problem')
     return { top: open.slice(0, LIST_LIMIT), rest: [...open.slice(LIST_LIMIT), ...resolved], first: open[0] }
-  }, [list])
+  }, [list, recentList])
   const groups = useQuery({ queryKey: ['groups'], queryFn: api.crossGroups })
   const baselines = useQuery({ queryKey: ['baselines'], queryFn: api.baselines })
   const s = summary.data?.data

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "DejaFix Scheduler (Problem 폴링 배치)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "kb",
     "shared-db",
     "zabbix-ro",
 ]
@@ -21,3 +22,4 @@ module-root = ""
 [tool.uv.sources]
 zabbix-ro = { workspace = true }
 shared-db = { workspace = true }
+kb = { workspace = true }
