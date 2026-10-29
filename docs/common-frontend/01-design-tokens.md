@@ -1,6 +1,6 @@
 # 01. 디자인 토큰·레이아웃
 
-위치: `frontend/src/styles/`. **색·크기는 전부 CSS 변수(토큰)로만 쓴다.** 컴포넌트 CSS에 색 값을 직접 쓰지 않는다.
+위치: `frontend/src/styles/`. **색·크기는 전부 CSS 변수(토큰)로만 쓰는 것이 원칙이다.** 컴포넌트 CSS에 색 값을 직접 쓰지 않는다(원본에 남은 예외는 7장).
 
 ## 1. 파일 구조와 적용 순서
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | 1 | `tokens.css` | 기본 토큰(라이트) + 다크 토큰. **이름이 같은 토큰을 다시 정의**해서 테마를 바꾼다 |
 | 2 | `global.css` | 공통 컴포넌트 클래스(`.card`·`.chip`·`.btn`…), 레이아웃, 장애 상세·AI 패널·현황 화면 |
-| 3 | `theme.css` | 팔레트 덮어쓰기(인디고) + 각진 모양. **한 줄 import를 빼면 1번 모양으로 돌아간다** |
+| 3 | `theme.css` | 팔레트 덮어쓰기(인디고) + 각진 모양. **import를 빼면 1번의 팔레트·모서리로 돌아간다**(단, 어두운 사이드바는 4번이 정하므로 남는다) |
 | 4 | `shell.css` | 어두운 사이드바(접기 포함)·헤더 구조 |
 
 > 지금 **실제로 보이는 디자인은 3·4번이 덮어쓴 결과**(인디고 `#5b5bd6`, 어두운 사이드바, 모서리 0)다. 1번의 청록 팔레트는 기본값일 뿐이다.
@@ -23,11 +23,13 @@
 | 글자 3단계 | `--text` / `--text-2` / `--text-3` | `#232345` / `#4a4a6e` / `#8a8aa8` |
 | 선 | `--border` / `--border-strong` | `#e8e8f2` / `#d8d8e8` |
 | 호버·트랙 | `--hover` / `--track` | `#eeeef8` / `#ebebf5` |
-| 주 색 | `--primary` / `--primary-hover` / `--primary-soft` / `--on-primary` | `#5b5bd6` / `#4545b8` / `#ececfb` / `#fff` |
+| 주 색 | `--primary` / `--primary-hover` / `--primary-soft` / `--on-primary-ink` | `#5b5bd6` / `#4545b8` / `#ececfb` / `#fff` |
 | 강조(주의) | `--accent` / `--accent-soft` | `#a8731a` / `#f6eedd` (tokens.css 값) |
 | AI | `--ai` / `--ai-soft` | primary와 같음 |
 | 사이드바 | `--side-bg` / `--side-text` / `--side-muted` / `--side-line` | `#1d1d3a` / `#e4e4f4` / `#9a9ac4` / `rgba(255,255,255,.1)` |
 | 코드 블록 | `--code-bg` / `--code-fg` | `#232345` / `#f1f4f3` |
+
+> theme.css는 글자색에 `--on-primary-ink`를 쓰고, tokens.css의 `--on-primary`(라이트 `#fff`, 다크 `#04201b`)는 덮어쓰지 않는다. 팔레트를 바꿀 때 두 변수를 함께 본다.
 
 ### 의미 색 (상태를 색으로 구분할 때)
 
@@ -53,7 +55,7 @@
 |---|---|
 | 반경 | `--radius-lg/md/sm` = 18/12/8px (theme.css가 24/18/12로 바꾼 뒤 **0으로 덮음**) |
 | 그림자 | `--shadow-sm`(카드), `--shadow-md`(팝업·패널) |
-| 레이아웃 폭 | `--sidebar-w` 248px, `--collapsed-w` 64px, `--panel-w` 400px, `--topbar-h` 60px |
+| 레이아웃 폭 | `--sidebar-w` 248px(shell.css가 정함, tokens.css 기본은 232px), `--collapsed-w` 64px, `--panel-w` 400px, `--topbar-h` 60px |
 
 ## 5. 라이트/다크
 
@@ -81,4 +83,5 @@ aside.assistant      우측 고정 패널 (translateX로 열림)
 - `.evidence-head .dot`이 정의되지 않은 `--verdict-confirmed`를 쓴다. `--risk-low` 등으로 바꾼다.
 - `shell.css`의 사이드바 상태 글자색(`#5fd79a`·`#f2c14e`·`#ff8a80`)은 토큰이 아니라 직접 값이다. 토큰으로 올린다.
 - 모서리를 둥글게 하려면 `theme.css` 맨 아래의 `border-radius: 0 !important` 블록과 `:root{--radius-*:0}`을 지운다.
-- 인라인 `style={{…}}`가 일부 남아 있다(AI 패널 정렬 등). 새 코드는 클래스로 쓴다.
+- **직접 색 값이 더 있다.** `theme.css`의 `background: #fff` 세 곳(검색·버튼·토글 묶음)은 다크 모드에서도 흰색으로 남는다. `shell.css`의 `color: #fff`·`background: #fff`와 `global.css`의 `linear-gradient(135deg, #7c7ce8, #5b5bd6)` 같은 아바타 그라디언트도 직접 값이다. 모두 토큰(`--surface`·`--on-primary-ink`·`--sev-*`)으로 올린다.
+- 인라인 `style={{…}}`가 일부 남아 있다(AI 패널 정렬, 수집 지연 배너 여백 등). 새 코드는 클래스로 쓴다.

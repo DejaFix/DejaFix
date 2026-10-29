@@ -2,6 +2,7 @@
 
 > 위치: DejaFix 저장소 `docs/common-frontend/`. 다음 프로젝트용 `common-frontend` 저장소를 만들면 이 폴더를 그대로 옮긴다(`templates/` 하위 유지, 코드 스냅샷은 그 저장소의 `snapshot/frontend/`에 둔다).
 > 출처: DejaFix `frontend/` (`dev` 07d1db7, 2026-10-20 기준). React 19 + TypeScript + Vite 관리형 대시보드.
+> 점검: 2026-10-29에 `dev` d20797c 코드와 다시 대조해 고쳤다(채팅 "근거 없음" 문구, `Legacy*` 삭제 순서, 수집 지연 배너 `StaleBanner`, 목 데이터 범위·환경 변수, `Layout` 재사용 범위, 직접 색 값 등). 줄 번호 대신 파일·함수 이름으로 가리킨다.
 > 목적: 다음 프로젝트가 **디자인 토큰·공용 컴포넌트·데이터 연동 패턴·작업 규칙**을 처음부터 다시 만들지 않고 가져다 쓰게 한다.
 > 이 문서는 코드를 복사해 둔 것이 아니라 **어디에 무엇이 있고 무엇을 가져가면 되는지** 안내한다. 코드는 아래 "스냅샷"으로 따로 보관한다.
 
@@ -26,10 +27,10 @@
 
 | 구분 | 항목 |
 |---|---|
-| **그대로 가져감** | `styles/tokens.css` 구조, `Icon`·`Collapsible`·`EChart`·`UserMenu`, `useThemeVersion`, `lib/http.ts`·`tokenStorage.ts`·`chat.ts`, 인증 Provider 패턴, `queries.ts`의 폴링·오류 패턴, Vite 프록시·nginx 설정 |
-| **이름·내용만 바꿈** | `Layout`의 메뉴 배열, `Chips`의 라벨, `format.ts`의 라벨 표, MSW 핸들러·목 데이터, 팔레트(`theme.css`) |
-| **패턴만 참고** | `FocusCard`, `IncidentParts`(근거·계획·메일 조각), `ConnectionStatus`·`TopStatus` — 도메인(장애 대응)에 묶여 있음 |
-| **버림** | `Legacy*` 타입·`mock.ts`의 옛 목, `/cost`·`/compare` 목 화면, 중복된 `.nav-soon` 등 (03·01 문서의 "정리할 것") |
+| **그대로 가져감** | `styles/tokens.css` 구조, `Icon`·`Collapsible`·`EChart`·`UserMenu`, `useThemeVersion`, `lib/http.ts`·`tokenStorage.ts`·`chat.ts`, 인증 Provider 패턴(`lib/authApi.ts`도 함께 — `AuthProvider`·`Login`이 의존), `queries.ts`의 폴링·오류 패턴, MSW 부팅(`mocks/browser`·`mocks/passthrough.ts`), Vite 프록시·nginx 설정 |
+| **이름·내용만 바꿈** | `Layout`(메뉴 배열 + 묶인 훅·배너 의존성을 떼어 냄 — 02 문서), `Chips`의 라벨, `format.ts`의 라벨 표, MSW 핸들러·목 데이터, 팔레트(`theme.css`) |
+| **패턴만 참고** | `FocusCard`, `IncidentParts`(근거·계획·메일 조각), `ConnectionStatus`(현재 렌더되지 않음)·`TopStatus`, `Dashboard`의 `StaleBanner` — 도메인(장애 대응)에 묶여 있음 |
+| **버림** | `Legacy*` 타입·`mock.ts`의 옛 목(**사용처를 계약 타입으로 먼저 옮긴 뒤** 삭제, MSW 핸들러가 쓰는 계약 형식 샘플은 남김 — 03 문서 7·10장), `/cost`·`/compare` 목 화면, 중복된 `.nav-soon` 등 (03·01 문서의 "정리할 것") |
 
 ## 새 프로젝트에서 쓰는 순서
 
@@ -37,7 +38,7 @@
 2. `templates/CLAUDE.frontend.md`를 `frontend/CLAUDE.md`로 복사해 `<…>` 부분을 채운다.
 3. `tokens.css`·`theme.css`의 팔레트를 새 브랜드 색으로 바꾼다 (01 문서).
 4. `Layout.tsx`의 `nav` 배열과 `lib/types.ts`를 새 계약에 맞춘다. 화면은 `lib/queries.ts` 훅 위에 만든다.
-5. 백엔드가 없으면 `mocks/handlers.ts`로 시작하고, 계약이 정해지면 `VITE_MSW=off`로 실제 API에 붙인다.
+5. 백엔드가 없으면 `mocks/handlers.ts`로 시작하고, 계약이 정해지면 `VITE_MSW=off`로 실제 API에 붙인다. 일부만 붙이려면 `VITE_MSW_PASSTHROUGH`. 단 Plans·Reports·Alerts·Admin 등은 `lib/api.ts`가 `mock.ts`를 직접 돌려주므로 MSW를 꺼도 목 데이터다(03 문서 7장).
 
 ## 독립 프로젝트로 분리할 때 의존하는 것
 
@@ -68,7 +69,9 @@ DejaFix 저장소의 frontend/ 를 common-frontend 저장소의 snapshot/fronten
 ├─ 컴포넌트 카탈로그        ← 02
 ├─ 아키텍처·패턴           ← 03
 ├─ UI 신뢰 규칙            ← 04
-└─ Claude Code로 일하기    ← 05 + 프롬프트 템플릿
+├─ Claude Code로 일하기    ← 05 + 프롬프트 템플릿
+├─ 시연 흐름·UI 문구       ← 06
+└─ 새 프로젝트 시작본       ← templates/CLAUDE.frontend.md
 ```
 
 각 `.md` 파일을 노션의 "가져오기 → Markdown"으로 넣으면 표와 코드 블록이 유지된다. 파일이 바뀌면 GitHub이 원본이고 노션은 사본이다.

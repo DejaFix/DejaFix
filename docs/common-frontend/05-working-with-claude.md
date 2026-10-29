@@ -38,7 +38,7 @@ frontend/CLAUDE.md 와 docs(common-frontend)의 01·02·04 문서를 먼저 읽�
 
 **(b) 컴포넌트 문서화 (공용 템플릿 세션)**
 ```
-src/components 의 각 컴포넌트를 읽고 docs/02-components.md 표 형식으로 정리해 줘.
+src/components 의 각 컴포넌트를 읽고 docs/common-frontend/02-components.md 표 형식으로 정리해 줘.
 각 항목: 파일, 역할, props(타입 그대로), 범용/도메인 구분, 가져갈 때 주의.
 코드에 없는 내용은 쓰지 마. 확인 못 한 것은 "확인 안 함"으로 표시해.
 너무 길게 쓰지 말고, 새 프로젝트에서 가져갈지 판단할 수 있는 정보만 남겨.
@@ -47,7 +47,7 @@ src/components 의 각 컴포넌트를 읽고 docs/02-components.md 표 형식�
 **(c) 새 프로젝트 부트스트랩**
 ```
 common-frontend/snapshot/frontend 를 새 저장소의 frontend/ 로 복사하고 templates/CLAUDE.frontend.md 를 frontend/CLAUDE.md 로 만들어 줘.
-1) 팔레트(tokens.css·theme.css)를 <브랜드 색>으로 바꾸고 2) Layout 의 nav 를 <메뉴>로 바꾸고 3) Legacy 타입·옛 목·Cost/ServerCompare 를 지워 줘.
+1) 팔레트(tokens.css·theme.css)를 <브랜드 색>으로 바꾸고 2) Layout 의 nav 를 <메뉴>로 바꾸고 3) `Legacy*` 타입의 사용처(Chips·Dashboard의 별칭, api.ts, format.ts, state/assistant.ts, AssistantProvider, mock.ts)를 먼저 계약 타입(`Evidence`·`UnknownItem` 등)으로 옮기고 tsc 통과를 확인한 뒤, Legacy 타입·옛 목·Cost/ServerCompare 를 지워 줘 (MSW 핸들러가 mock.ts 의 계약 형식 샘플을 쓰므로 그 부분은 남겨).
 npm ci → lint → tsc → build 결과를 보고해 줘. 새 기능은 만들지 마.
 ```
 

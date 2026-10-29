@@ -10,7 +10,7 @@
 | `Collapsible` | `Collapsible.tsx` | 접이식 섹션 | `title`, `count?`, `meta?`, `defaultOpen=false`, `id?`, `children` | 버튼에 `aria-expanded`. 열려 있을 때만 children을 렌더 |
 | `EChart` | `EChart.tsx` | ECharts 래퍼 | `option`, `tall=false` | 필요한 차트·컴포넌트만 `echarts/core`로 등록(번들 절약). **`option`은 호출 쪽에서 `useMemo`로 고정**, 크기 변화는 `ResizeObserver` |
 | `UserMenu` | `UserMenu.tsx` | 헤더 사용자 칸 + 로그아웃 팝업 | `name`, `role`, `onLogout` | 바깥 클릭·`Esc`로 닫힘, `aria-haspopup="menu"` |
-| `Layout` | `Layout.tsx` | 앱 셸(사이드바·헤더·패널·`<Outlet/>`) | 없음(훅으로 데이터) | **`nav` 배열만 바꿔서 재사용**. `soon: true`면 "준비 중" 칩, `adminOnly`는 역할로 필터. 사이드바 접힘은 `localStorage`(민감하지 않은 값만) |
+| `Layout` | `Layout.tsx` | 앱 셸(사이드바·헤더·패널·`<Outlet/>`) | 없음(훅으로 데이터) | **`nav` 배열만 바꿔서는 재사용되지 않는다.** `useHealth`·`useIncidents`(메뉴 배지·헤더 배너), `ZabbixBanner`, `SystemList`·`UrgentBanner`, `AssistantPanel`, `useAuth`·`usePrefs`·`useAssistant`에 묶여 있다. 구조(사이드바·헤더·패널·`<Outlet/>`)를 참고하고 이 의존성을 떼어 내서 쓴다. `soon: true`면 "준비 중" 칩, `adminOnly`는 **메뉴만** 숨긴다(라우트 가드는 가져가는 쪽이 따로 넣어야 한다). 사이드바 접힘은 `localStorage`(`dejafix.sidebar`, 민감하지 않은 값만) |
 | `ComingSoon` | `pages/ComingSoon.tsx` | "준비 중" 안내 | `title` | 메뉴는 있으나 기능이 없을 때. API를 부르지 않는다 |
 | `Chips` | `Chips.tsx` | 칩 모음 | `SeverityChip`, `RiskBadge`, `VerdictChip`, `UnknownValue({label})` | 색은 `.chip.<변형>`. 라벨 표는 `lib/format.ts` |
 
@@ -23,13 +23,14 @@
 | `EvidenceIds` · `EvidencePanel` | `IncidentParts.tsx` | 근거 ID 칩 → 눌러서 도구 호출 기록(인자·결과 요약·호출/데이터 시각) 펼침 | "AI가 무엇을 보고 말했나"를 추적하는 UI. 기록에 없는 ID는 눌리지 않게 |
 | `PlanStepCard` | `IncidentParts.tsx` | 계획 한 단계(명령 미리보기·사전 확인·위험·롤백·등급) | **실행 버튼이 없다.** 보여 주기만 |
 | `MailLogRow` | `IncidentParts.tsx` | 메일 발송 기록 한 줄 | 상태 표 + 실패 사유 |
-| `ConnectionStatus` · `ZabbixBanner` | `ConnectionStatus.tsx` | 구성요소 연결 상태 칩 / 끊김 경고 배너(`role="alert"`) | 상태값을 못 받으면 추정하지 않고 "확인할 수 없음" |
-| `UrgentBanner` · `SystemList` | `TopStatus.tsx` | 헤더의 가장 급한 항목 한 줄 / 사이드바 하단 시스템 상태 | 정렬 기준·"지연" 판정(`STALE_MS`) 예시 |
+| `ConnectionStatus` · `ZabbixBanner` | `ConnectionStatus.tsx` | 구성요소 연결 상태 칩 / 끊김 경고 배너(`role="alert"`) | 상태값을 못 받으면 추정하지 않고 "확인할 수 없음". **`ConnectionStatus`는 어디서도 렌더되지 않는다**(미사용, `Layout`은 `ZabbixBanner`만 import) |
+| `UrgentBanner` · `SystemList` | `TopStatus.tsx` | 헤더의 가장 급한 항목 한 줄 / 사이드바 하단 시스템 상태 | 정렬 기준·"지연" 판정(`STALE_MS`) 예시. 이 판정은 화면 자체 기준(5분)이고 서버 판정(`meta.stale`·`health.scheduler`)은 보지 않는다(04 문서 2장) |
+| `StaleBanner` | `pages/Dashboard.tsx`(파일 안 함수, export 아님) | 수집 지연 배너 | 서버가 판정한 `meta.stale`·`health.scheduler`를 그대로 받아 표시. 정상이면 렌더하지 않고, 시각이 없으면 `UnknownValue` |
 | `FocusCard` | `FocusCard.tsx` | 선택한 항목을 ① 무엇이 ② 왜 ③ 어떻게 + 처리 흐름으로 | 상세 응답 한 번으로 요약 카드를 만드는 구성 |
 | `AssistantPanel` | `AssistantPanel.tsx` | 우측 AI 채팅 패널 | 말풍선·제안 질문 칩·입력·`Esc` 닫기. 상태는 `state/assistant.ts` 컨텍스트 |
 | `EvidenceTrace` | `EvidenceTrace.tsx` | 채팅 답변 밑 "도구 N회" 접이식 | 옛 `EvidenceCall` 모양을 써서 `EvidencePanel`과 모양이 다르다. 새 프로젝트는 하나로 합친다 |
 
-보조: `incidentFormat.ts`(`kstShort`: UTC ISO → `MM-DD HH:mm`(KST), `analysisNotes`: 상태별 안내 문구).
+보조: `incidentFormat.ts`(`kstShort`: UTC ISO → `MM-DD HH:mm`(KST), `analysisNotes`: 상태별 안내 문구, `readableTitle`: 목록·헤더용으로 장애 제목의 템플릿 접두사·중복 서비스 ID를 덜어 낸다. 문장을 새로 만들지 않고 원문은 `title` 툴팁에 둔다).
 
 ## 3. 공통 CSS 클래스 (`global.css`)
 
@@ -50,7 +51,7 @@
 
 - 색은 토큰으로만(`var(--…)`), 새 변형은 `.chip.<이름>`처럼 **클래스 이름으로** 추가한다.
 - 상태값 → 라벨·색은 `Record<상태, {label, cls}>` 표 하나로 두고 분기문을 흩뿌리지 않는다.
-- 값이 없을 수 있으면 반드시 `Unknown`을 쓴다(04 문서). 빈칸·0·`null` 글자 금지.
+- 값이 없을 수 있으면 반드시 `Unknown`을 쓴다(04 문서). 빈칸·0·`null` 글자 금지(원본에 대시(—)로 대신한 곳이 남아 있다 — 04 문서 1장).
 - 컴포넌트 파일은 **컴포넌트만 export**한다(상수·함수는 `lib/`로). `react-refresh/only-export-components` 린트 때문이다.
 - 아이콘은 `Icon`에 추가하고, 글자 없는 버튼에는 `aria-label`을 단다.
 

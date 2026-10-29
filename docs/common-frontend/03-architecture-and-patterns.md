@@ -20,7 +20,7 @@ frontend/
 ├─ .env.example · .nvmrc(22) · .prettierrc · tsconfig.app.json
 ```
 
-**소유 규칙(팀 합의)**: `pages`·`components`·`styles` = 화면 담당, `lib`·`state`·`mocks` = 연동 담당. 서로의 폴더는 직접 고치지 않고 이슈로 요청한다.
+**소유 규칙(팀 합의)**: `pages`·`components`·`styles` = 화면 담당, `lib`·`state`·`mocks` = 연동 담당. 서로의 폴더는 직접 고치지 않고 이슈로 요청한다. (원본 루트 `CLAUDE.md`의 폴더 소유권 표는 아직 "후보안, 승인 추후결정" 표기다.)
 
 ## 3. 부팅 순서 (`main.tsx`)
 
@@ -31,7 +31,7 @@ frontend/
 
 | 조각 | 파일 | 규칙 |
 |---|---|---|
-| 토큰 저장 | `lib/tokenStorage.ts` | **`sessionStorage`에만**(탭 닫으면 삭제). `localStorage` 금지. 브라우저 저장소는 이 파일에서만 다룬다. 저장 실패해도 동작 |
+| 토큰 저장 | `lib/tokenStorage.ts` | **`sessionStorage`에만**(탭 닫으면 삭제). 토큰을 `localStorage`에 두지 않는다. **토큰 저장은 이 파일에서만** 다룬다(사이드바 접힘 같은 민감하지 않은 UI 설정은 `Layout`이 `localStorage`에 직접 쓰고, 이 파일은 옛 키 정리에만 `localStorage`를 쓴다). 저장 실패해도 동작 |
 | 상태 | `state/auth.ts` + `state/AuthProvider.tsx` | `status: 'restoring' \| 'authenticated' \| 'anonymous'`, `login()`, `logout()`, `role`(없으면 가장 좁은 `viewer`) |
 | 새로고침 복원 | `AuthProvider` | 저장된 토큰으로 `GET /api/auth/me`. 401이면 정리, **서버가 일시적으로 안 닿으면 세션 유지** |
 | 라우트 가드 | `App.tsx`의 `RequireAuth` | `restoring`이면 아무것도 그리지 않음(깜빡임 방지) → 아니면 `/login`으로 |
@@ -60,8 +60,11 @@ frontend/
 ## 7. MSW (개발 전용 목)
 
 - `mocks/handlers.ts`가 API 봉투 그대로 응답한다(`ok(data, meta)`, `error(status, code, message)`). 로그인은 토큰 `mock-jwt.<username>`.
-- 시나리오: 주소에 `?scenario=zabbix_down`(또는 `VITE_MOCK_SCENARIO`)로 장애 상황을 재현.
-- `VITE_MSW=off` + 백엔드 기동 → 실제 API. 이때 헤더의 "목업 데이터" 칩이 사라진다.
+- 시나리오: 주소에 `?scenario=<이름>`(또는 `VITE_MOCK_SCENARIO`)로 장애 상황을 재현한다. 페이지를 다시 불러올 때까지 유지된다.
+  - `normal`(기본) · `zabbix_down`(`health.zabbix` = down, #5 KPI는 unknown, #6은 503) · `agent_down`(`health.agent` = down, 채팅은 `AGENT_UNAVAILABLE` 오류 이벤트) · `stale`(`health.scheduler` = stale, #10 `meta.stale` = true — 수집 지연 배너 확인용)
+- 일부만 실제 백엔드로: `VITE_MSW_PASSTHROUGH=auth,health,incidents`처럼 묶음 이름을 적으면 그 묶음만 통과한다(`mocks/passthrough.ts`, 모르는 이름은 콘솔 경고, `all`도 가능). 로그인만 통과시키면 나머지 목이 실제 토큰의 역할로 응답한다.
+- `VITE_MSW=off` + 백엔드 기동 → MSW를 꺼서 실제 API로 간다. 이때 헤더의 "목업 데이터" 칩이 사라진다.
+- **목 범위에 주의**: MSW 핸들러가 받는 것은 auth·health·dashboard·problems·incidents·chat뿐이다. Plans·Reports·Alerts·Admin과 현황의 일부 카드(디스크 예측·같은 알림 그룹·평소와 다른 값 등)는 `lib/api.ts`가 `lib/mock.ts`의 옛 목을 **직접** 돌려주므로 MSW를 꺼도 목 데이터가 나온다. 그런데 "목업 데이터" 칩은 사라지므로 실제 값처럼 보일 수 있다. 또 MSW 핸들러가 `mock.ts`의 계약 형식 샘플(`health`·`dashboardSummary`·`incidentList` 등)을 import하므로 `mock.ts`를 통째로 버리면 핸들러도 깨진다.
 - 목 데이터에는 **`unknown:true`·fallback 리포트·실패한 근거·`failed` 메일** 같은 나쁜 경우를 일부러 넣어 둔다. 화면이 그 경우를 그리는지 확인하려는 것이다.
 
 ## 8. 개발 서버·배포
@@ -70,7 +73,7 @@ frontend/
 |---|---|
 | Vite 프록시 | `/api` → `http://localhost:8000`(`DEV_API_TARGET`으로 변경). SSE가 뭉치지 않게 `accept-encoding`을 지우고 `cache-control: no-cache`·`x-accel-buffering: no`를 붙인다 |
 | nginx | 정적 서빙, `/api/` → `backend:8000`(`proxy_buffering off`, `proxy_read_timeout 300s`), **`try_files $uri /index.html`**(SPA 새로고침·메일 링크 직접 진입) |
-| 환경 변수 | `VITE_MSW=off`, `VITE_ROUTER=hash`(정적 호스팅 미리보기용 HashRouter). **절대 주소를 환경 변수로 두지 않는다**(항상 상대 경로 `/api`) |
+| 환경 변수 | `VITE_MSW=off`(MSW 끄기), `VITE_MSW_PASSTHROUGH=<묶음,…>`(일부만 실제 백엔드로), `VITE_MOCK_SCENARIO=<이름>`(목 시나리오: normal·zabbix_down·agent_down·stale), `VITE_ROUTER=hash`(정적 호스팅 미리보기용 HashRouter). **절대 주소를 환경 변수로 두지 않는다**(항상 상대 경로 `/api`) |
 | 외부 공개 | 프론트 nginx 하나만 공개, 나머지 서비스는 내부 |
 
 ## 9. 린트·타입 설정에서 알아 둘 것
@@ -81,6 +84,6 @@ frontend/
 
 ## 10. 정리할 것 (가져갈 때)
 
-- `lib/types.ts`·`format.ts`·`mock.ts`에 **`Legacy*` 타입과 옛 목**이 남아 있다(옛 화면용). 새 프로젝트는 계약 타입만 두고 가져오지 않는다.
-- 번들이 927kB(경고). 화면 단위 코드 분할(`React.lazy`)과 echarts 필요한 차트만 등록(이미 `EChart.tsx`는 그렇게 함)을 유지한다.
-- `ConnectionStatus`의 칩 목록과 `TopStatus`의 `SystemList`가 같은 상태값을 두 번 정의한다. 하나로 합친다.
+- `lib/types.ts` 3장에 **`Legacy*` 타입과 별칭**(`Severity`·`Risk`·`Verdict` = `LegacySeverity` 등)이 남아 있고 `mock.ts`에 옛 목이 있다(옛 화면용). **그냥 지우면 `tsc`가 깨진다.** 지금 기대는 곳은 별칭 → `components/Chips.tsx`·`pages/Dashboard.tsx`(`Severity`), `RiskBadge` 사용 화면, `Legacy*` 이름 → `lib/api.ts`·`lib/format.ts`(`LegacySeverity`·`LegacyRisk`·`LegacyVerdict`)·`state/assistant.ts`·`state/AssistantProvider.tsx`(`LegacyEvidenceCall`)·`lib/mock.ts`다. 새 프로젝트는 이 사용처를 계약 타입(`Evidence`·`UnknownItem`·`SeverityInfo` 등)으로 **먼저 옮기고**, `tsc`가 통과하는 것을 확인한 뒤 지운다. (`main.tsx`·`tokenStorage.ts`의 `clearLegacy`/`LEGACY_KEYS`는 타입이 아니라 옛 저장소 키 정리다.)
+- 번들이 927kB(경고). 지금 `App.tsx`는 모든 페이지를 정적 import한다(`React.lazy` 없음). 화면 단위 코드 분할(`React.lazy`)을 **도입**하면 줄일 수 있다. echarts는 필요한 차트만 등록한다(이미 `EChart.tsx`가 그렇게 함).
+- 상태 표시가 겹친다: `ConnectionStatus`의 칩 목록(렌더되지 않음)과 `TopStatus`의 `SystemList`가 같은 상태값을 두 번 정의하고, 수집 지연은 서버 판정(`StaleBanner`)과 화면 기준(`STALE_MS`) 둘이 있다(04 문서 2장). 하나로 합친다.
