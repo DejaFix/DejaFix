@@ -10,6 +10,7 @@ import os
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -26,6 +27,8 @@ REQUIRED_TOOLS = (
 )
 
 _TRUE = {"1", "true", "yes", "on"}
+# 로컬 실행 + compose 서비스 이름(infra/docker-compose.yml 의 mcp-zabbix:8200)
+_DEFAULT_ALLOWED_HOSTS = ("127.0.0.1:*", "localhost:*", "[::1]:*", "mcp-zabbix:*")
 
 
 def _mock_enabled() -> bool:
@@ -126,10 +129,25 @@ class _InternalTokenGuard:
         await self._app(scope, receive, send)
 
 
+def _transport_security() -> TransportSecuritySettings:
+    """DNS rebinding 보호(Host 헤더 허용 목록)는 켠 채로 컨테이너 간 호출의 Host 를 허용한다.
+
+    SDK 기본값은 로컬 호스트만 허용해서 Agent 가 `mcp-zabbix:8200` 으로 부르면 421 이 난다.
+    허용 목록은 `MCP_ZABBIX_ALLOWED_HOSTS`(쉼표 구분, `호스트:포트` 또는 `호스트:*`)로 바꾼다.
+    """
+    raw = os.environ.get("MCP_ZABBIX_ALLOWED_HOSTS", "")
+    hosts = [h.strip() for h in raw.split(",") if h.strip()] or list(
+        _DEFAULT_ALLOWED_HOSTS
+    )
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True, allowed_hosts=hosts
+    )
+
+
 def build_app(client: ZabbixCaller | None = None, *, mock: bool | None = None):
     if client is None:
         client, mock = make_client()
     server = build_server(client, mock=bool(mock))
-    app = server.streamable_http_app()
+    app = server.streamable_http_app(transport_security=_transport_security())
     token = os.environ.get("INTERNAL_TOKEN", "").strip()
     return _InternalTokenGuard(app, token) if token else app
