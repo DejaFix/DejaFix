@@ -20,7 +20,8 @@ const TOKEN_PREFIX = 'mock-jwt.'
 // 페이지를 다시 불러오기 전까지 유지된다.
 // - zabbix_down: health.zabbix='down', #5 호스트 KPI는 unknown(TOOL_ERROR), #6은 503 ZABBIX_UNAVAILABLE
 // - agent_down: health.agent='down', #18 채팅은 error 이벤트 AGENT_UNAVAILABLE(실제 백엔드가 Agent 없이 주는 응답과 같음)
-const SCENARIOS = ['normal', 'zabbix_down', 'agent_down'] as const
+// - stale: health.scheduler='stale', #10 meta.stale=true(수집 지연 배너 확인용, 기본은 정상 ok·stale=false)
+const SCENARIOS = ['normal', 'zabbix_down', 'agent_down', 'stale'] as const
 export type MockScenario = (typeof SCENARIOS)[number]
 const requested: unknown =
   new URLSearchParams(globalThis.location?.search ?? '').get('scenario') ?? import.meta.env.VITE_MOCK_SCENARIO
@@ -60,9 +61,12 @@ function userFromRequest(request: Request): AuthUser | null {
 const unauthorized = () => error(401, 'UNAUTHORIZED', '로그인이 필요합니다')
 
 // ---- 시나리오별 데이터 ----
+const STALE_AS_OF = '2026-10-16T01:10:00Z' // 지연 시나리오의 마지막 수집 성공 시각
+const NORMAL_AS_OF = health.scheduler_last_ok
 function currentHealth(): Health {
   if (SCENARIO === 'zabbix_down') return { ...health, zabbix: 'down' }
   if (SCENARIO === 'agent_down') return { ...health, agent: 'down' }
+  if (SCENARIO === 'stale') return { ...health, scheduler: 'stale', scheduler_last_ok: STALE_AS_OF }
   return health
 }
 
@@ -227,7 +231,8 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
         .sort((a, b) => b.started_at.localeCompare(a.started_at))
       const page = filtered.slice(offset, offset + limit)
       const next = offset + limit < filtered.length ? encodeCursor(offset + limit) : null
-      return ok(page, { next_cursor: next })
+      const stale = SCENARIO === 'stale'
+      return ok(page, { next_cursor: next, data_as_of: stale ? STALE_AS_OF : NORMAL_AS_OF, stale })
     }),
 
     // #11 장애 상세 — 없으면 404 NOT_FOUND

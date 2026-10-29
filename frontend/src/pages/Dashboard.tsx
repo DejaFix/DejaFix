@@ -5,11 +5,12 @@ import { api } from '../lib/api'
 import { cssVar, sevCss } from '../lib/colors'
 import { useThemeVersion } from '../hooks/useThemeVersion'
 import { severityLabel, shortAgo } from '../lib/format'
-import { useDashboardSummary, useIncidents } from '../lib/queries'
+import { useDashboardSummary, useHealth, useIncidents } from '../lib/queries'
 import type { DashboardSummary, Incident, Measured, Severity } from '../lib/types'
 import { Collapsible } from '../components/Collapsible'
 import { EChart } from '../components/EChart'
 import { AnalysisBadge, SeverityInfoChip, Unknown } from '../components/IncidentParts'
+import { UnknownValue } from '../components/Chips'
 import { kstShort, readableTitle } from '../components/incidentFormat'
 
 /** Measured 하나를 화면 값으로. unknown이거나 value가 null이면 0·빈칸 대신 UnknownValue(SAFE-10). */
@@ -333,7 +334,19 @@ function SummaryTiles({ s, loading }: { s: DashboardSummary | undefined; loading
     </section>
   )
 }
+/** 수집 지연 배너(계약 PR #92). 판정은 백엔드 값(meta.stale·health.scheduler)을 그대로 쓰고 화면은 계산하지 않는다. */
+function StaleBanner({ stale, scheduler, dataAsOf }: { stale?: boolean; scheduler?: string; dataAsOf?: string | null }) {
+  if (stale !== true && (scheduler === undefined || scheduler === 'ok')) return null
+  const asOf = kstShort(dataAsOf)
+  return (
+    <div className="note warn" role="alert" style={{ marginBottom: 12 }}>
+      수집이 지연되고 있습니다 · 마지막 수집 {asOf ? `${asOf} (KST)` : <UnknownValue />}
+    </div>
+  )
+}
+
 export default function Dashboard() {
+  const health = useHealth()
   const summary = useDashboardSummary()
   // 진행 중 장애는 상단 배너(Layout)와 같은 조회로 받는다. 최근 50건 안에서만 고르면 오래전에 시작한
   // 높은 심각도 장애가 목록에서 빠져 배너·헤드라인과 어긋난다.
@@ -389,6 +402,11 @@ export default function Dashboard() {
               <h2 className="card-title">지금 확인할 장애</h2>
               <span className="card-sub">심각도 순 · 누르면 상세 · AI 분석 · 근거</span>
             </div>
+            <StaleBanner
+              stale={incidents.data?.meta?.stale}
+              scheduler={health.data?.data?.scheduler}
+              dataAsOf={incidents.data?.meta?.data_as_of ?? health.data?.data?.scheduler_last_ok}
+            />
             {incidents.isError && !list ? (
               <p className="card-sub">장애 목록을 불러오지 못했습니다. 15초 뒤 다시 시도합니다.</p>
             ) : !list ? (

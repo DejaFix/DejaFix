@@ -33,6 +33,12 @@ export interface ListMeta {
   next_cursor: string | null
 }
 
+/** #10 GET /api/incidents meta. data_as_of·stale은 계약 PR #92 추가분 — 구 백엔드 응답에는 없을 수 있음 */
+export interface IncidentListMeta extends ListMeta {
+  data_as_of?: string | null // 마지막 수집 성공 시각(UTC), 기록 없으면 null
+  stale?: boolean // true면 수집 지연
+}
+
 // ---- 확인할 수 없는 값 (7장 공통 Measured, SAFE-10) ----
 export type UnknownReason = 'NO_DATA' | 'STALE' | 'TOOL_ERROR' | 'NO_PERMISSION' | 'NOT_COLLECTED'
 
@@ -73,12 +79,15 @@ export interface HostRef {
 // ---- #4 GET /api/health ----
 export type ComponentStatus = 'ok' | 'down' // 요청서 확인 요청 2
 
+export type SchedulerStatus = 'ok' | 'stale' | 'down'
+
 export interface Health {
   zabbix: ComponentStatus
   agent: ComponentStatus
   mcp_zabbix: ComponentStatus
   shared_db: ComponentStatus | 'waiting' // Agent가 아직 shared.db를 만들기 전이면 waiting
   backend_db: ComponentStatus
+  scheduler?: SchedulerStatus // 수집기 상태(계약 PR #92). 구 백엔드 응답에는 없을 수 있음
   scheduler_last_ok: string | null // scheduler_jobs.poll_problems.last_ok_at, 기록 없으면 null
 }
 
