@@ -1092,7 +1092,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at  TEXT NOT NULL
 );
 
-
 -- [이후] 해결 메모 (Issue #153). 사람만 작성, incident_id 는 FK 없이 앱에서 존재 확인
 CREATE TABLE IF NOT EXISTS resolution_notes (
   id             INTEGER PRIMARY KEY,
