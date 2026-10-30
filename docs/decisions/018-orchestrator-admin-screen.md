@@ -1,0 +1,6 @@
+# 018 총괄 에이전트 화면 — 관리자 메뉴 아래, 읽기 중계(#26·#27)
+- 결정: DejaFix 장애 대응에서 부서 에이전트들이 한 일을 모아 두는 **총괄(orchestrator)** 의 기록을 사이드바 `관리자 > 총괄 에이전트`(`/admin/orchestrator`, admin 전용)에서 읽기 전용으로 본다. 화면은 `/api`만 부르고, Backend 가 총괄의 읽기 API 두 개(`GET /api/incidents`·`/api/departments`)를 그대로 중계한다(`contracts/api.md` 6장 #26·#27, 총괄 주소 `ORCHESTRATOR_URL`). UI 는 `common-frontend`(`@dejafix/common-frontend`)의 Card·StatCard·DataTable·Chip·PageHeader·Notice·EChart 로 만든다.
+- 이유: 서비스 구조가 "캣북스 장애 → DejaFix 가 확인·자동 해결 → 그 상황을 총괄에서 확인"이라 총괄 화면은 DejaFix 안에 있어야 한다. 프론트는 `/api`만 부른다는 규칙(Zabbix·Agent 직접 호출 금지)을 지키려면 Backend 중계가 필요하다. 총괄로 나가는 요청은 GET 두 개뿐이고 승인·장애 주입 같은 쓰기 경로는 중계하지 않으며(SAFE-04), 분석 문장·티어를 만들지 않고 값이 없으면 503 `ORCHESTRATOR_UNAVAILABLE` + "확인할 수 없음"이다(SAFE-08).
+- 대안(기각): ① 브라우저가 총괄을 직접 호출(개발 프록시) — 운영 빌드에서 동작하지 않고 "모든 요청은 `/api`" 규칙 위반 ② ax-frontend 별도 앱을 그대로 두기 — DejaFix 서비스 안에서 볼 수 없음 ③ 승인·장애 주입 버튼 포함 — SAFE-04(실행 버튼·승인 워크플로 없음) 위반
+- 범위·규칙 예외(이 결정으로 허용): 필수 8개 밖의 **[선택]** 확장이다. 필수 8개 계약 테스트는 그대로 두고 `api.md` 6장 표를 별도로 읽도록 했다. 안전 감사의 HTTP 클라이언트 허용 목록에 `orchestrator.py`를 추가했다(총괄 GET 두 개 전용, 테스트로 고정). 이 화면은 총괄 상태가 빨리 바뀌어 15초가 아니라 5초마다 조회한다(필수 화면의 15초 규칙(FR-FE-012)과 별개).
+- 결정자·일시 / 근거: 준하(요청)·Claude 작성, 2026-10-23 / `contracts/api.md` 6장, `docs/plan.md` 7-1 확장 항목

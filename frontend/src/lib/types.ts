@@ -23,6 +23,7 @@ export type ApiErrorCode =
   | 'ZABBIX_UNAVAILABLE'
   | 'AGENT_UNAVAILABLE' // 요청서 확인 요청 5
   | 'NOT_IMPLEMENTED'
+  | 'ORCHESTRATOR_UNAVAILABLE' // #26·#27 총괄이 연결되지 않았거나 응답하지 않음
   | (string & {})
 
 export interface ApiErrorBody {
@@ -533,4 +534,101 @@ export interface UserAccount {
   role: Role
   active: boolean
   lastLogin: string
+}
+
+// 총괄(orchestrator) 읽기 중계 — contracts/api.md 6장 (#26·#27). 화면은 보기만 한다.
+export type OrchestratorStepStatus =
+  'pending' | 'running' | 'completed' | 'failed' | 'held' | 'skipped' | 'rejected_by_human' | 'transfer_queued'
+
+export interface OrchestratorStep {
+  step_id: string
+  skill: string
+  label: string
+  dept: string | null
+  status: OrchestratorStepStatus
+  attempts: number
+  note: string
+  grade: string | null
+  started_at: string | null
+  finished_at: string | null
+  transferred_to: string | null
+  reason_code: string | null
+}
+
+export interface OrchestratorIncident {
+  context_id: string
+  kind: string
+  title: string
+  component: string
+  status: 'open' | 'resolved' | 'degraded'
+  opened_at: string
+  closed_at: string | null
+  steps: OrchestratorStep[]
+  events: { at: string; message: string }[]
+  summary: string[]
+  metrics: {
+    mttr_seconds?: number
+    steps_total?: number
+    steps_completed?: number
+    held?: number
+    transfers?: number
+    retries?: number
+    auto_rate?: number
+  }
+  pending_holds: { step_id: string; skill: string; label: string }[]
+}
+
+export interface OrchestratorSeriesPoint {
+  t: string
+  calls: number
+  errors: number
+  avg_ms: number | null
+}
+
+export interface OrchestratorSkillUsage {
+  id: string
+  grade: string
+  priority: string
+  orchestrator: boolean
+  calls: number
+  errors: number
+  success_rate: number | null
+  avg_ms: number | null
+  retries: number
+  series: OrchestratorSeriesPoint[]
+}
+
+export interface OrchestratorDepartment {
+  name: string
+  owner: string | null
+  mode: 'real' | 'mock'
+  available: boolean
+  unavailable_reason: string | null
+  skills: OrchestratorSkillUsage[]
+  usage: {
+    calls: number
+    errors: number
+    waiting: number
+    success_rate: number | null
+    avg_ms: number | null
+    p95_ms: number | null
+    retries: number
+    last_called_at: string | null
+  }
+  series: OrchestratorSeriesPoint[]
+  recent: {
+    at: string
+    skill: string
+    status: string
+    outcome: string | null
+    duration_ms: number
+    context_id: string
+  }[]
+}
+
+export interface OrchestratorMeta {
+  source: 'orchestrator'
+  mock: boolean
+  window_seconds?: number | null
+  bucket_seconds?: number | null
 }

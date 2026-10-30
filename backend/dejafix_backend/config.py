@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     zabbix_failure_ttl_sec: float = 2.0
     agent_url: str = "http://agent:8100"
     mcp_zabbix_url: str = "http://mcp-zabbix:8200/mcp"
+    # 총괄(orchestrator) 읽기 중계(#26·#27). 비워 두면 503 ORCHESTRATOR_UNAVAILABLE. 예: http://localhost:8001
+    orchestrator_url: str = ""
     internal_token: str = ""
 
     # 분석 대상 심각도 (analysis.status 의 skipped/pending 구분)

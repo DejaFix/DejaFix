@@ -1258,6 +1258,7 @@ fallback_plans:
 - **[검토 반영]** **필수 8개로 축소**: #7·#14·#15를 [선택]으로 옮긴다. #7은 KPI 호스트 수를 #5가 직접 계산하고, #14·#15는 소비하는 [필수] 화면(리포트 목록·변경 계획 목록)이 없으며 #11이 리포트·계획을 이미 포함한다. SAFE-04 확인(`execute` 필드 없음, `mode:"preview"`)은 #11 응답에서 한다. 프론트 MSW 핸들러도 8개.
 - 백엔드 문서 초안의 `POST /api/login`→`/api/auth/login`, `POST /api/mail`→ #20·#22로 정리.
 - **[v1.3] 채팅 스트림 수신**: 브라우저는 #18 스트림을 `EventSource`가 아니라 **`fetch` + ReadableStream**으로 읽는다. `EventSource`는 GET만 지원하고 `Authorization` 헤더를 보낼 수 없어서 `POST /api/chat` + JWT 조합에 쓸 수 없다.
+- **[확장 2026-10-23] 총괄 읽기 중계 [선택]**: 관리자 화면 `/admin/orchestrator`용 #26 `GET /api/orchestrator/incidents`, #27 `GET /api/orchestrator/departments`(admin, 총괄 읽기 API를 그대로 중계, 총괄이 없으면 503 `ORCHESTRATOR_UNAVAILABLE`). 필수 8개와 별개이고 상세는 `contracts/api.md` 6장.
 - 프론트는 이 표로 OpenAPI(FastAPI 자동 생성)와 MSW 목을 맞춘다. **스키마 변경은 `contracts/` PR 리뷰 필수**(#세팅 규칙).
 
 ### 7-2. Backend ↔ Agent 인터페이스 (`contracts/agent-api.md`)

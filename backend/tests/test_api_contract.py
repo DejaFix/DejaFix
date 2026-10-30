@@ -34,6 +34,19 @@ def doc_routes() -> list[tuple[str, str, str]]:
     return [(m.lower(), norm(p), role) for m, p, role in rows]
 
 
+def doc_extension_routes() -> list[tuple[str, str, str]]:
+    """6장(확장 [선택]) 표 → [(method, path, 최소 역할)]. 필수 8개와 따로 센다."""
+    text = doc()
+    section = text[text.index("## 6. 확장 엔드포인트") :]
+    rows = re.findall(
+        r"^\| \d+ \| `(GET|POST|PUT|PATCH|DELETE) (/[^`?]*)(?:\?[^`]*)?` \| (\S+) \|",
+        section,
+        re.MULTILINE,
+    )
+    assert len(rows) >= 1, rows
+    return [(m.lower(), norm(p), role) for m, p, role in rows]
+
+
 def doc_error_codes() -> dict[str, int]:
     text = doc()
     section = text[text.index("### 오류 코드") :]
@@ -49,7 +62,11 @@ def doc_error_codes() -> dict[str, int]:
 def test_exposed_routes_are_exactly_the_documented_routes(client):
     paths = client.get("/openapi.json").json()["paths"]
     exposed = {(m, norm(p)) for p, ops in paths.items() for m in ops}
-    documented = {(m, p) for m, p, _ in doc_routes()} | {("get", "/healthz")}
+    documented = (
+        {(m, p) for m, p, _ in doc_routes()}
+        | {(m, p) for m, p, _ in doc_extension_routes()}
+        | {("get", "/healthz")}
+    )
     assert exposed == documented
 
 
@@ -86,6 +103,19 @@ def test_documented_minimum_roles_are_enforced(env, make_client, helpers):
             assert viewer_status == 403, (method, path, "viewer 가 통과함")
         else:
             assert viewer_status != 403, (method, path, "viewer 가 막힘")
+
+
+def test_documented_extension_routes_require_the_documented_role(make_client, helpers):
+    """6장 확장 경로: 토큰 없음 401, 문서의 최소 역할(admin)보다 낮으면 403."""
+    client = make_client(seeded=True)
+    operator = helpers.login(client, "oncall", helpers.oncall_password)
+    for method, path, role in doc_extension_routes():
+        assert role == "admin", (method, path)
+        assert request(client, method, path).status_code == 401, (method, path)
+        assert request(client, method, path, operator).status_code == 403, (
+            method,
+            path,
+        )
 
 
 # ---------------------------------------------------------------- 응답 봉투·오류 형식
