@@ -159,7 +159,16 @@ def test_detail_has_the_four_bundles(api):
     response = api.get("/api/incidents/1")
     assert response.status_code == 200
     data = response.json()["data"]
-    assert set(data) == {"incident", "report", "evidence", "plan", "steps", "mail_logs"}
+    assert set(data) == {
+        "incident",
+        "report",
+        "evidence",
+        "plan",
+        "steps",
+        "mail_logs",
+        "knowledge_hits",
+    }
+    assert data["knowledge_hits"] == []  # 시드 run 에는 kb 검색이 없다
     assert data["incident"]["analysis"] == {
         "status": "done",
         "report_id": 1,
@@ -435,3 +444,83 @@ def test_analysis_status_table(run_status, report_kind, severity, expected):
 def test_analysis_status_respects_configured_minimum():
     assert analysis_status(None, None, 3, 4) == "skipped"
     assert analysis_status(None, None, 4, 4) == "pending"
+
+
+def _add_kb_call(env, run_id, hits, *, ok=1, seq=99):
+    """리포트 run 에 kb_search_knowledge tool_call 1행을 넣는다."""
+    import json
+    import sqlite3
+
+    conn = sqlite3.connect(env.shared)
+    conn.execute(
+        "INSERT INTO tool_calls (id, run_id, seq, tool, args_json, ok, duration_ms,"
+        " result_summary, result_json, data_clock, called_at)"
+        " VALUES (?, ?, ?, 'kb_search_knowledge', '{}', ?, 10, '유사 지식', ?, NULL,"
+        " '2026-10-15T01:00:00Z')",
+        (
+            f"ev_kb{seq}",
+            run_id,
+            seq,
+            ok,
+            json.dumps({"ok": bool(ok), "data": {"mode": "keyword", "hits": hits}}),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _run_of_incident_1(env):
+    import sqlite3
+
+    conn = sqlite3.connect(env.shared)
+    (run_id,) = conn.execute(
+        "SELECT run_id FROM analysis_reports WHERE incident_id = 1"
+        " ORDER BY version DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    return run_id
+
+
+def _hit(n, **meta):
+    return {
+        "chunk_id": f"kb_{n:012d}",
+        "source_type": "incident_report",
+        "source_id": f"incident:{n}",
+        "title": f"장애 #{n} 제목",
+        "heading": "h",
+        "text": f"본문 {n}",
+        "score": 0.01,
+        "cosine": None,
+        "meta": meta,
+    }
+
+
+def test_detail_knowledge_hits_copied_from_stored_kb_call(env, make_client, helpers):
+    """저장된 kb 검색 결과를 옮겨 담기만 한다 — 최대 3건, text → excerpt, meta 의 호스트·장애 ID."""
+    client = make_client(seeded=True)
+    hits = [_hit(20, incident_id=20, host_name="Zabbix server")] + [
+        _hit(n) for n in range(30, 34)
+    ]
+    _add_kb_call(env, _run_of_incident_1(env), hits)
+    headers = helpers.login(client, "oncall", helpers.oncall_password)
+    data = client.get("/api/incidents/1", headers=headers).json()["data"]
+    assert len(data["knowledge_hits"]) == 3
+    assert data["knowledge_hits"][0] == {
+        "chunk_id": "kb_000000000020",
+        "title": "장애 #20 제목",
+        "source_type": "incident_report",
+        "host_name": "Zabbix server",
+        "incident_id": 20,
+        "excerpt": "본문 20",
+    }
+    assert data["knowledge_hits"][1]["host_name"] is None
+    kb_ev = next(e for e in data["evidence"] if e["tool"] == "kb_search_knowledge")
+    assert "result_json" not in kb_ev  # evidence 의 result_json 제외 규칙은 그대로
+
+
+def test_detail_knowledge_hits_empty_when_kb_call_failed(env, make_client, helpers):
+    client = make_client(seeded=True)
+    _add_kb_call(env, _run_of_incident_1(env), [_hit(20)], ok=0)
+    headers = helpers.login(client, "oncall", helpers.oncall_password)
+    data = client.get("/api/incidents/1", headers=headers).json()["data"]
+    assert data["knowledge_hits"] == []

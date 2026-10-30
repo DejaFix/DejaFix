@@ -220,6 +220,45 @@ def _evidence(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+KB_TOOL = "kb_search_knowledge"  # mcp-kb 검색 도구 (contracts/mcp-tools.md 6장)
+KNOWLEDGE_HITS_MAX = 3
+
+
+def _knowledge_hits(conn: sqlite3.Connection, run_id: str) -> list[dict[str, Any]]:
+    """리포트 run 의 저장된 kb_search_knowledge 결과 data.hits[] 를 옮겨 담기만 한다 (계약 #11, 최대 3건).
+
+    문장 생성·번역·재정렬 없음. 검색을 안 했거나 실패·결과 없음이면 [].
+    """
+    row = conn.execute(
+        "SELECT result_json FROM shared.tool_calls WHERE run_id = ? AND tool = ? AND ok = 1"
+        " ORDER BY seq DESC LIMIT 1",
+        (run_id, KB_TOOL),
+    ).fetchone()
+    if row is None:
+        return []
+    result = _json(row["result_json"], {})  # 32KB 로 잘려 깨졌으면 {}
+    data = result.get("data") if isinstance(result, dict) else None
+    hits = data.get("hits") if isinstance(data, dict) else None
+    if not isinstance(hits, list):
+        return []
+    out = []
+    for h in hits[:KNOWLEDGE_HITS_MAX]:
+        if not isinstance(h, dict) or not h.get("chunk_id"):
+            continue
+        meta = h.get("meta") if isinstance(h.get("meta"), dict) else {}
+        out.append(
+            {
+                "chunk_id": h["chunk_id"],
+                "title": h.get("title") or "",
+                "source_type": h.get("source_type"),
+                "host_name": meta.get("host_name"),
+                "incident_id": meta.get("incident_id"),
+                "excerpt": h.get("text") or "",
+            }
+        )
+    return out
+
+
 def _plan(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -277,6 +316,7 @@ def incident_detail(
 
     report = None
     evidence: list[dict[str, Any]] = []
+    knowledge_hits: list[dict[str, Any]] = []
     if row["report_id"] is not None:
         report_row = conn.execute(
             "SELECT * FROM shared.analysis_reports WHERE id = ?", (row["report_id"],)
@@ -290,6 +330,7 @@ def incident_detail(
                 (report_row["run_id"],),
             )
         ]
+        knowledge_hits = _knowledge_hits(conn, report_row["run_id"])
 
     plan = None
     steps: list[dict[str, Any]] = []
@@ -321,5 +362,6 @@ def incident_detail(
             "plan": plan,
             "steps": steps,
             "mail_logs": mail_logs,
+            "knowledge_hits": knowledge_hits,
         }
     )
