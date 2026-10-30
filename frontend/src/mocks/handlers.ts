@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 import { dashboardSummary, health, incidentDetails, incidentList, problems } from '../lib/mock'
 import type { AuthUser, ChatEvent, DashboardSummary, Health, Incident, Measured } from '../lib/types'
+import { notesHandlers } from './notesHandlers'
 import { passthroughGroups, type ApiGroup } from './passthrough'
 
 // 개발용 목(mock). 응답 형식은 plan.md 7장·노션 요청서 3장: 성공 {data, meta}, 실패 {error:{code, message}}.
@@ -242,6 +243,10 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
       const detail = incidentDetails[Number(params.id)]
       return detail ? ok(detail) : error(404, 'NOT_FOUND', '장애를 찾을 수 없습니다')
     }),
+
+    // 해결 메모(계약 PR #191, Issue #153) — 목 전용. incidents 묶음 안에 있어서 VITE_MSW_PASSTHROUGH=incidents로
+    // 실제 백엔드를 쓰면 백엔드 API(#197)가 머지되기 전에는 이 경로가 없어 "메모를 불러오지 못했습니다"가 보인다.
+    ...notesHandlers(userFromRequest),
   ],
 
   chat: [
