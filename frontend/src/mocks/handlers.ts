@@ -2,6 +2,7 @@ import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 import { dashboardSummary, health, incidentDetails, incidentList, problems } from '../lib/mock'
 import type { AuthUser, ChatEvent, DashboardSummary, Health, Incident, Measured } from '../lib/types'
 import { orchestratorDepartments, orchestratorDepartmentsMeta, orchestratorIncidents } from './orchestratorSample'
+import { notesHandlers } from './notesHandlers'
 import { passthroughGroups, type ApiGroup } from './passthrough'
 
 // 개발용 목(mock). 응답 형식은 plan.md 7장·노션 요청서 3장: 성공 {data, meta}, 실패 {error:{code, message}}.
@@ -21,7 +22,9 @@ const TOKEN_PREFIX = 'mock-jwt.'
 // 페이지를 다시 불러오기 전까지 유지된다.
 // - zabbix_down: health.zabbix='down', #5 호스트 KPI는 unknown(TOOL_ERROR), #6은 503 ZABBIX_UNAVAILABLE
 // - agent_down: health.agent='down', #18 채팅은 error 이벤트 AGENT_UNAVAILABLE(실제 백엔드가 Agent 없이 주는 응답과 같음)
-const SCENARIOS = ['normal', 'zabbix_down', 'agent_down', 'orchestrator_down'] as const
+// - stale: health.scheduler='stale', #10 meta.stale=true(수집 지연 배너 확인용, 기본은 정상 ok·stale=false)
+// - orchestrator_down: 총괄 읽기 중계(#26·#27)가 503 ORCHESTRATOR_UNAVAILABLE을 돌려준다
+const SCENARIOS = ['normal', 'zabbix_down', 'agent_down', 'stale', 'orchestrator_down'] as const
 export type MockScenario = (typeof SCENARIOS)[number]
 const requested: unknown =
   new URLSearchParams(globalThis.location?.search ?? '').get('scenario') ?? import.meta.env.VITE_MOCK_SCENARIO
@@ -79,9 +82,12 @@ const orchestratorShiftMs = () => {
 }
 
 // ---- 시나리오별 데이터 ----
+const STALE_AS_OF = '2026-10-16T01:10:00Z' // 지연 시나리오의 마지막 수집 성공 시각
+const NORMAL_AS_OF = health.scheduler_last_ok
 function currentHealth(): Health {
   if (SCENARIO === 'zabbix_down') return { ...health, zabbix: 'down' }
   if (SCENARIO === 'agent_down') return { ...health, agent: 'down' }
+  if (SCENARIO === 'stale') return { ...health, scheduler: 'stale', scheduler_last_ok: STALE_AS_OF }
   return health
 }
 
@@ -246,7 +252,8 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
         .sort((a, b) => b.started_at.localeCompare(a.started_at))
       const page = filtered.slice(offset, offset + limit)
       const next = offset + limit < filtered.length ? encodeCursor(offset + limit) : null
-      return ok(page, { next_cursor: next })
+      const stale = SCENARIO === 'stale'
+      return ok(page, { next_cursor: next, data_as_of: stale ? STALE_AS_OF : NORMAL_AS_OF, stale })
     }),
 
     // #11 장애 상세 — 없으면 404 NOT_FOUND
@@ -256,6 +263,10 @@ const handlerGroups: Record<ApiGroup, HttpHandler[]> = {
       const detail = incidentDetails[Number(params.id)]
       return detail ? ok(detail) : error(404, 'NOT_FOUND', '장애를 찾을 수 없습니다')
     }),
+
+    // 해결 메모(계약 PR #191, Issue #153) — 목 전용. incidents 묶음 안에 있어서 VITE_MSW_PASSTHROUGH=incidents로
+    // 실제 백엔드를 쓰면 백엔드 API(#197)가 머지되기 전에는 이 경로가 없어 "메모를 불러오지 못했습니다"가 보인다.
+    ...notesHandlers(userFromRequest),
   ],
 
   orchestrator: [

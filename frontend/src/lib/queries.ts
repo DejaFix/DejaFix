@@ -9,7 +9,7 @@ import type {
   Incident,
   IncidentDetail,
   IncidentStatus,
-  ListMeta,
+  IncidentListMeta,
   OrchestratorDepartment,
   OrchestratorIncident,
   OrchestratorMeta,
@@ -91,9 +91,9 @@ export interface IncidentsParams {
 
 /** #10 GET /api/incidents — 수집된 장애 목록(started_at 내림차순). 다음 쪽은 meta.next_cursor */
 export function useIncidents(params: IncidentsParams = {}) {
-  return useQuery<ApiResponse<Incident[], ListMeta>, ApiError>({
+  return useQuery<ApiResponse<Incident[], IncidentListMeta>, ApiError>({
     queryKey: queryKeys.incidents(params),
-    queryFn: ({ signal }) => apiRequest<Incident[], ListMeta>('/api/incidents', { signal, query: { ...params } }),
+    queryFn: ({ signal }) => apiRequest<Incident[], IncidentListMeta>('/api/incidents', { signal, query: { ...params } }),
     placeholderData: keepPreviousData,
     ...polling,
   })

@@ -63,9 +63,10 @@ class PollResult:
     message: str | None = None
 
 
-def _upsert_job(
-    conn: sqlite3.Connection, now: str, ok: bool, message: str | None
+def upsert_job(
+    conn: sqlite3.Connection, job: str, now: str, ok: bool, message: str | None
 ) -> None:
+    """scheduler_jobs 의 job 행 1개 UPSERT. 실패면 last_ok_at 은 그대로 둔다."""
     conn.execute(
         """INSERT INTO scheduler_jobs(job, last_run_at, last_ok_at, status, message)
            VALUES (?, ?, ?, ?, ?)
@@ -74,7 +75,7 @@ def _upsert_job(
              last_ok_at  = COALESCE(excluded.last_ok_at, scheduler_jobs.last_ok_at),
              status      = excluded.status,
              message     = excluded.message""",
-        (JOB, now, now if ok else None, "ok" if ok else "error", message),
+        (job, now, now if ok else None, "ok" if ok else "error", message),
     )
     conn.commit()
 
@@ -174,7 +175,7 @@ def poll_once(
         result.ok = False
         result.message = f"{type(exc).__name__}: {str(exc)[:200]}"
         log.error("poll_problems 실패: %s", result.message)
-    _upsert_job(conn, stamp, result.ok, result.message)
+    upsert_job(conn, JOB, stamp, result.ok, result.message)
     if result.ok:
         log.info(
             "poll_problems ok seen=%d inserted=%d resolved=%d enriched=%d",

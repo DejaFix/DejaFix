@@ -716,6 +716,7 @@ export const health: Health = {
   mcp_zabbix: 'ok',
   shared_db: 'ok',
   backend_db: 'ok',
+  scheduler: 'ok',
   scheduler_last_ok: '2026-10-16T01:20:30Z',
 }
 
@@ -726,6 +727,7 @@ export const healthDegraded: Health = {
   mcp_zabbix: 'down',
   shared_db: 'waiting',
   backend_db: 'ok',
+  scheduler: 'ok',
   scheduler_last_ok: '2026-10-16T01:20:30Z',
 }
 
