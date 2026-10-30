@@ -5,11 +5,12 @@ import { api } from '../lib/api'
 import { cssVar, sevCss } from '../lib/colors'
 import { useThemeVersion } from '../hooks/useThemeVersion'
 import { severityLabel, shortAgo } from '../lib/format'
-import { useDashboardSummary, useIncidents } from '../lib/queries'
+import { useDashboardSummary, useHealth, useIncidents } from '../lib/queries'
 import type { DashboardSummary, Incident, Measured, Severity } from '../lib/types'
 import { Collapsible } from '../components/Collapsible'
 import { EChart } from '../components/EChart'
 import { AnalysisBadge, SeverityInfoChip, Unknown } from '../components/IncidentParts'
+import { UnknownValue } from '../components/Chips'
 import { kstShort, readableTitle } from '../components/incidentFormat'
 
 /** Measured 하나를 화면 값으로. unknown이거나 value가 null이면 0·빈칸 대신 UnknownValue(SAFE-10). */
@@ -36,7 +37,8 @@ function IncidentRow({ i }: { i: Incident }) {
       <span className="alert-time">{kstShort(i.started_at) ?? '—'}</span>
     </Link>
   )
-}function DiskForecast() {
+}
+function DiskForecast() {
   const { data } = useQuery({ queryKey: ['disk'], queryFn: api.diskForecasts })
   if (!data) return <div className="skeleton" />
   const color = (d: number) => (d <= 7 ? sevCss.high : d <= 30 ? sevCss.warning : sevCss.info)
@@ -225,9 +227,7 @@ function ServerMap({ list, okHosts, loading }: { list: Incident[]; okHosts: Meas
         ))}
         <div className="tile ok">
           <span className="tile-name">정상</span>
-          <span className="tile-count">
-            {loading ? '…' : <MeasuredText m={okHosts} />}대
-          </span>
+          <span className="tile-count">{loading ? '…' : <MeasuredText m={okHosts} />}대</span>
         </div>
       </div>
     </section>
@@ -314,7 +314,9 @@ function SummaryTiles({ s, loading }: { s: DashboardSummary | undefined; loading
               </>
             )}
           </span>
-          <small>{s && !s.hosts.unknown.unknown && s.hosts.unknown.value ? `확인 불가 ${s.hosts.unknown.value}대` : '대'}</small>
+          <small>
+            {s && !s.hosts.unknown.unknown && s.hosts.unknown.value ? `확인 불가 ${s.hosts.unknown.value}대` : '대'}
+          </small>
         </div>
         <div className="sum-tile">
           <span className="sum-label">
@@ -332,19 +334,35 @@ function SummaryTiles({ s, loading }: { s: DashboardSummary | undefined; loading
     </section>
   )
 }
+/** 수집 지연 배너(계약 PR #92). 판정은 백엔드 값(meta.stale·health.scheduler)을 그대로 쓰고 화면은 계산하지 않는다. */
+function StaleBanner({ stale, scheduler, dataAsOf }: { stale?: boolean; scheduler?: string; dataAsOf?: string | null }) {
+  if (stale !== true && (scheduler === undefined || scheduler === 'ok')) return null
+  const asOf = kstShort(dataAsOf)
+  return (
+    <div className="note warn" role="alert" style={{ marginBottom: 12 }}>
+      수집이 지연되고 있습니다 · 마지막 수집 {asOf ? `${asOf} (KST)` : <UnknownValue />}
+    </div>
+  )
+}
+
 export default function Dashboard() {
+  const health = useHealth()
   const summary = useDashboardSummary()
-  const incidents = useIncidents({ limit: 50 })
+  // 진행 중 장애는 상단 배너(Layout)와 같은 조회로 받는다. 최근 50건 안에서만 고르면 오래전에 시작한
+  // 높은 심각도 장애가 목록에서 빠져 배너·헤드라인과 어긋난다.
+  const incidents = useIncidents({ status: 'problem', limit: 100 })
+  const recent = useIncidents({ limit: 50 })
   const list = incidents.data?.data
+  const recentList = recent.data?.data
   const nowMs = incidents.dataUpdatedAt
   // 우선순위 = 해결되지 않은 장애를 심각도 높은 순, 같으면 최근 시작 순. 나머지(해결됨 포함)는 접어 둔다.
   const { top, rest, first } = useMemo(() => {
     const open = (list ?? [])
       .filter((i) => i.status === 'problem')
       .sort((a, b) => b.severity.level - a.severity.level || Date.parse(b.started_at) - Date.parse(a.started_at))
-    const resolved = (list ?? []).filter((i) => i.status !== 'problem')
+    const resolved = (recentList ?? []).filter((i) => i.status !== 'problem')
     return { top: open.slice(0, LIST_LIMIT), rest: [...open.slice(LIST_LIMIT), ...resolved], first: open[0] }
-  }, [list])
+  }, [list, recentList])
   const groups = useQuery({ queryKey: ['groups'], queryFn: api.crossGroups })
   const baselines = useQuery({ queryKey: ['baselines'], queryFn: api.baselines })
   const s = summary.data?.data
@@ -362,132 +380,137 @@ export default function Dashboard() {
   return (
     <div className="page page-wide">
       <div className="dash-layout">
-      <div className="dash-main">
-      <div className="hero">
-        <div className="hero-line">
-          <h1 className="page-title">현황 · 장애 대응</h1>
-          <span
-            className="info-tip"
-            tabIndex={0}
-            role="note"
-            aria-label="Zabbix 기본 장애 화면과 건수가 다를 수 있습니다"
-            data-tip="Zabbix 기본 ‘장애’ 화면과 건수가 다를 수 있습니다. 이 화면은 수집된 장애를 심각도 순으로 보여 줍니다."
-          >
-            i
-          </span>
-        </div>
-        <p className="hero-headline">{headline}</p>
-      </div>
-
-      <section id="sec-priority" className="priority">
-        <div className="card-head">
-          <h2 className="card-title">지금 확인할 장애</h2>
-          <span className="card-sub">심각도 순 · 누르면 상세 · AI 분석 · 근거</span>
-        </div>
-        {incidents.isError && !list ? (
-          <p className="card-sub">장애 목록을 불러오지 못했습니다. 15초 뒤 다시 시도합니다.</p>
-        ) : !list ? (
-          <div className="skeleton" />
-        ) : (
-          <>
-            {incidents.isError && <p className="card-sub">갱신 실패 — 마지막으로 받은 목록입니다.</p>}
-            {top.length === 0 ? (
-              <div className="card calm-card">
-                <span className="card-sub">해결되지 않은 장애가 없습니다.</span>
-              </div>
-            ) : (
-              <div className="card list-card">
-                {top.map((i) => (
-                  <IncidentRow key={i.id} i={i} />
-                ))}
-              </div>
-            )}
-            {rest.length > 0 && (
-              <Collapsible id="sec-rest" title="나머지 · 해결된 장애" count={rest.length} meta="목록 밖의 장애">
-                {rest.map((i) => (
-                  <IncidentRow key={i.id} i={i} />
-                ))}
-                {incidents.data?.meta.next_cursor && (
-                  <div className="alert-row">
-                    <span className="card-sub">더 오래된 장애는 상세 목록 화면에서 확인합니다 (구현 예정)</span>
-                  </div>
-                )}
-              </Collapsible>
-            )}
-          </>
-        )}
-      </section>
-
-      <div className="grid two section-gap">
-        <ServerMap list={list ?? []} okHosts={s?.hosts.ok} loading={loadingKpi} />
-        <section className="card">
-          <div className="card-head">
-            <h2 className="card-title">같은 알림이 여러 서버에서</h2>
-            <span className="card-sub">한 원인이 여러 서버에 동시에 나타난 것일 수 있다</span>
-          </div>
-          {!groups.data ? (
-            <div className="skeleton" />
-          ) : (
-            groups.data.map((g) => (
-              <div className="group-row" key={g.id}>
-                <span className="count-pill">{g.serverCount}대</span>
-                <span style={{ flex: 1, minWidth: 0 }}>{g.name}</span>
-                <Link className="btn small" to={`/compare?group=${g.id}`}>
-                  이 서버들 비교
-                </Link>
-              </div>
-            ))
-          )}
-        </section>
-      </div>
-
-      <div className="section-gap">
-        <Collapsible title="추가 분석" meta="평소와 다른 값 · 디스크 예측 · 추세 · 시간대 분포">
-          <section className="card inner-card">
-            <div className="card-head">
-              <h2 className="card-title">평소와 다른 값</h2>
-              <span className="card-sub">지금 같은 요일 · 시간대의 평소 범위를 벗어난 서버</span>
+        <div className="dash-main">
+          <div className="hero">
+            <div className="hero-line">
+              <h1 className="page-title">현황 · 장애 대응</h1>
+              <span
+                className="info-tip"
+                tabIndex={0}
+                role="note"
+                aria-label="Zabbix 기본 장애 화면과 건수가 다를 수 있습니다"
+                data-tip="Zabbix 기본 ‘장애’ 화면과 건수가 다를 수 있습니다. 이 화면은 수집된 장애를 심각도 순으로 보여 줍니다."
+              >
+                i
+              </span>
             </div>
-            {!baselines.data ? (
+            <p className="hero-headline">{headline}</p>
+          </div>
+
+          <section id="sec-priority" className="priority">
+            <div className="card-head">
+              <h2 className="card-title">지금 확인할 장애</h2>
+              <span className="card-sub">심각도 순 · 누르면 상세 · AI 분석 · 근거</span>
+            </div>
+            <StaleBanner
+              stale={incidents.data?.meta?.stale}
+              scheduler={health.data?.data?.scheduler}
+              dataAsOf={incidents.data?.meta?.data_as_of ?? health.data?.data?.scheduler_last_ok}
+            />
+            {incidents.isError && !list ? (
+              <p className="card-sub">장애 목록을 불러오지 못했습니다. 15초 뒤 다시 시도합니다.</p>
+            ) : !list ? (
               <div className="skeleton" />
             ) : (
-              baselines.data.map((b) => (
-                <div className="baseline-row" key={b.host}>
-                  <span className="baseline-host mono">{b.host}</span>
-                  <span>
-                    {b.metric}{' '}
-                    <span className="baseline-now">
-                      {b.now}
-                      {b.unit}
-                    </span>
-                  </span>
-                  <span className="baseline-range">
-                    평소 {b.baselineMin}–{b.baselineMax}
-                    {b.unit}
-                  </span>
-                  <span className="baseline-since">{shortAgo(b.sinceMinutes)}</span>
-                </div>
-              ))
+              <>
+                {incidents.isError && <p className="card-sub">갱신 실패 — 마지막으로 받은 목록입니다.</p>}
+                {top.length === 0 ? (
+                  <div className="card calm-card">
+                    <span className="card-sub">해결되지 않은 장애가 없습니다.</span>
+                  </div>
+                ) : (
+                  <div className="card list-card">
+                    {top.map((i) => (
+                      <IncidentRow key={i.id} i={i} />
+                    ))}
+                  </div>
+                )}
+                {rest.length > 0 && (
+                  <Collapsible id="sec-rest" title="나머지 · 해결된 장애" count={rest.length} meta="목록 밖의 장애">
+                    {rest.map((i) => (
+                      <IncidentRow key={i.id} i={i} />
+                    ))}
+                    {incidents.data?.meta.next_cursor && (
+                      <div className="alert-row">
+                        <span className="card-sub">더 오래된 장애는 상세 목록 화면에서 확인합니다 (구현 예정)</span>
+                      </div>
+                    )}
+                  </Collapsible>
+                )}
+              </>
             )}
           </section>
+
           <div className="grid two section-gap">
-            <section className="card" id="sec-disk">
-              <DiskForecast />
-            </section>
+            <ServerMap list={list ?? []} okHosts={s?.hosts.ok} loading={loadingKpi} />
             <section className="card">
-              <TrendChart />
+              <div className="card-head">
+                <h2 className="card-title">같은 알림이 여러 서버에서</h2>
+                <span className="card-sub">한 원인이 여러 서버에 동시에 나타난 것일 수 있다</span>
+              </div>
+              {!groups.data ? (
+                <div className="skeleton" />
+              ) : (
+                groups.data.map((g) => (
+                  <div className="group-row" key={g.id}>
+                    <span className="count-pill">{g.serverCount}대</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>{g.name}</span>
+                    <Link className="btn small" to={`/compare?group=${g.id}`}>
+                      이 서버들 비교
+                    </Link>
+                  </div>
+                ))
+              )}
             </section>
           </div>
-          <section className="card section-gap">
-            <Heatmap />
-          </section>
-        </Collapsible>
-      </div>
-      </div>
-      <aside className="dash-rail" aria-label="요약">
-        <UrgentCard incident={first} nowMs={nowMs} loading={!list && !incidents.isError} />
-        <SummaryTiles s={s} loading={loadingKpi} />
-      </aside>
+
+          <div className="section-gap">
+            <Collapsible title="추가 분석" meta="평소와 다른 값 · 디스크 예측 · 추세 · 시간대 분포">
+              <section className="card inner-card">
+                <div className="card-head">
+                  <h2 className="card-title">평소와 다른 값</h2>
+                  <span className="card-sub">지금 같은 요일 · 시간대의 평소 범위를 벗어난 서버</span>
+                </div>
+                {!baselines.data ? (
+                  <div className="skeleton" />
+                ) : (
+                  baselines.data.map((b) => (
+                    <div className="baseline-row" key={b.host}>
+                      <span className="baseline-host mono">{b.host}</span>
+                      <span>
+                        {b.metric}{' '}
+                        <span className="baseline-now">
+                          {b.now}
+                          {b.unit}
+                        </span>
+                      </span>
+                      <span className="baseline-range">
+                        평소 {b.baselineMin}–{b.baselineMax}
+                        {b.unit}
+                      </span>
+                      <span className="baseline-since">{shortAgo(b.sinceMinutes)}</span>
+                    </div>
+                  ))
+                )}
+              </section>
+              <div className="grid two section-gap">
+                <section className="card" id="sec-disk">
+                  <DiskForecast />
+                </section>
+                <section className="card">
+                  <TrendChart />
+                </section>
+              </div>
+              <section className="card section-gap">
+                <Heatmap />
+              </section>
+            </Collapsible>
+          </div>
+        </div>
+        <aside className="dash-rail" aria-label="요약">
+          <UrgentCard incident={first} nowMs={nowMs} loading={!list && !incidents.isError} />
+          <SummaryTiles s={s} loading={loadingKpi} />
+        </aside>
       </div>
     </div>
   )

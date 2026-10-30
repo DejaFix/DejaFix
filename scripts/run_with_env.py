@@ -1,6 +1,6 @@
 """루트 .env를 python-dotenv로 읽은 뒤(이미 있는 환경 변수가 우선) 서비스를 띄운다. 값은 출력하지 않는다.
 
-    uv run --package <패키지> python scripts/run_with_env.py module <모듈>           # python -m <모듈>
+    uv run --package <패키지> python scripts/run_with_env.py module <모듈> [인자...]   # python -m <모듈> [인자...]
     uv run --package <패키지> python scripts/run_with_env.py asgi <앱> <포트>         # uvicorn <앱>
 
 Agent·Scheduler·mcp-zabbix는 os.environ만 읽고 .env를 직접 로드하지 않는다(Backend만 pydantic env_file).
@@ -18,7 +18,7 @@ load_dotenv(ROOT / ".env", override=False)
 
 mode, target = sys.argv[1], sys.argv[2]
 if mode == "module":
-    sys.argv = [target]
+    sys.argv = [target, *sys.argv[3:]]  # 모듈의 하위 명령 인자(예: dejafix_kb index)
     runpy.run_module(target, run_name="__main__", alter_sys=True)
 elif mode == "asgi":
     import uvicorn

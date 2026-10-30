@@ -930,7 +930,7 @@ CREATE TABLE IF NOT EXISTS metrics_daily (                -- 매일 03:00 전일
 );
 
 CREATE TABLE IF NOT EXISTS scheduler_jobs (
-  job          TEXT PRIMARY KEY,            -- poll_problems | daily_collect | retention ([검토 반영] poll_problems 행만 [필수])
+  job          TEXT PRIMARY KEY,            -- poll_problems | daily_collect | retention | kb_reindex | kb_notes ([검토 반영] poll_problems 행만 [필수], kb_* 는 [이후] 결정 017)
   last_run_at  TEXT, last_ok_at TEXT,
   status       TEXT, message TEXT
 );
@@ -1092,7 +1092,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at  TEXT NOT NULL
 );
 
-
 -- [이후] 해결 메모 (Issue #153). 사람만 작성, incident_id 는 FK 없이 앱에서 존재 확인
 CREATE TABLE IF NOT EXISTS resolution_notes (
   id             INTEGER PRIMARY KEY,
@@ -1250,7 +1249,7 @@ fallback_plans:
 | 8 | `GET /api/hosts/{hostid}` | viewer | 상세 + 최근 사양 스냅샷 | Zabbix + shared | P1 |
 | 9 | `GET /api/hosts/{hostid}/metrics?keys=cpu,mem,disk&range=1h` | viewer | 시계열 | Zabbix `history.get`/`trend.get` | P1 |
 | 10 | `GET /api/incidents?status=&severity_min=` | viewer | 수집된 장애 + 분석 상태 | shared | P0 |
-| 11 | `GET /api/incidents/{id}` | viewer | 장애 + 최신 리포트 + 근거 + 최신 계획 + 메일 기록 | shared + backend | P0 |
+| 11 | `GET /api/incidents/{id}` | viewer | 장애 + 최신 리포트 + 근거 + 최신 계획 + 메일 기록 + (선택) `knowledge_hits[]`(과거 유사 사례, 저장된 검색 결과 옮김) | shared + backend | P0 |
 | 12 | `POST /api/incidents/{id}/analyze` | operator | 다시 분석 → Agent 중계, `202 {run_id}` | Agent | P1 |
 | 13 | `GET /api/runs/{run_id}` | viewer | 분석 진행 상태(폴링) | shared | P1 |
 | 14 | `GET /api/reports?incident_id=` / `GET /api/reports/{id}` | viewer | 리포트 목록·상세(근거 포함) | shared | P0 |

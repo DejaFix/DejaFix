@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { ResolutionNotes } from '../components/ResolutionNotes'
 import {
   AnalysisBadge,
   ConfidenceChip,
@@ -11,6 +12,7 @@ import {
   SeverityInfoChip,
   Unknown,
 } from '../components/IncidentParts'
+import { SimilarCasesCard } from '../components/SimilarCasesCard'
 import { analysisNotes, kstShort } from '../components/incidentFormat'
 import { ApiError } from '../lib/http'
 import { useIncidentDetail } from '../lib/queries'
@@ -197,6 +199,8 @@ export default function IncidentDetail({ embedded = false }: { embedded?: boolea
         </div>
       )}
 
+      {report && <SimilarCasesCard report={report} hits={data.knowledge_hits} onPick={pick} />}
+
       {report && (
         <section className="card">
           <div className="card-head">
@@ -229,6 +233,8 @@ export default function IncidentDetail({ embedded = false }: { embedded?: boolea
           ))}
         </section>
       )}
+
+      {incident.status === 'resolved' && <ResolutionNotes incidentId={incident.id} />}
 
       <section className="card">
         <div className="card-head">

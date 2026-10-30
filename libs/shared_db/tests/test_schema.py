@@ -22,7 +22,7 @@ SHARED_TABLES = {
     "conversations",
     "messages",
 }
-BACKEND_TABLES = {"users", "mail_logs"}
+BACKEND_TABLES = {"users", "mail_logs", "resolution_notes"}
 T = "2026-10-16T01:20:00Z"
 
 

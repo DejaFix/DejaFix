@@ -260,6 +260,7 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
 - **리포트가 아직 없으면** `report: null, evidence: [], plan: null, steps: []`. 프론트는 `incident.analysis.status` 로 "분석 중" 등을 표시한다. 메일 기록이 없으면 `mail_logs: []`.
 - `report.causes[].evidence_ids` 의 모든 ID 는 `evidence[]` 에 존재한다(값은 Agent 가 검증해 저장한다). `report.kind="fallback"` 이면 프론트가 "LLM 미연결 — 규칙 기반 최소 리포트" 라벨을 붙인다.
 - `evidence` 는 리포트가 참조하는 run 의 `tool_calls` 전체이고 **`result_json` 은 제외**한다.
+- **`knowledge_hits[]` (선택 필드, 제안)**: 응답 `data` 에 최상위로 추가한다. 리포트가 참조하는 run 의 `kb_search_knowledge` `tool_calls.result_json` 의 `data.hits[]` 를 **옮겨 담기만** 한다(문장 생성·번역·재정렬 없음, 최대 3건). 항목: `{ "chunk_id": "kb_…", "title": "…", "source_type": "incident_report|runbook|pack_action|resolution_note", "host_name": "…"|null, "incident_id": 32|null, "excerpt": "…" }`. 검색을 하지 않았거나 결과가 없으면 `[]`, 필드 자체가 없을 수도 있다(구버전 호환 — 프론트는 없으면 `[]` 로 본다). `evidence[]` 의 `result_json` 제외 규칙은 그대로다.
 - `steps[].tier` 는 코드가 `actions.yaml` 로 판정한 값만이다(LLM 원본 티어 없음). `causes[].confidence` 는 `low|medium|high` 문자만(퍼센트·점수 금지).
 - `incident.severity.label`: 0 `Not classified` · 1 `Information` · 2 `Warning` · 3 `Average` · 4 `High` · 5 `Disaster`.
 - 404 `NOT_FOUND`: 없는 장애.

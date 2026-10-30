@@ -91,3 +91,32 @@ def test_internal_token_required_when_set(monkeypatch):
         ).status_code
         == 401
     )
+
+
+def _mcp_status(host: str) -> int:
+    with TestClient(build_app(FakeZabbix(), mock=True)) as client:
+        response = client.post(
+            "/mcp",
+            headers={
+                "Host": host,
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+            },
+            json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+        )
+    return response.status_code
+
+
+def test_mcp_accepts_compose_service_host():
+    # Agent 컨테이너가 mcp-zabbix:8200 으로 부를 때 421(Invalid Host header)이 나면 안 된다
+    assert _mcp_status("mcp-zabbix:8200") != 421
+
+
+def test_mcp_rejects_unknown_host_when_protection_on():
+    assert _mcp_status("evil.example:8200") == 421
+
+
+def test_mcp_allowed_hosts_env_overrides_default(monkeypatch):
+    monkeypatch.setenv("MCP_ZABBIX_ALLOWED_HOSTS", "other-host:*")
+    assert _mcp_status("other-host:8200") != 421
+    assert _mcp_status("mcp-zabbix:8200") == 421
