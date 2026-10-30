@@ -37,6 +37,8 @@
 | #3 me, #4 health | 로그인(viewer 이상) |
 | #5·#6·#10·#11 | viewer |
 | #18 채팅 | **operator** (viewer → 403) |
+| #26 `GET /api/incidents/{id}/notes` ([이후]) | viewer |
+| #27 `POST /api/incidents/{id}/notes` ([이후]) | **operator** (viewer → 403) |
 
 ### 오류 코드
 
@@ -66,6 +68,8 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
 | 10 | `GET /api/incidents` | viewer | shared.db `incidents` + JOIN |
 | 11 | `GET /api/incidents/{id}` | viewer | shared.db + backend.db `mail_logs` |
 | 18 | `POST /api/chat` | operator | Agent `/v1/chat` SSE 중계 |
+| 26 | `GET /api/incidents/{id}/notes` ([이후]) | viewer | backend.db `resolution_notes` + `users` |
+| 27 | `POST /api/incidents/{id}/notes` ([이후]) | operator | backend.db `resolution_notes` (존재 확인만 shared.db `incidents`) |
 
 개발 순서: #1 → #3 → #4 → #10 → #11 → #5 → #6 → #18.
 
@@ -295,6 +299,36 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 }
 ```
 - `error` 이벤트가 오면 HTTP 502 + `{"error":{"code":<error.code>,"message":...}}`.
+
+### #26·#27 `GET`·`POST /api/incidents/{id}/notes` — 해결 메모 ([이후], Issue #153)
+
+장애가 해결된 뒤 **사람이** 적는 "실제 원인·한 조치·결과". 다음 검색(RAG)의 근거로 쓴다. **AI·내부 호출은 메모를 쓰지 않는다**(문장 생성은 Agent만, 메모는 사람만). 수정·삭제 API 는 없다. 실행 필드(`execute`/`run`)는 없고, "한 조치"는 사람이 시스템 밖에서 한 일의 기록일 뿐이다.
+
+`POST` 요청 (operator 이상, viewer → 403 `FORBIDDEN`)
+```json
+{ "root_cause": "백업 잡이 C: 를 가득 채움", "action_taken": "임시 파일 정리(수동)", "result": "사용률 96% → 61%" }
+```
+- 세 필드 모두 문자열(생략·`null` 허용), **각 1000자 이하**. 셋 다 비었거나 공백뿐이면 422 `VALIDATION_ERROR`. 저장 시 앞뒤 공백은 자르고, 자른 뒤 빈 값은 `null` 로 저장한다.
+- `author_user_id` 는 요청 본문이 아니라 **로그인한 사용자 토큰에서만** 채운다(본문에 있어도 무시).
+- `{id}` 가 `shared.incidents` 에 없으면 404 `NOT_FOUND`, `shared.db` 가 아직 없으면 503 `SHARED_DB_UNAVAILABLE`.
+- 성공 `201`: `{ "data": <아래 메모 1건>, "meta": {} }`
+
+`GET` 응답 (viewer 이상) — **최신 메모가 먼저**(`created_at` 내림차순, 같으면 `id` 내림차순). `{id}` 가 없으면 404 `NOT_FOUND`, 메모가 없으면 `data: []`.
+```json
+{
+  "data": [
+    {
+      "id": 3, "incident_id": 12,
+      "root_cause": "백업 잡이 C: 를 가득 채움", "action_taken": "임시 파일 정리(수동)", "result": "사용률 96% → 61%",
+      "author": { "id": 2, "display_name": "온콜 담당" },
+      "created_at": "2026-10-16T02:10:00Z"
+    }
+  ],
+  "meta": {}
+}
+```
+- `author.display_name` 이 없으면 `username` 으로 대신한다. 시각은 UTC ISO8601, 화면만 KST.
+- 저장소: backend.db `resolution_notes`(`db-schema.sql` backend 구역). 비밀값·IP 가리기는 색인 단계(NFR-RAG-001)에서 하므로 Backend 는 사람이 쓴 원문 그대로 저장한다.
 
 ## 4. 요청서 5장 "백엔드 확인 요청" 8건 — 처리 (Issue #23, 8건 모두 수락)
 

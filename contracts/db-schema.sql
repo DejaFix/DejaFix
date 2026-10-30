@@ -247,3 +247,16 @@ CREATE TABLE IF NOT EXISTS mail_logs (
   sent_at      TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_mail_logs_incident ON mail_logs(incident_id, id);
+
+-- [이후] 해결 메모 (Issue #153, FR-RAG-010). 작성자: Backend (POST /api/incidents/{id}/notes), 사람만 쓴다.
+-- 읽기: Backend (GET), libs/kb 색인기(backend.db 를 mode=ro 로만 읽음).
+-- incident_id 는 다른 DB(shared.incidents.id)라 FK 없이 앱에서 존재 확인. 수정 이력 없음(created_at 하나).
+CREATE TABLE IF NOT EXISTS resolution_notes (
+  id             INTEGER PRIMARY KEY,
+  incident_id    INTEGER NOT NULL,          -- shared.incidents.id
+  author_user_id INTEGER NOT NULL REFERENCES users(id),
+  root_cause     TEXT,                      -- 사람이 쓴 실제 원인
+  action_taken   TEXT,                      -- 한 조치 (실행은 사람이 시스템 밖에서 함)
+  result         TEXT,                      -- 결과
+  created_at     TEXT NOT NULL              -- UTC ISO8601
+);
