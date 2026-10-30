@@ -247,6 +247,16 @@ export interface MailLog {
 }
 
 /** #11 응답 하나로 장애 상세 화면 전체를 그린다. 리포트가 아직 없으면 report·plan은 null, evidence·steps는 빈 배열(요청서 확인 요청 8). */
+/** 과거 유사 사례 1건. Backend가 저장된 kb_search_knowledge 결과를 옮겨 담은 값이다(표시만, 선택 필드 — 계약 PR #192). */
+export interface KnowledgeHit {
+  chunk_id: string
+  title: string
+  source_type: 'incident_report' | 'runbook' | 'pack_action' | 'resolution_note'
+  host_name: string | null
+  incident_id: number | null
+  excerpt: string
+}
+
 export interface IncidentDetail {
   incident: Incident
   report: AnalysisReport | null
@@ -254,6 +264,7 @@ export interface IncidentDetail {
   plan: ChangePlan | null
   steps: PlanStep[]
   mail_logs: MailLog[]
+  knowledge_hits?: KnowledgeHit[]
 }
 
 // ---- #18 POST /api/chat — SSE(7-2)와 비스트리밍 대체 응답 ----
