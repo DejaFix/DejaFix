@@ -10,6 +10,9 @@ import { analysisNotes, kstShort } from './incidentFormat'
 
 const tierClass: Record<Tier, string> = { A: 'ok', B: 'warn', C: 'bad' }
 const DAY_MS = 24 * 3600_000
+// 과거 유사 사례 fact의 값은 문서 제목 여러 개와 kb_ ID를 ' / '로 이어 붙인 긴 글이다(agent fallback.kb_fact).
+// 요약 칸에는 건수만 보이고, 사례 내용은 아래 '비슷한 과거 장애' 카드에 있다.
+const SIMILAR_FACT_LABEL = '과거 유사 사례'
 
 export function FocusCard({ incident, nowMs }: { incident: Incident; nowMs: number }) {
   const detail = useIncidentDetail(incident.id)
@@ -19,6 +22,12 @@ export function FocusCard({ incident, nowMs }: { incident: Incident; nowMs: numb
   const steps = data?.steps ?? []
   const mailLogs = data?.mail_logs ?? []
 
+  const hitCount = data?.knowledge_hits?.length
+  /** 요약 칸에 보일 값. 과거 유사 사례는 긴 글 대신 건수만(저장된 hits가 있으면 그 수, 없으면 ' / ' 구분 수) */
+  const shown = (f: { label: string; value: unknown }) =>
+    f.label === SIMILAR_FACT_LABEL && typeof f.value === 'string'
+      ? `${hitCount ?? f.value.split(' / ').length}건`
+      : String(f.value)
   const numeric = report?.facts.filter((f) => f.value !== null) ?? []
   const lead = numeric[0]
   const restFacts = numeric.slice(1, 4)
@@ -54,7 +63,7 @@ export function FocusCard({ incident, nowMs }: { incident: Incident; nowMs: numb
           ) : lead ? (
             <>
               <div className="dsum-big">
-                {String(lead.value)}
+                {shown(lead)}
                 {lead.unit && <small>{lead.unit}</small>}
               </div>
               <div className="dsum-cap">{lead.label}</div>
@@ -64,8 +73,8 @@ export function FocusCard({ incident, nowMs }: { incident: Incident; nowMs: numb
                     <li key={f.label}>
                       <span>{f.label}</span>
                       <b>
-                        {String(f.value)}
-                        {f.unit ?? ''}
+                        {shown(f)}
+                        {f.label === SIMILAR_FACT_LABEL ? '' : (f.unit ?? '')}
                       </b>
                     </li>
                   ))}
