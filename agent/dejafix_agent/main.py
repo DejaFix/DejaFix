@@ -155,7 +155,7 @@ def create_app(
                 client = request.app.state.tool_client
                 if getattr(client, "kb_enabled", False):
                     # 과거 장애·런북 검색 1회 (FR-RAG-008). 순서: meta → tool_call → tool_result → token → final
-                    args = chat.kb_query_args(message, started.context)
+                    args = chat.kb_query_args(message, started.context, pack)
                     call = await asyncio.to_thread(_call, client, 1, KB_TOOL, args)
                     await asyncio.to_thread(
                         chat.save_tool_call, db_path, started.run_id, call

@@ -107,9 +107,18 @@ def _data_json(context: dict[str, Any]) -> str:
     return text.replace("<", "\\u003c").replace(">", "\\u003e")
 
 
-def kb_query_args(message: str, context: dict[str, Any]) -> dict[str, Any]:
-    args: dict[str, Any] = {"query": message, "k": KB_CHAT_K}
+def kb_query_args(message: str, context: dict[str, Any], pack: Pack) -> dict[str, Any]:
     incident = context.get("incident")
+    query = message
+    # "이거랑 비슷한 사례"는 문장만으로 찾을 게 없어서 분석 때처럼 장애 제목·호스트로 찾는다.
+    # 절차를 묻는 질문은 제목을 붙이면 런북이 밀려나므로 문장 그대로 둔다.
+    if incident and any(w in message for w in pack.similar_words):
+        query = " ".join(
+            str(v)
+            for v in (incident.get("title"), incident.get("host_name"), message)
+            if v
+        )
+    args: dict[str, Any] = {"query": query, "k": KB_CHAT_K}
     if incident:
         args["exclude_source_ids"] = [f"incident:{incident['id']}"]
     return args

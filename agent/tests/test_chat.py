@@ -425,6 +425,21 @@ def test_history_question_without_hits_still_says_no_evidence(seeded, packs_dir)
     assert final["unknowns"][0]["reason"] == "NOT_COLLECTED"
 
 
+def test_kb_query_uses_incident_title_for_similar_question(seeded, packs_dir):
+    """'이거랑 비슷한 사례'는 장애 제목·호스트로 찾고, 절차 질문은 문장 그대로 찾는다."""
+    kb = _Kb([HIT])
+    with kb_client_for(seeded, packs_dir, kb) as c:
+        post(c, {"message": "이거랑 비슷한 사례 있어?", "context": {"incident_id": 1}})
+        similar = kb.args["query"]
+        post(c, {"message": "재시작 절차 알려줘", "context": {"incident_id": 1}})
+        procedure = kb.args["query"]
+        post(c, {"message": "이거랑 비슷한 사례 있어?", "context": {}})
+        no_incident = kb.args["query"]
+    assert "LAB-PC-07" in similar and similar.endswith("이거랑 비슷한 사례 있어?")
+    assert procedure == "재시작 절차 알려줘"
+    assert no_incident == "이거랑 비슷한 사례 있어?"
+
+
 def test_llm_evidence_only_when_chunk_cited(seeded, packs_dir, monkeypatch):
     monkeypatch.setattr(
         chat, "complete_text", lambda s, p: "과거 사례는 참고만 하세요."
