@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { AnalysisReport, KnowledgeHit } from '../lib/types'
 import { Unknown } from './IncidentParts'
+import { readableExcerpt } from './incidentFormat'
 
-// 저장된 값을 옮겨 표시만 한다. 문장 생성·번역·재정렬 없음(NFR-MAINT-010).
+// 저장된 값을 옮겨 표시만 한다. 문장 생성·번역·재정렬 없음(NFR-MAINT-010). 본문은 마크다운 기호·겹치는 제목·UTC 시각만 정리한다.
 const SIMILAR_FACT_LABEL = '과거 유사 사례'
 const MAX_HITS = 3
 const sourceKo: Record<KnowledgeHit['source_type'], string> = {
@@ -60,7 +61,7 @@ export function SimilarCasesCard({
                   overflow: 'hidden',
                 }}
               >
-                {h.excerpt}
+                {readableExcerpt(h.excerpt, h.title) || h.excerpt}
               </p>
               {evId ? (
                 <button
