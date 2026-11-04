@@ -397,6 +397,34 @@ def test_incident_question_keeps_report_answer_and_appends_kb(seeded, packs_dir)
     assert events[1][1]["id"] in final["evidence_ids"]
 
 
+def test_history_question_with_hits_does_not_say_no_evidence(seeded, packs_dir):
+    """과거 사례를 찾았으면 '근거 없음' 문장·NOT_COLLECTED 없이 리포트 요약 뒤에 사례를 붙인다."""
+    with kb_client_for(seeded, packs_dir, _Kb([HIT])) as c:
+        final = parse(
+            post(
+                c,
+                {"message": "전에 비슷한 사례 있어?", "context": {"incident_id": 1}},
+            ).text
+        )[-1][1]
+    assert "수집된 데이터에 없습니다" not in final["content"]
+    assert "kb_0123456789ab" in final["content"]
+    assert final["unknowns"] == []
+
+
+def test_history_question_without_hits_still_says_no_evidence(seeded, packs_dir):
+    with kb_client_for(seeded, packs_dir, _Kb([])) as c:
+        final = parse(
+            post(
+                c,
+                {"message": "전에 비슷한 사례 있어?", "context": {"incident_id": 1}},
+            ).text
+        )[-1][1]
+    assert final["content"].splitlines()[0] == (
+        "질문하신 내용에 대한 근거는 수집된 데이터에 없습니다."
+    )
+    assert final["unknowns"][0]["reason"] == "NOT_COLLECTED"
+
+
 def test_llm_evidence_only_when_chunk_cited(seeded, packs_dir, monkeypatch):
     monkeypatch.setattr(
         chat, "complete_text", lambda s, p: "과거 사례는 참고만 하세요."

@@ -271,8 +271,9 @@ def rule_based(message: str, context: dict[str, Any], pack: Pack) -> Answer:
     asks = bool(sk) and _asks_history(message, pack)
     if asks and not context.get("incident"):
         return _kb_answer(message, sk)
-    base = _report_answer(message, context, pack)
-    if asks and sk.get("ok") and sk.get("hits"):
+    kb_found = asks and bool(sk.get("ok") and sk.get("hits"))
+    base = _report_answer(message, context, pack, kb_found)
+    if kb_found:
         extra = _kb_answer(message, sk)
         base.content += "\n\n" + extra.content
         base.evidence_ids = base.evidence_ids + [
@@ -281,7 +282,9 @@ def rule_based(message: str, context: dict[str, Any], pack: Pack) -> Answer:
     return base
 
 
-def _report_answer(message: str, context: dict[str, Any], pack: Pack) -> Answer:
+def _report_answer(
+    message: str, context: dict[str, Any], pack: Pack, kb_found: bool = False
+) -> Answer:
     text = message.lower()
     report = context.get("report")
     incident = context.get("incident")
@@ -357,11 +360,12 @@ def _report_answer(message: str, context: dict[str, Any], pack: Pack) -> Answer:
     # 수집하지 않는 내용을 물은 경우: 코드 대신 문장으로 근거가 없다고 먼저 말하고, 관련 근거로 이어서 답한다.
     # 기록용 unknowns 에는 NOT_COLLECTED 를 그대로 남긴다(FR-AG-009).
     hypothesis, evidence = _hypothesis(report)
+    summary = head + f" 리포트 요약: {report['summary']}\n\n" + hypothesis
+    # 과거 사례를 찾았으면 뒤에 답이 붙으므로 근거가 없다고 먼저 말하지 않는다.
+    if kb_found:
+        return Answer(summary, evidence, [], False)
     return Answer(
-        "질문하신 내용에 대한 근거는 수집된 데이터에 없습니다.\n"
-        + head
-        + f" 리포트 요약: {report['summary']}\n\n"
-        + hypothesis,
+        "질문하신 내용에 대한 근거는 수집된 데이터에 없습니다.\n" + summary,
         evidence,
         [{"label": message[:40], "reason": "NOT_COLLECTED"}],
         False,
