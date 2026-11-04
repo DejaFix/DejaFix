@@ -50,6 +50,11 @@ def test_exposed_routes_are_exactly_the_documented_routes(client):
     paths = client.get("/openapi.json").json()["paths"]
     exposed = {(m, norm(p)) for p, ops in paths.items() for m in ops}
     documented = {(m, p) for m, p, _ in doc_routes()} | {("get", "/healthz")}
+    # [이후] 해결 메모 #26·#27 (contracts/api.md 2장 표의 '([이후])' 행, 테스트는 test_notes.py)
+    documented |= {
+        ("get", "/api/incidents/{}/notes"),
+        ("post", "/api/incidents/{}/notes"),
+    }
     assert exposed == documented
 
 
