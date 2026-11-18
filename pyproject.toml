@@ -69,6 +69,7 @@ testpaths = [
     "libs/shared_db/tests",
     "libs/kb/tests",
     "mcp-kb/tests",
+    "infra/tests",
 ]
 markers = [
     "safety_regression: 안전 회귀 세트",

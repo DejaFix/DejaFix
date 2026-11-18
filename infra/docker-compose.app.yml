@@ -34,11 +34,11 @@ services:
       - dejafix-data:/data
     restart: unless-stopped
     stop_grace_period: 30s  # supervisord 가 자식 4개를 정리할 시간
-    # 4개 확인: backend·agent·mcp-zabbix 의 /healthz + scheduler(supervisorctl). 실패 항목은 docker inspect 의 Health 로그에 이름만 남는다.
+    # 4개 확인: backend·agent·mcp-zabbix 의 /healthz + scheduler(supervisorctl). mcp-zabbix 는 프로세스 응답만 보고 외부 Zabbix down 은 통과시킨다(스크립트 타임아웃 10초 < 컨테이너 15초). 실패 항목은 docker inspect 의 Health 로그에 이름만 남는다.
     healthcheck:
       test: ["CMD", "python", "/app/infra/docker/app-healthcheck.py"]
       interval: 15s
-      timeout: 8s
+      timeout: 15s
       retries: 5
       start_period: 20s
 
