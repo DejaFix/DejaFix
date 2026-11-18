@@ -1,0 +1,46 @@
+# dejafix-app 합본 compose (컨테이너 정리 2단계): backend·agent·mcp-zabbix·scheduler 를 한 컨테이너(supervisord)로.
+#   docker compose -f infra/docker-compose.app.yml up -d --build      (저장소 루트에서)
+# - 기존 infra/docker-compose.yml(5서비스)은 그대로다. 두 파일을 같은 프로젝트에서 동시에 올리지 말 것(볼륨 dejafix-data·포트 공유).
+# - frontend 는 별도 컨테이너 없이 backend(:8000)가 dist 를 정적 서빙한다 → 18000·18080 모두 같은 :8000 으로 간다.
+# - 호스트 게시는 127.0.0.1 한정(서버의 기존 매핑 18000·18080 유지). 호스트 nginx·dejafix-gateway 는 건드리지 않는다.
+# - 서비스 간 결합: 컨테이너 안 127.0.0.1 HTTP(AGENT_URL, MCP_ZABBIX_URL) + 볼륨 dejafix-data 의 SQLite 2파일.
+# - 비밀값(INTERNAL_TOKEN 포함)은 루트 .env(env_file) 로만. 아래 environment 는 경로·주소만 정한다.
+
+services:
+  dejafix-app:
+    build:
+      context: ..
+      dockerfile: infra/docker/app.Dockerfile
+    image: dejafix-app:latest
+    container_name: dejafix-app
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      SHARED_DB_PATH: /data/shared.db
+      BACKEND_DB_PATH: /data/backend.db
+      AGENT_URL: http://127.0.0.1:8100
+      MCP_ZABBIX_URL: http://127.0.0.1:8200/mcp
+      FRONTEND_DIST: /app/frontend-dist
+    ports:
+      - "127.0.0.1:18000:8000"
+      - "127.0.0.1:18080:8000"
+    networks:
+      default:
+        # 기존 compose 의 서비스 이름(backend). 서버에 수동 구성된 dejafix-gateway 가 http://backend:8000 으로 붙는 경우를 위해(같은 네트워크일 때만 의미 있음)
+        aliases:
+          - backend
+    volumes:
+      - dejafix-data:/data
+    restart: unless-stopped
+    # 4개 확인: backend·agent·mcp-zabbix 의 /healthz + scheduler(supervisorctl). 실패 항목은 docker inspect 의 Health 로그에 이름만 남는다.
+    healthcheck:
+      test: ["CMD", "python", "/app/infra/docker/app-healthcheck.py"]
+      interval: 15s
+      timeout: 8s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  dejafix-data:
+    name: dejafix-data
