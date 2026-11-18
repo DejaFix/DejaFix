@@ -46,6 +46,8 @@ class Settings(BaseSettings):
 
     # 서버
     cors_origins: str = "http://localhost:5173"
+    # 비어 있지 않으면 backend 가 이 폴더(Vite dist)를 정적 서빙한다(dejafix-app 이미지에서 /app/frontend-dist)
+    frontend_dist: str = ""
     chat_streaming: bool = True
     chat_first_event_timeout_sec: float = 3.0
     # Agent 가 이 시간 동안 조용하면 SSE 주석 ": ping" 을 보내 프록시가 연결을 끊지 않게 한다

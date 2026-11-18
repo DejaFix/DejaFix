@@ -24,6 +24,7 @@ from dejafix_backend.routers import (
     problems,
 )
 from dejafix_backend.seed import ensure_seed_users
+from dejafix_backend.static import mount_frontend
 
 log = logging.getLogger("dejafix.backend")
 
@@ -71,6 +72,8 @@ def create_app() -> FastAPI:
         chat.router,
     ):
         app.include_router(router, prefix="/api")
+    # 반드시 라우터 등록 뒤: 마지막에 붙는 SPA 폴백이 API·/healthz 를 가리지 않게 한다
+    mount_frontend(app, settings.frontend_dist)
     return app
 
 
