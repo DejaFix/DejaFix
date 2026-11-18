@@ -58,3 +58,11 @@ def test_no_path_traversal(tmp_path):
     c = _app(str(_dist(tmp_path)))
     for p in ("/../secret.txt", "/%2e%2e/secret.txt", "/assets/../../secret.txt"):
         assert "secret" != c.get(p).text
+
+
+def test_head_requests(tmp_path):
+    c = _app(str(_dist(tmp_path)))
+    assert c.head("/").status_code == 200
+    assert c.head("/incidents/1").status_code == 200
+    assert c.head("/api/nope").status_code == 404
+    assert c.head("/healthz").status_code in (200, 405)
