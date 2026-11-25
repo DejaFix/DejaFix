@@ -53,7 +53,9 @@ class ZabbixRoSource:
             import zabbix_ro
         except ImportError as exc:  # pragma: no cover - 워크스페이스 멤버라 보통 있음
             raise SourceUnavailable("libs/zabbix_ro 를 불러올 수 없음") from exc
-        factory = getattr(zabbix_ro, "from_env", None)
+        # 화면에서 정한 Zabbix 연결 파일이 바뀌면 다음 주기부터 새 연결을 쓴다(계약 #29, 결정 018).
+        # 그 기능이 없는 zabbix_ro 면 예전처럼 from_env
+        factory = getattr(zabbix_ro, "live_from_env", None) or getattr(zabbix_ro, "from_env", None)
         if factory is None:
             raise SourceUnavailable("libs/zabbix_ro 클라이언트 미구현 (T30)")
         try:
