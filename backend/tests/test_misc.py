@@ -74,6 +74,9 @@ def test_required_routes_are_exposed(client):
         # [이후] 해결 메모 #26·#27 — 계약 PR(Issue #153)로 허용된 유일한 예외
         ("get", "/api/incidents/{incident_id}/notes"),
         ("post", "/api/incidents/{incident_id}/notes"),
+        # [선택] 화면에서 Zabbix 연결 #28·#29 — 계약 PR(contracts/api.md, 결정 018)로 허용
+        ("get", "/api/settings/zabbix"),
+        ("put", "/api/settings/zabbix"),
     }
     exposed = {(m, p) for p, ops in paths.items() for m in ops}
     assert exposed == expected  # 그 밖의 [선택]·[이후] API 를 미리 만들지 않았다
