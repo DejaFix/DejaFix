@@ -65,7 +65,7 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
 | 4 | `GET /api/health` | 로그인 | Zabbix·Agent·MCP 상태, 두 DB, `scheduler_jobs` |
 | 5 | `GET /api/dashboard/summary` | viewer | Zabbix + shared.db |
 | 6 | `GET /api/problems` | viewer | Zabbix `problem.get`+`trigger.get` |
-| 7 | `GET /api/hosts` | viewer | Zabbix `host.get`+`problem.get`+`trigger.get` |
+| 7 | `GET /api/hosts` ([선택]) | viewer | Zabbix `host.get`+`problem.get`+`trigger.get` |
 | 10 | `GET /api/incidents` | viewer | shared.db `incidents` + JOIN |
 | 11 | `GET /api/incidents/{id}` | viewer | shared.db + backend.db `mail_logs` |
 | 18 | `POST /api/chat` | operator | Agent `/v1/chat` SSE 중계 |
