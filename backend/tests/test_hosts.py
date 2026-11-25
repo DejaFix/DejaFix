@@ -135,3 +135,15 @@ def test_needs_login(make_client):
 )
 def test_state_of(raw, state):
     assert state_of(raw) == state
+
+
+def test_more_than_max_hosts_is_truncated(make_client, helpers, monkeypatch):
+    from dejafix_backend.routers import hosts as hosts_router
+
+    monkeypatch.setattr(hosts_router, "MAX_HOSTS", 2)
+    FakeZabbix.hosts = [host(str(i), f"pc-{i}", active="1") for i in range(3)]
+    res = get_hosts(make_client, helpers)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert [r["name"] for r in body["data"]] == ["pc-0", "pc-1"]
+    assert body["meta"]["truncated"] is True
