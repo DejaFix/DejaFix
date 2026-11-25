@@ -65,6 +65,7 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
 | 4 | `GET /api/health` | 로그인 | Zabbix·Agent·MCP 상태, 두 DB, `scheduler_jobs` |
 | 5 | `GET /api/dashboard/summary` | viewer | Zabbix + shared.db |
 | 6 | `GET /api/problems` | viewer | Zabbix `problem.get`+`trigger.get` |
+| 7 | `GET /api/hosts` | viewer | Zabbix `host.get`+`problem.get`+`trigger.get` |
 | 10 | `GET /api/incidents` | viewer | shared.db `incidents` + JOIN |
 | 11 | `GET /api/incidents/{id}` | viewer | shared.db + backend.db `mail_logs` |
 | 18 | `POST /api/chat` | operator | Agent `/v1/chat` SSE 중계 |
@@ -170,6 +171,26 @@ Zabbix 실시간 문제(`problem.get`+`trigger.get(selectHosts)`, `libs/zabbix_r
 - `severity_min` 은 0~5, 범위 밖이면 422 `VALIDATION_ERROR`. `hostid` 를 주면 그 호스트의 문제만.
 - 호스트를 알 수 없으면 `host: {"id": null, "name": null}` (프론트는 UnknownValue 로 표시). `incident_id` 는 수집 전이거나 shared.db 가 없으면 `null`.
 - Zabbix 연결 실패 또는 5초 안에 답이 없으면 503 `ZABBIX_UNAVAILABLE`. 오류 내용·토큰·주소는 응답에 넣지 않는다.
+
+### #7 `GET /api/hosts` — 감시 호스트 목록·연결 상태
+
+Zabbix 감시 중(`status=0`) 호스트마다 에이전트 연결 상태와 열린 Problem 수. 화면·AXcellent "연결한 PC"가 쓴다.
+```json
+{
+  "data": [
+    { "id": "10501", "name": "web-01", "state": "up", "problems": 0 },
+    { "id": "10502", "name": "db-01", "state": "down", "problems": 2 },
+    { "id": "10503", "name": "office-pc-07", "state": "unknown", "problems": 0 }
+  ],
+  "meta": { "collected_at": "2026-11-25T08:00:05Z", "truncated": false }
+}
+```
+- `state` = 에이전트 연결 상태. Zabbix 에이전트 가용성(`active_available`, 에이전트 인터페이스 `available`) 중 하나라도 1 이면 `"up"`, 1 은 없고 2(사용 불가)가 있으면 `"down"`, 그 밖(0·값 없음)은 `"unknown"`. **장애가 없다고 `"up"`으로 보지 않는다**(SAFE-08·09: 근거 없는 값은 확인할 수 없음).
+- `problems` = 그 호스트의 해결되지 않은 Problem 수(`problem.get` → `trigger.get selectHosts`). Problem 이 있어도 `state` 는 바뀌지 않는다(연결과 장애는 따로 본다).
+- `name` = Zabbix 표시 이름(`name`), 없으면 기술 이름(`host`).
+- 이름순, 최대 500대. 더 있으면 `meta.truncated: true`.
+- Zabbix 를 못 쓰면 503 `ZABBIX_UNAVAILABLE`(#6 과 같다). 조회 결과는 #5 처럼 짧게 재사용된다.
+- 주요 지표 최신값(기획서 #7 원안)은 [이후]. 이 응답에는 넣지 않는다.
 
 ### #10 `GET /api/incidents?status=&severity_min=&limit=&cursor=`
 
