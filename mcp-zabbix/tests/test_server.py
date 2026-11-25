@@ -120,3 +120,26 @@ def test_mcp_allowed_hosts_env_overrides_default(monkeypatch):
     monkeypatch.setenv("MCP_ZABBIX_ALLOWED_HOSTS", "other-host:*")
     assert _mcp_status("other-host:8200") != 421
     assert _mcp_status("mcp-zabbix:8200") == 421
+
+
+def test_real_client_follows_screen_zabbix_connection(monkeypatch, tmp_path):
+    """실서버 모드 클라이언트는 화면에서 정한 Zabbix 연결 파일(계약 #29)을 재시작 없이 따른다."""
+    import zabbix_ro
+
+    from mcp_zabbix.server import make_client
+
+    path = tmp_path / "zabbix_connection.json"
+    monkeypatch.setenv("ZABBIX_MOCK", "false")
+    monkeypatch.setenv("ZABBIX_CONNECTION_FILE", str(path))
+    monkeypatch.delenv("ZABBIX_URL", raising=False)
+    client, mock = make_client()
+    assert mock is False
+    zabbix_ro.save_connection(path, "https://zbx.customer.example/api_jsonrpc.php", "t")
+    assert client.client.url == "https://zbx.customer.example/api_jsonrpc.php"
+    # 허용 목록 밖 메서드는 감싸개에서도 요청 전에 막힌다 (SAFE-02)
+    try:
+        client.call("host.delete", {})
+    except zabbix_ro.MethodNotAllowed:
+        pass
+    else:
+        raise AssertionError("쓰기 메서드가 막히지 않았다")

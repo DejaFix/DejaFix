@@ -39,9 +39,10 @@ def make_client() -> tuple[ZabbixCaller, bool]:
     """(클라이언트, mock 여부). 실서버는 libs/zabbix_ro 만 쓴다."""
     if _mock_enabled():
         return FakeZabbix(), True
-    from zabbix_ro import from_env  # noqa: PLC0415 - 목 모드에서는 필요 없다
+    # 화면에서 정한 Zabbix 연결 파일이 바뀌면 다음 도구 호출부터 새 연결을 쓴다(계약 #29, 결정 018)
+    from zabbix_ro import live_from_env  # noqa: PLC0415 - 목 모드에서는 필요 없다
 
-    return from_env(), False
+    return live_from_env(), False
 
 
 def build_server(client: ZabbixCaller, *, mock: bool = False) -> MCPServer:
