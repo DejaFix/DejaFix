@@ -49,6 +49,7 @@
 | 403 | `FORBIDDEN` | 역할 부족(예: viewer 의 #18). "권한이 없습니다" |
 | 404 | `NOT_FOUND` | #11 없는 장애. 알 수 없는 경로 |
 | 422 | `VALIDATION_ERROR` | 요청 본문·쿼리 형식 오류, 잘못된 `cursor` |
+| 422 | `ZABBIX_CHECK_FAILED` | #29 저장 전 Zabbix 확인 실패(주소·토큰·권한). 저장하지 않음, 이유 한 줄 표시 |
 | 502 | `AGENT_UNAVAILABLE` | #18 비스트리밍에서 Agent 연결 실패·중단. 스트림 모드는 `event: error` |
 | 503 | `ZABBIX_UNAVAILABLE` | #6 Zabbix 조회 실패. 상단 경고 배너 |
 | 503 | `SHARED_DB_UNAVAILABLE` | #10·#11 `shared.db` 가 아직 없음(Agent·Scheduler 기동 전). 요청마다 재시도 |
@@ -71,6 +72,8 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
 | 18 | `POST /api/chat` | operator | Agent `/v1/chat` SSE 중계 |
 | 26 | `GET /api/incidents/{id}/notes` ([이후]) | viewer | backend.db `resolution_notes` + `users` |
 | 27 | `POST /api/incidents/{id}/notes` ([이후]) | operator | backend.db `resolution_notes` (존재 확인만 shared.db `incidents`) |
+| 28 | `GET /api/settings/zabbix` ([선택]) | admin | Zabbix 연결 파일(없으면 `.env`) |
+| 29 | `PUT /api/settings/zabbix` ([선택]) | admin | Zabbix 연결 파일 (저장 전 Zabbix 확인) |
 
 개발 순서: #1 → #3 → #4 → #10 → #11 → #5 → #6 → #18.
 
@@ -353,6 +356,28 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 ```
 - `author.display_name` 이 없으면 `username` 으로 대신한다. 시각은 UTC ISO8601, 화면만 KST.
 - 저장소: backend.db `resolution_notes`(`db-schema.sql` backend 구역). 비밀값·IP 가리기는 색인 단계(NFR-RAG-001)에서 하므로 Backend 는 사람이 쓴 원문 그대로 저장한다.
+
+### #28·#29 `GET`·`PUT /api/settings/zabbix` — 화면에서 Zabbix 연결 ([선택], 결정 018)
+
+고객사가 AXcellent 화면에서 자기 Zabbix 주소와 읽기 전용 API 토큰을 넣으면, 같이 설치된 DejaFix(Backend·Scheduler·mcp-zabbix)가 그 Zabbix를 본다. 값은 Zabbix 연결 파일(`ZABBIX_CONNECTION_FILE`)에 두고, 파일이 없으면 지금처럼 `.env`의 `ZABBIX_URL`·`ZABBIX_API_TOKEN`을 쓴다.
+
+`GET` 응답(토큰은 절대 내보내지 않는다):
+```json
+{ "data": { "source": "file", "url": "https://zbx.example.co.kr/api_jsonrpc.php", "token_set": true, "verify_tls": true,
+            "updated_at": "2026-11-25T09:00:00Z", "updated_by": "admin", "mock": false },
+  "meta": {} }
+```
+- `source`: `file`(화면에서 정함) · `env`(`.env`) · `none`(둘 다 없음). `none`이면 `url`은 `null`, `updated_*`는 `null`.
+
+`PUT` 요청:
+```json
+{ "url": "https://zbx.example.co.kr/api_jsonrpc.php", "token": "<읽기 전용 API 토큰>", "verify_tls": true }
+```
+- `token`을 비우면 저장된 토큰을 그대로 쓴다(주소만 바꿀 때). 저장된 토큰도 없으면 422 `VALIDATION_ERROR`.
+- 저장 **전에** 그 주소·토큰으로 `apiinfo.version`·`host.get`(1건)을 불러 본다(libs/zabbix_ro, 허용 목록 안). 실패하면 저장하지 않고 422 `ZABBIX_CHECK_FAILED`(이유 한 줄, 토큰·응답 본문은 넣지 않음).
+- 성공하면 파일을 쓰고(0600) Backend의 Zabbix 캐시를 비운다. Scheduler·mcp-zabbix는 다음 호출 때 파일을 다시 읽는다(재시작 없음). 응답은 `GET`과 같은 모양.
+- `url`은 `http://`·`https://`만, 2,048자 이하. 토큰은 512자 이하. `ZABBIX_MOCK=true`면 저장은 하되 목 데이터를 계속 쓴다(`mock:true`).
+- 2장 표의 `([선택])` 표시는 필수 8개 계약 시험과 따로 세기 위한 구분이다.
 
 ## 4. 요청서 5장 "백엔드 확인 요청" 8건 — 처리 (Issue #23, 8건 모두 수락)
 
