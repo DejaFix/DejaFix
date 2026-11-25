@@ -1,6 +1,6 @@
 """화면에서 정한 Zabbix 연결 (연결 파일).
 
-`ZABBIX_CONNECTION_FILE` 이 가리키는 JSON 파일에 `{url, token, verify_tls}` 가 있으면 `from_env` 가
+`ZABBIX_CONNECTION_FILE`(없으면 `BACKEND_DB_PATH`·`SHARED_DB_PATH` 옆 `zabbix_connection.json`) JSON 파일에 `{url, token, verify_tls}` 가 있으면 `from_env` 가
 `ZABBIX_URL`·`ZABBIX_API_TOKEN`·`ZABBIX_VERIFY_TLS` 대신 이 값을 쓴다. 파일이 없거나 깨졌으면 환경 변수 그대로.
 - 쓰는 쪽은 Backend 관리자 API(`PUT /api/settings/zabbix`)뿐이다. 파일은 0600, 임시 파일 → os.replace.
 - 토큰은 파일에만 두고 로그·예외 문장에 넣지 않는다.
@@ -21,9 +21,22 @@ from typing import Any
 CONNECTION_FILE_ENV = "ZABBIX_CONNECTION_FILE"
 
 
+# 연결 파일을 따로 정하지 않았으면 이 DB 파일과 같은 폴더의 zabbix_connection.json
+# (compose 에서는 세 서비스가 같은 /data 볼륨을 쓴다. Backend 기본값과 같은 자리)
+DEFAULT_NAME = "zabbix_connection.json"
+_DB_ENVS = ("BACKEND_DB_PATH", "SHARED_DB_PATH")
+
+
 def connection_path(env: Mapping[str, str] | None = None) -> Path | None:
-    raw = ((os.environ if env is None else env).get(CONNECTION_FILE_ENV) or "").strip()
-    return Path(raw) if raw else None
+    source = os.environ if env is None else env
+    raw = (source.get(CONNECTION_FILE_ENV) or "").strip()
+    if raw:
+        return Path(raw)
+    for name in _DB_ENVS:
+        db = (source.get(name) or "").strip()
+        if db:
+            return Path(db).parent / DEFAULT_NAME
+    return None
 
 
 def read_connection(path: Path | None) -> dict[str, str] | None:

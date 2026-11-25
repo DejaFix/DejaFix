@@ -98,3 +98,18 @@ def test_token_not_in_repr_or_errors(tmp_path):
     )
     client = zabbix_ro.from_env({"ZABBIX_CONNECTION_FILE": str(path)})
     assert "secret-cust-token" not in repr(client)
+
+
+def test_default_path_is_next_to_db_files(tmp_path):
+    from zabbix_ro.connection import connection_path
+
+    assert connection_path({"BACKEND_DB_PATH": str(tmp_path / "d" / "backend.db")}) == (
+        tmp_path / "d" / "zabbix_connection.json"
+    )
+    assert connection_path({"SHARED_DB_PATH": str(tmp_path / "s" / "shared.db")}) == (
+        tmp_path / "s" / "zabbix_connection.json"
+    )
+    assert connection_path(
+        {"ZABBIX_CONNECTION_FILE": str(tmp_path / "x.json"), "SHARED_DB_PATH": "a/b.db"}
+    ) == (tmp_path / "x.json")
+    assert connection_path({}) is None
