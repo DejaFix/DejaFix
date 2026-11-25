@@ -191,6 +191,8 @@ Zabbix 감시 중(`status=0`) 호스트마다 에이전트 연결 상태와 열�
 - 이름순, 최대 500대. 더 있으면 `meta.truncated: true`.
 - Zabbix 를 못 쓰면 503 `ZABBIX_UNAVAILABLE`(#6 과 같다). 조회 결과는 #5 처럼 짧게 재사용된다.
 - 주요 지표 최신값(기획서 #7 원안)은 [이후]. 이 응답에는 넣지 않는다.
+- **#5 `hosts` 집계와 기준이 다르다.** #5 는 `active_available` 만 보고, #7 은 에이전트 인터페이스 `available` 도 본다. 패시브 에이전트만 쓰는 호스트는 #5 에서 확인 불가, #7 에서 up·down 이 된다. 두 숫자를 같은 화면에 나란히 두지 않는다(#5 를 #7 기준으로 맞추는 것은 [이후]).
+- 2장 표의 `([선택])` 표시는 필수 8개 계약 시험(`test_api_contract`)과 따로 세기 위한 구분이다. 기획서 우선순위(`docs/plan.md` #7 P0)는 그대로다.
 
 ### #10 `GET /api/incidents?status=&severity_min=&limit=&cursor=`
 
