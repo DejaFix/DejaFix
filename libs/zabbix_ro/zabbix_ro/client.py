@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+from zabbix_ro.connection import overlay
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError
 from zabbix_ro.mock import SCENARIOS, mock_result
 
@@ -192,9 +193,12 @@ def from_env(
 ) -> ZabbixRoClient:
     """ZABBIX_URL·ZABBIX_API_TOKEN·ZABBIX_VERIFY_TLS·ZABBIX_MOCK 로 클라이언트를 만든다.
 
+    `ZABBIX_CONNECTION_FILE` 의 연결 파일이 있으면 URL·토큰·TLS 는 그 값을 쓴다.
+
     항상 만들어진다(예외 없음). 실서버 모드에서 URL·토큰이 비어 있으면 call() 이 요청 전에 ZabbixError 를 던진다.
     """
-    env = os.environ if env is None else env
+    # 화면에서 정한 연결(ZABBIX_CONNECTION_FILE)이 있으면 URL·토큰·TLS 는 그 값 (connection.py)
+    env = overlay(os.environ if env is None else env)
     verify_tls, config_error = _verify_tls_flag(env.get("ZABBIX_VERIFY_TLS"))
     scenario = (env.get("ZABBIX_MOCK_SCENARIO") or "").strip().lower() or "default"
     scenario_error = None
@@ -213,4 +217,13 @@ def from_env(
         config_error=config_error,
         mock_scenario=scenario,
         scenario_error=scenario_error,
+    )
+
+
+def live_from_env(env: Mapping[str, str] | None = None) -> Any:
+    """`from_env` 와 같되, 연결 파일이 바뀌면 다음 호출 때 새 연결을 따르는 클라이언트."""
+    from zabbix_ro.connection import LiveClient, connection_path  # noqa: PLC0415
+
+    return LiveClient(
+        lambda: from_env(env), connection_path(os.environ if env is None else env)
     )
