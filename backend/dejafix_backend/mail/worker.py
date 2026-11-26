@@ -15,6 +15,7 @@ import sqlite3
 import time
 from datetime import datetime, timezone
 
+from dejafix_backend import company
 from dejafix_backend.config import get_settings
 from dejafix_backend.db import open_db
 from dejafix_backend.timeutil import to_iso
@@ -38,6 +39,18 @@ SELECT id, max_tier FROM shared.change_plans WHERE report_id = ? ORDER BY id DES
 _STEPS_SQL = (
     "SELECT seq, title, tier FROM shared.plan_steps WHERE plan_id = ? ORDER BY seq"
 )
+
+
+def _reports_query(conn: sqlite3.Connection) -> tuple[str, tuple]:
+    """보낼 리포트. 회사 나누기가 켜져 있으면 기본 회사 장애만(결정 019 — 수신자가 .env 한 벌이라
+    다른 회사 장애가 설치 주인에게 가지 않게). 이관 전이면 회사를 알 수 없으니 보내지 않는다."""
+    settings = get_settings()
+    if not company.enabled(settings):
+        return _REPORTS_SQL, ()
+    if not company.incidents_scoped(conn):
+        return "SELECT NULL AS report_id WHERE 0", ()
+    sql = _REPORTS_SQL.replace("ORDER BY r.id", " WHERE i.company_id = ? ORDER BY r.id")
+    return sql, (company.default(settings),)
 
 
 def dedup_key(report_id: int, recipient: str) -> str:
@@ -89,7 +102,7 @@ def run_once(
             return 0  # shared.db 가 아직 없음 (Agent·Scheduler 기동 전)
         conn = db.conn
         written = 0
-        for row in conn.execute(_REPORTS_SQL).fetchall():
+        for row in conn.execute(*_reports_query(conn)).fetchall():
             pending = [
                 r
                 for r in recipients

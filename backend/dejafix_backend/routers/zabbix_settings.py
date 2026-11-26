@@ -13,6 +13,8 @@
   관리자(admin)만 부를 수 있어 지금은 기록만 해 둔다(리뷰 11/26).
 - 토큰 칸을 비우면 저장된 토큰을 다시 쓰는데, 주소가 저장된 주소와 같을 때만이다(저장 토큰을 새 주소로
   보내지 않는다).
+- 회사별(결정 019): 읽기·저장 모두 요청 회사의 연결이다. `.env` 연결(source "env")은 기본 회사에만 보이고,
+  다른 회사는 저장 전까지 source "none". 한 회사 저장은 다른 회사 연결을 바꾸지 않는다.
 """
 
 import asyncio
@@ -26,7 +28,7 @@ from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from dejafix_backend import zabbix
+from dejafix_backend import company, zabbix
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.deps import require_role
 from dejafix_backend.envelope import ok
@@ -87,8 +89,17 @@ def _host_ok(url: str) -> None:
         )
 
 
+def _saved(settings: Settings) -> dict[str, str] | None:
+    """요청 회사의 연결 파일 칸 (꺼져 있으면 018 한 벌)."""
+    return zabbix_ro.read_connection(
+        settings.zabbix_connection_path,
+        company.current(),
+        settings.default_company_id.strip() or None,
+    )
+
+
 def _state(settings: Settings) -> dict[str, Any]:
-    found = zabbix_ro.read_connection(settings.zabbix_connection_path)
+    found = _saved(settings)
     base = {"verify_tls": True, "mock": settings.zabbix_mock}
     if found is not None:
         verify = _truthy_tls(found["verify_tls"])
@@ -101,7 +112,7 @@ def _state(settings: Settings) -> dict[str, Any]:
             "updated_at": found["updated_at"] or None,
             "updated_by": found["updated_by"] or None,
         }
-    if settings.zabbix_url.strip():
+    if settings.zabbix_url.strip() and company.is_default(settings):
         return {
             **base,
             "source": "env",
@@ -164,7 +175,7 @@ async def put_zabbix(
     await run_in_threadpool(_host_ok, url)
     token = body.token.strip()
     if not token:
-        saved = zabbix_ro.read_connection(settings.zabbix_connection_path)
+        saved = _saved(settings)
         if saved and saved["url"] != url:
             raise ApiError(
                 422,
@@ -200,6 +211,8 @@ async def put_zabbix(
         token,
         "true" if body.verify_tls else "false",
         str(user.get("username") or ""),
+        company.current(),
+        settings.default_company_id.strip() or None,
     )
     zabbix.reset()  # 새 연결로 다시 읽게 캐시를 비운다
     return ok(_state(settings))

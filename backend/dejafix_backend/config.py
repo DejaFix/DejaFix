@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     mcp_zabbix_url: str = "http://mcp-zabbix:8200/mcp"
     internal_token: str = ""
 
+    # 회사 나누기 (결정 019, contracts/api.md 1장 "회사"). 비면 꺼짐(지금처럼 한 회사).
+    # 값은 AXcellent 회사 ID와 같아야 한다(캣북스 설치면 catbooks)
+    default_company_id: str = ""
+    # X-AX-Company 머리를 따르는 계정 이름(쉼표, AXcellent 프록시가 로그인하는 viewer·admin)
+    company_header_accounts: str = ""
+
     # 분석 대상 심각도 (analysis.status 의 skipped/pending 구분)
     analyze_min_severity: int = 2
 

@@ -19,6 +19,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
+from dejafix_backend import company
+from dejafix_backend.errors import ApiError
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.deps import require_role
 from dejafix_backend.envelope import ok
@@ -259,6 +261,14 @@ async def chat(
     settings: Settings = Depends(get_settings),
     transport: httpx.AsyncBaseTransport | None = Depends(get_agent_transport),
 ):
+    if not company.is_default(settings):
+        # Agent 는 아직 회사별 MCP 세션이 없어(결정 019 구현 5단계 전) 기본 회사 Zabbix 를 본다.
+        # 다른 회사 대화가 기본 회사 장애·지표와 섞이지 않게 열지 않는다
+        raise ApiError(
+            503,
+            "AGENT_UNAVAILABLE",
+            "이 회사의 AI 대화는 아직 준비 중입니다",
+        )
     client = httpx.AsyncClient(
         base_url=settings.agent_url,
         transport=transport,

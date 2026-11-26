@@ -7,9 +7,10 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from dejafix_backend import company
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.db import Db, open_db
 from dejafix_backend.errors import ApiError
@@ -28,7 +29,8 @@ def get_db(settings: Settings = Depends(get_settings)) -> Iterator[Db]:
         db.close()
 
 
-def current_user(
+async def current_user(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Db = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -46,7 +48,14 @@ def current_user(
     ).fetchone()
     if row is None:
         raise ApiError(401, "UNAUTHORIZED", "존재하지 않는 사용자입니다")
-    return dict(row)
+    user = dict(row)
+    # 요청 회사 (결정 019). async 의존성이라 contextvar 가 이 요청의 엔드포인트까지 이어진다
+    scope = company.resolve(
+        settings, db.conn, user, request.headers.get(company.HEADER)
+    )
+    company.CURRENT.set(scope)
+    request.state.company = scope
+    return user
 
 
 def require_role(minimum: str) -> Callable[..., dict[str, Any]]:
