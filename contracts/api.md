@@ -20,6 +20,19 @@
 | 확인할 수 없는 값 | **0이나 빈 문자열로 보내지 않고** `Measured`(아래)로 보낸다 (SAFE-10) |
 | 실행 금지 | 어떤 응답에도 `execute`·`run` 필드가 없다. `plan.mode` 는 항상 `"preview"` (SAFE-04) |
 
+### 회사 (결정 019)
+
+DejaFix 하나가 여러 회사를 나눠 본다. 회사마다 Zabbix 연결(#28·#29)·장애·리포트·계획·대화·메일이 따로다.
+
+| 항목 | 규칙 |
+|---|---|
+| 요청 | `X-AX-Company: <회사 ID>`(AXcellent dejafix-proxy가 로그인 세션의 회사로 붙인다). 영문 소문자·숫자·`-`, 64자 이하. 형식이 틀리면 400 `VALIDATION_ERROR` |
+| 머리가 없을 때 | 기본 회사 `DEFAULT_COMPANY_ID`(설치 주인, `.env`). 지금까지의 동작과 같다 |
+| 누가 머리를 쓸 수 있나 | 회사가 정해지지 않은 계정(`users.company_id` 가 `NULL`, AXcellent 프록시용 viewer·admin)만. 회사가 정해진 계정은 그 회사로 고정이고 머리가 다르면 403 `FORBIDDEN` |
+| 응답 | 모든 `/api/*` 응답(오류 포함)에 `X-DejaFix-Company: <거른 회사 ID>`. AXcellent 프록시는 이 머리가 요청 회사와 같을 때만 그 회사 화면에 넘긴다 |
+| 거르기 | #5·#10·#11·#18·#26·#27은 그 회사 행만. 다른 회사 장애 id 는 404 `NOT_FOUND`(있다는 것도 알리지 않는다). #6·#7은 그 회사 Zabbix 연결로 실시간 조회 |
+| 연결이 없을 때 | 그 회사에 Zabbix 연결이 없으면(#28 `source:"none"`) #5·#6·#7·#10은 빈 목록·`Measured` `unknown_reason:"NOT_COLLECTED"`, 다른 회사 연결로 떨어지지 않는다. `.env` 연결은 기본 회사만 쓴다 |
+
 ### Measured — 화면에 숫자로 보이는 값의 공통 타입
 
 ```json
@@ -360,6 +373,8 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 ### #28·#29 `GET`·`PUT /api/settings/zabbix` — 화면에서 Zabbix 연결 ([선택], 결정 018)
 
 고객사가 AXcellent 화면에서 자기 Zabbix 주소와 읽기 전용 API 토큰을 넣으면, 같이 설치된 DejaFix(Backend·Scheduler·mcp-zabbix)가 그 Zabbix를 본다. 값은 Zabbix 연결 파일(`ZABBIX_CONNECTION_FILE`)에 두고, 파일이 없으면 지금처럼 `.env`의 `ZABBIX_URL`·`ZABBIX_API_TOKEN`을 쓴다.
+
+**회사별(결정 019)**: 읽기·저장 모두 요청 회사(`X-AX-Company`, 1장 "회사")의 연결이다. 연결 파일은 `{"companies": {"<회사 ID>": {url, token, verify_tls, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다. `.env` 연결(`source:"env"`)은 기본 회사에만 보인다. 다른 회사는 저장 전까지 `source:"none"`이다. 한 회사 저장은 다른 회사 연결을 바꾸지 않는다.
 
 `GET` 응답(토큰은 절대 내보내지 않는다):
 ```json

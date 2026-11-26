@@ -10,6 +10,11 @@
 - Zabbix 호출은 **전부 `libs/zabbix_ro` 경유**(허용 목록 밖 메서드는 요청 전 예외, SAFE-02). `ZABBIX_MOCK=true`면 5개 도구가 fixture로 같은 모양을 돌려준다(FR-MCP-010).
 - `tools/list`에는 **필수 5개만** 등록한다. planned 7개(4장)는 구현 전 등록하지 않고, 쓰기 도구(`*_create_*`·`*_update_*`·`*_delete_*` 등)는 영원히 없다(SAFE-03). Agent는 4장 12개 이름을 명시 집합으로 검사하고 그 밖의 이름이 있으면 기동하지 않는다(FR-AG-010).
 
+### 1-1. 회사 (결정 019)
+- Agent는 회사마다 MCP 세션을 따로 열고 HTTP 머리 `X-AX-Company: <회사 ID>`를 붙인다. **도구 인자에는 회사가 없다**(LLM이 회사를 바꿀 수 없다).
+- mcp-zabbix는 그 회사의 Zabbix 연결(`api.md` #28·#29 연결 파일)로만 조회한다. 그 회사 연결이 없으면 모든 도구가 `TOOL_ERROR`·`unknown_reason:"NOT_COLLECTED"`이고 다른 회사 연결로 떨어지지 않는다. 머리가 없으면 기본 회사.
+- mcp-kb는 그 회사의 해결 메모·장애만 검색한다(색인에 `company_id`).
+
 ## 2. 공통 봉투 (IF-INT-MCP-001)
 도구 결과는 MCP `tools/call` 응답의 `structuredContent`에 아래 JSON을 넣고, 같은 JSON 문자열을 `content[0].text`(type `text`)에도 넣는다.
 

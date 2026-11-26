@@ -8,6 +8,7 @@
 -- 규칙
 -- 1. 모든 문장은 IF NOT EXISTS (멱등). 기동할 때마다 다시 실행해도 오류가 없어야 한다.
 -- 2. MVP 중 ALTER 금지. 스키마가 바뀌면 개발 DB를 지우고 다시 만든다 (NFR-MAINT-009).
+--    예외: 결정 019 이관(규칙 8)은 운영 DB의 데이터를 지우지 않고 한 번만 바꾼다.
 -- 3. 이 파일은 두 DB를 함께 담는다. "-- @db shared" 줄부터 다음 "-- @db" 줄 전까지는
 --    shared.db, "-- @db backend" 이후는 backend.db 에만 적용한다.
 --      shared.db  : Agent·Scheduler 가 기동 시 shared 구역을 실행
@@ -23,6 +24,19 @@
 --    URI 모드가 아니면 ATTACH 의 ?mode=ro 를 해석하지 못해 "unable to open database" 가 난다.
 -- 7. *_json 컬럼은 JSON 문자열. 형식은 각 컬럼 주석과 contracts/agent-api.md 를 따른다.
 --    API 응답 필드 이름은 컬럼 이름에서 _json 을 뗀 이름과 같다 (예: causes_json → causes).
+-- 8. 회사(결정 019): 회사별 행은 company_id TEXT NOT NULL (기본값 없음 — 회사 없이 쓰지 못하게).
+--    값은 api.md 1장 "회사"의 회사 ID. 읽기는 늘 요청 회사로 거른다.
+--    아래 CREATE 문은 구현 PR(scheduler·agent·backend, 결정 019 구현 순서)에서 바꾼다. 계약만 먼저
+--    바꾸면 지금 코드가 빈 DB에 쓰지 못하므로, 바뀔 칸은 이 목록이 약속이다:
+--      shared: incidents(company_id, UNIQUE(company_id, zabbix_eventid), 색인 앞에 company_id)
+--              scheduler_jobs(company_id, PK(company_id, job)) · agent_runs · conversations
+--              (analysis_reports·change_plans·plan_steps·tool_calls·messages 는 장애·run·대화로 회사를 따른다)
+--      backend: users.company_id(NULL 허용) · mail_logs.company_id · resolution_notes.company_id
+--    019 이관(작성자가 기동 시 한 번, 이미 되어 있으면 건너뜀. 데이터는 지우지 않는다):
+--      - incidents·scheduler_jobs: UNIQUE·PK 가 바뀌어 새 표를 만들고 행을 옮긴 뒤 이름을 바꾼다
+--        (같은 트랜잭션). 옛 행의 company_id = 기동 시 DEFAULT_COMPANY_ID
+--      - 그 밖의 표: ALTER TABLE ... ADD COLUMN company_id TEXT NOT NULL DEFAULT '<DEFAULT_COMPANY_ID>'
+--      - users.company_id 는 NULL 허용(회사가 정해지지 않은 서비스 계정). 옛 행은 NULL
 -- =====================================================================
 
 

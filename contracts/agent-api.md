@@ -7,6 +7,8 @@
 
 ## 0. 공통
 
+- **회사(결정 019)**: Backend는 모든 요청(`/v1/chat`·`/v1/incidents/{id}/analyze` 등)에 `X-AX-Company`(1장 "회사", `api.md`)를 붙인다. Agent는 그 회사의 장애·대화만 읽고 쓰며(`agent_runs`·`conversations`·리포트·계획에 `company_id`), mcp-zabbix·mcp-kb 는 회사마다 따로 연 MCP 세션으로 부른다(아래 `mcp-tools.md` 1장). Worker(자동 분석)는 장애 행의 `company_id` 를 쓴다. 회사가 없는 요청은 기본 회사다.
+
 | 항목 | 값 |
 |---|---|
 | 주소 | `AGENT_URL` (compose 기본 `http://agent:8100`, 로컬 `http://localhost:8100`). 내부 전용, 외부 공개 없음 |
