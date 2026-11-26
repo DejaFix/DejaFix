@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     zabbix_url: str = ""
     zabbix_api_token: str = ""
     zabbix_verify_tls: str = ""
+    # 화면에서 정한 Zabbix 연결 파일 (계약 #28·#29, 결정 018). 비우면 backend.db 옆 zabbix_connection.json.
+    # 이 파일이 있으면 libs/zabbix_ro 가 ZABBIX_URL·ZABBIX_API_TOKEN 대신 쓴다(Scheduler·mcp-zabbix 도 같은 경로)
+    zabbix_connection_file: str = ""
     # ZABBIX_MOCK=true 일 때 어떤 상황의 목 데이터를 쓸지(libs/zabbix_ro ZABBIX_MOCK_SCENARIO). 기본 demo.
     zabbix_mock_scenario: str = "demo"
     # 화면이 15초마다 부르는 API 가 느린 Zabbix 에 같이 멈추지 않게 하는 안전장치 (dejafix_backend/zabbix.py)
@@ -52,6 +55,12 @@ class Settings(BaseSettings):
     chat_first_event_timeout_sec: float = 3.0
     # Agent 가 이 시간 동안 조용하면 SSE 주석 ": ping" 을 보내 프록시가 연결을 끊지 않게 한다
     chat_keepalive_sec: float = 15.0
+
+    @property
+    def zabbix_connection_path(self) -> Path:
+        if self.zabbix_connection_file.strip():
+            return Path(self.zabbix_connection_file.strip())
+        return Path(self.backend_db_path).parent / "zabbix_connection.json"
 
     @property
     def cors_origin_list(self) -> list[str]:

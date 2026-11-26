@@ -55,6 +55,10 @@ def test_exposed_routes_are_exactly_the_documented_routes(client):
         ("get", "/api/incidents/{}/notes"),
         ("post", "/api/incidents/{}/notes"),
     }
+    # [선택] 화면에서 Zabbix 연결 #28·#29 (2장 표의 '([선택])' 행, 테스트는 test_zabbix_settings.py)
+    documented |= {("get", "/api/settings/zabbix"), ("put", "/api/settings/zabbix")}
+    # [선택] 감시 호스트 목록 #7 (2장 표의 '([선택])' 행, 테스트는 test_hosts.py)
+    documented |= {("get", "/api/hosts")}
     assert exposed == documented
 
 
