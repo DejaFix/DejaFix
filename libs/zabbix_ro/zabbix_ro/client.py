@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from zabbix_ro.connection import overlay
+from zabbix_ro.connection import COMPANY_ENV, default_company, overlay
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError
 from zabbix_ro.mock import SCENARIOS, mock_result
 
@@ -198,7 +198,14 @@ def from_env(
     항상 만들어진다(예외 없음). 실서버 모드에서 URL·토큰이 비어 있으면 call() 이 요청 전에 ZabbixError 를 던진다.
     """
     # 화면에서 정한 연결(ZABBIX_CONNECTION_FILE)이 있으면 URL·토큰·TLS 는 그 값 (connection.py)
-    env = overlay(os.environ if env is None else env)
+    source = os.environ if env is None else env
+    env = overlay(source)
+    mock = _flag(env.get("ZABBIX_MOCK"), default=False)
+    # 회사 나누기(결정 019): 기본 회사가 아닌 회사는 목 데이터도 쓰지 않는다(연결이 없으면 빈 상태)
+    default = default_company(source)
+    company = (source.get(COMPANY_ENV) or "").strip() or default
+    if default is not None and company != default and not env.get("ZABBIX_URL"):
+        mock = False
     verify_tls, config_error = _verify_tls_flag(env.get("ZABBIX_VERIFY_TLS"))
     scenario = (env.get("ZABBIX_MOCK_SCENARIO") or "").strip().lower() or "default"
     scenario_error = None
@@ -212,7 +219,7 @@ def from_env(
         url=env.get("ZABBIX_URL") or None,
         token=env.get("ZABBIX_API_TOKEN") or None,
         verify_tls=verify_tls,
-        mock=_flag(env.get("ZABBIX_MOCK"), default=False),
+        mock=mock,
         transport=transport,
         config_error=config_error,
         mock_scenario=scenario,
