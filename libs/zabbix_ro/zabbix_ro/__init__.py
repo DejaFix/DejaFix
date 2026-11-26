@@ -2,19 +2,31 @@
 
 import zabbix_ro
 client = zabbix_ro.from_env()                  # ZABBIX_URL·ZABBIX_API_TOKEN·ZABBIX_VERIFY_TLS·ZABBIX_MOCK
+client = zabbix_ro.live_from_env()             # 연결 파일(ZABBIX_CONNECTION_FILE)이 바뀌면 따라간다
 problems = client.call("problem.get", {...})   # JSON-RPC result 를 그대로 돌려준다
 """
 
-from zabbix_ro.client import ALLOWED_METHODS, ZabbixRoClient, from_env
+from zabbix_ro.client import ALLOWED_METHODS, ZabbixRoClient, from_env, live_from_env
+from zabbix_ro.connection import (
+    CONNECTION_FILE_ENV,
+    LiveClient,
+    read_connection,
+    save_connection,
+)
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError, ZabbixRoError
 from zabbix_ro.mock import SCENARIOS
 
 __all__ = [
     "ALLOWED_METHODS",
+    "CONNECTION_FILE_ENV",
+    "LiveClient",
     "MethodNotAllowed",
     "SCENARIOS",
     "ZabbixError",
     "ZabbixRoClient",
     "ZabbixRoError",
     "from_env",
+    "live_from_env",
+    "read_connection",
+    "save_connection",
 ]

@@ -395,7 +395,8 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 ```json
 { "url": "https://zbx.example.co.kr/api_jsonrpc.php", "token": "<읽기 전용 API 토큰>", "verify_tls": true }
 ```
-- `token`을 비우면 저장된 토큰을 그대로 쓴다(주소만 바꿀 때). 저장된 토큰도 없으면 422 `VALIDATION_ERROR`.
+- `token`을 비우면 저장된 토큰을 다시 쓴다. **주소가 저장된 주소와 같을 때만**이다. 주소를 바꾸면 토큰이 필수이고, 비우면 422 `VALIDATION_ERROR`(저장된 토큰을 새 주소로 보내지 않는다). 저장된 토큰이 없을 때도 422 `VALIDATION_ERROR`.
+- `url`의 서버 이름이 루프백·링크로컬·지정 안 된 주소(127.0.0.0/8, ::1, 169.254.0.0/16, fe80::/10, 0.0.0.0 등, IPv4가 섞인 IPv6 포함)로 풀리면 어떤 요청도 보내기 전에 422 `VALIDATION_ERROR`. 사설망 주소는 고객 Zabbix가 있을 수 있어 허용한다. 서버 이름을 못 풀거나 `url`을 해석할 수 없으면(잘못된 포트·괄호) 422. 리다이렉트는 따라가지 않는다.
 - 저장 **전에** 그 주소·토큰으로 `apiinfo.version`·`host.get`(1건)을 불러 본다(libs/zabbix_ro, 허용 목록 안). 실패하면 저장하지 않고 422 `ZABBIX_CHECK_FAILED`(이유 한 줄, 토큰·응답 본문은 넣지 않음).
 - 성공하면 파일을 쓰고(0600) Backend의 Zabbix 캐시를 비운다. Scheduler·mcp-zabbix는 다음 호출 때 파일을 다시 읽는다(재시작 없음). 응답은 `GET`과 같은 모양.
 - `url`은 `http://`·`https://`만, 2,048자 이하. 토큰은 512자 이하. `ZABBIX_MOCK=true`면 저장은 하되 목 데이터를 계속 쓴다(`mock:true`).
