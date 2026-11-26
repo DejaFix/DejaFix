@@ -164,12 +164,12 @@ def test_company_sources_never_fall_back(tmp_path):
         "ZABBIX_API_TOKEN": "env-t",
     }
     srcs = CompanySources("catbooks", False, DEFAULT_MOCK_FILE, env)
-    assert srcs.scopes() == [
-        ("catbooks", "env")
-    ]  # 누비투어는 연결 전이라 폴링하지 않는다
+    env_id = zabbix_ro.env_conn_id("http://env-zbx")
+    # 누비투어는 연결 전이라 폴링하지 않는다
+    assert srcs.scopes() == [("catbooks", env_id)]
     zabbix_ro.save_connection(path, "http://nubi", "nb", "", "", "c-cf2f0d", "catbooks")
     scopes = dict(srcs.scopes())
-    assert scopes["catbooks"] == "env" and scopes["c-cf2f0d"].startswith("zc_")
+    assert scopes["catbooks"] == env_id and scopes["c-cf2f0d"].startswith("zc_")
     assert srcs.source("c-cf2f0d").client.client.url == "http://nubi"
 
 
@@ -187,3 +187,17 @@ def test_run_in_company_mode_with_mock(tmp_path, monkeypatch):
         "SELECT count(*) FROM incidents WHERE company_id='catbooks'"
     ).fetchone()[0] == len(copy.deepcopy(data)["problems"])
     c.close()
+
+
+def test_broken_connection_file_skips_cycle_and_closes_nothing(tmp_path, conn):
+    """연결 파일을 못 읽으면 연결 변경으로 보지 않는다(준하 님 #216 리뷰)."""
+    path = tmp_path / "zabbix_connection.json"
+    zabbix_ro.save_connection(path, "http://cb", "t", "", "", "catbooks", "catbooks")
+    env = {"ZABBIX_CONNECTION_FILE": str(path), "ZABBIX_URL": "http://env-zbx"}
+    srcs = CompanySources("catbooks", False, DEFAULT_MOCK_FILE, env)
+    ((company, conn_id),) = srcs.scopes()
+    migrate(conn, "catbooks", conn_id)
+    poll_once(conn, _src(_problem(100)), NOW, Scope(company, conn_id))
+    path.write_text("{half-written", encoding="utf-8")
+    assert srcs.scopes() == []  # .env 로 떨어져 conn_id 가 바뀌지 않는다
+    assert _rows(conn, "catbooks")[0][2] == "problem"

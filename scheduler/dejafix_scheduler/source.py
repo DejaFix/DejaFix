@@ -11,8 +11,12 @@ libs/zabbix_ro(T30)에 기대하는 최소 인터페이스:
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Protocol
+
+
+log = logging.getLogger("scheduler")
 
 
 class SourceUnavailable(RuntimeError):
@@ -164,6 +168,11 @@ class CompanySources:
         from zabbix_ro.connection import connection_path
 
         path = connection_path(self.env)
+        if zabbix_ro.connection_file_state(path) == "broken":
+            # 연결 파일을 못 읽으면 연결이 바뀐 것으로 보지 않는다(준하 님 #216 리뷰):
+            # .env 로 떨어져 폴링하면 conn_id 가 달라 그 회사 장애를 모두 닫게 되니 이 주기를 건너뛴다
+            log.warning("Zabbix 연결 파일을 읽지 못해 이번 주기 폴링을 건너뜀")
+            return []
         companies = set(zabbix_ro.connected_companies(path, self.default))
         out: list[tuple[str, str]] = []
         for company in sorted(companies | {self.default}):
