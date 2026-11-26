@@ -77,6 +77,8 @@ def test_required_routes_are_exposed(client):
         # [선택] 화면에서 Zabbix 연결 #28·#29 — 계약 PR(contracts/api.md, 결정 018)로 허용
         ("get", "/api/settings/zabbix"),
         ("put", "/api/settings/zabbix"),
+        # [선택] 감시 호스트 목록 #7 — 계약 PR(contracts/api.md #7)로 허용
+        ("get", "/api/hosts"),
     }
     exposed = {(m, p) for p, ops in paths.items() for m in ops}
     assert exposed == expected  # 그 밖의 [선택]·[이후] API 를 미리 만들지 않았다
