@@ -88,6 +88,9 @@ services:
       # mcp_zabbix/__main__.py 가 읽는 이름은 MCP_ZABBIX_HOST·MCP_ZABBIX_PORT (기본 127.0.0.1 → 컨테이너 밖에서 못 붙음)
       MCP_ZABBIX_HOST: 0.0.0.0
       MCP_ZABBIX_PORT: "8200"
+      # 화면에서 정한 Zabbix 연결 파일(/data/zabbix_connection.json)을 backend·scheduler 와 같은 자리에서 읽게
+      # (없으면 .env 연결만 써서 분석·채팅이 옛 Zabbix 를 본다). DB 파일은 열지 않는다
+      <<: *db-paths
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/healthz', timeout=3)"]
       interval: 15s
