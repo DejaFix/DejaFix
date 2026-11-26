@@ -155,7 +155,7 @@ def test_scoping_off_ignores_header_and_sends_no_echo(make_client, helpers):
 
 def test_zabbix_settings_are_per_company(app, monkeypatch, tmp_path):
     client, admin, _ = app()
-    monkeypatch.setattr(zs, "_resolve", lambda host: ["203.0.113.10"])
+    monkeypatch.setattr(zs, "_resolve", lambda host: ["8.8.8.8"])
     monkeypatch.setattr(zs, "_check", lambda url, token, verify: None)
     nubi = {**admin, "X-AX-Company": NUBI}
     assert (
@@ -186,3 +186,24 @@ def test_zabbix_settings_are_per_company(app, monkeypatch, tmp_path):
     path = tmp_path / "zbx.json"
     assert zabbix_ro.read_connection(path, NUBI, CB)["token"] == "nb-t"
     assert zabbix_ro.read_connection(path, CB, CB)["token"] == "cb-t"
+
+
+@pytest.mark.parametrize(
+    "address", ["10.0.0.5", "192.168.0.217", "169.254.169.254", "100.64.0.1"]
+)
+def test_other_company_cannot_point_at_internal_network(app, monkeypatch, address):
+    client, admin, _ = app()
+    monkeypatch.setattr(zs, "_resolve", lambda host: [address])
+    monkeypatch.setattr(zs, "_check", lambda url, token, verify: None)
+    body = {"url": "https://zbx.internal/api_jsonrpc.php", "token": "t"}
+    res = client.put(
+        "/api/settings/zabbix", json=body, headers={**admin, "X-AX-Company": NUBI}
+    )
+    assert res.status_code == 422
+    if address.startswith(
+        ("10.", "192.168.")
+    ):  # 기본 회사(설치 주인)는 사내 Zabbix 그대로
+        assert (
+            client.put("/api/settings/zabbix", json=body, headers=admin).status_code
+            == 200
+        )
