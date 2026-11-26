@@ -55,7 +55,9 @@ class ZabbixRoSource:
             raise SourceUnavailable("libs/zabbix_ro 를 불러올 수 없음") from exc
         # 화면에서 정한 Zabbix 연결 파일이 바뀌면 다음 주기부터 새 연결을 쓴다(계약 #29, 결정 018).
         # 그 기능이 없는 zabbix_ro 면 예전처럼 from_env
-        factory = getattr(zabbix_ro, "live_from_env", None) or getattr(zabbix_ro, "from_env", None)
+        factory = getattr(zabbix_ro, "live_from_env", None) or getattr(
+            zabbix_ro, "from_env", None
+        )
         if factory is None:
             raise SourceUnavailable("libs/zabbix_ro 클라이언트 미구현 (T30)")
         try:
