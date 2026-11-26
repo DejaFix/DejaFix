@@ -199,21 +199,35 @@ def test_legacy_file_moves_under_default_company_on_save(tmp_path):
     )  # 캣북스 연결 구분값 그대로
 
 
-def test_conn_id_changes_only_when_connection_changes(tmp_path):
+def test_conn_id_changes_only_when_url_changes(tmp_path):
+    """준하 님 #216 리뷰: 토큰·verify_tls 만 바뀌면 같은 Zabbix 라 conn_id 그대로."""
     path = tmp_path / "zbx.json"
     save = zabbix_ro.save_connection
     save(path, "http://n", "t1", "", "", "c-cf2f0d", "catbooks")
     first = zabbix_ro.read_connection(path, "c-cf2f0d", "catbooks")["conn_id"]
     assert first.startswith("zc_") and len(first) == 15
-    save(path, "http://n", "t1", "", "other", "c-cf2f0d", "catbooks")
+    save(path, "http://n", "t2", "false", "other", "c-cf2f0d", "catbooks")
     assert zabbix_ro.read_connection(path, "c-cf2f0d", "catbooks")["conn_id"] == first
-    save(path, "http://n", "t2", "", "", "c-cf2f0d", "catbooks")
+    save(path, "http://n2", "t2", "false", "", "c-cf2f0d", "catbooks")
     assert zabbix_ro.read_connection(path, "c-cf2f0d", "catbooks")["conn_id"] != first
+
+
+def test_file_state(tmp_path):
+    path = tmp_path / "zbx.json"
+    assert zabbix_ro.connection_file_state(path) == "missing"
+    path.write_text("{broken", encoding="utf-8")
+    assert zabbix_ro.connection_file_state(path) == "broken"
+    zabbix_ro.save_connection(path, "http://n", "t")
+    assert zabbix_ro.connection_file_state(path) == "ok"
 
 
 def test_resolve_gives_env_conn_id_for_default_only(tmp_path):
     none = tmp_path / "none.json"
-    assert zabbix_ro.resolve(_env(none))["conn_id"] == zabbix_ro.ENV_CONN_ID
+    conn_id = zabbix_ro.resolve(_env(none))["conn_id"]
+    assert conn_id == zabbix_ro.env_conn_id(ENV["ZABBIX_URL"])
+    assert conn_id.startswith("env:")
+    other = _env(none, ZABBIX_URL="http://other-env-zbx")
+    assert zabbix_ro.resolve(other)["conn_id"] != conn_id  # .env 주소가 바뀌어도 가른다
     assert zabbix_ro.resolve(_env(none, "c-cf2f0d")) is None
 
 

@@ -12,8 +12,12 @@
   verify_tls, conn_id, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다.
 - 어느 회사의 연결을 쓸지는 `ZABBIX_COMPANY`(없으면 기본 회사). 그 회사 연결이 없으면 다른 회사 연결로
   떨어지지 않는다. `.env` 연결(`ZABBIX_URL`)은 기본 회사만 쓴다.
-- `conn_id`(`zc_` + 16진 12자)는 저장 때 주소·토큰·verify_tls 중 하나라도 바뀌면 새로 만든다.
-  018 모양 파일처럼 값이 없으면 주소·토큰·verify_tls 해시로 정한다(서비스마다 같은 값).
+- `conn_id`(`zc_` + 16진 12자)는 저장 때 **주소(url)가 바뀔 때만** 새로 만든다(토큰·verify_tls 만 바뀌면
+  같은 Zabbix 라 그대로 — 장애가 닫혔다 다시 열려 재분석·메일이 겹치지 않게, 준하 님 #216 리뷰).
+  018 모양 파일처럼 값이 없으면 주소 해시로 정한다(서비스마다 같은 값).
+- `.env` 연결(기본 회사만)의 conn_id 는 `env:` + 주소 해시 12자(.env 주소가 바뀌어도 가른다).
+- 연결 파일이 있는데 읽지 못하면(`connection_file_state` 가 "broken") 연결이 바뀐 것으로 보지 않는다
+  (Scheduler 는 그 주기를 건너뛰고 장애를 닫지 않는다).
 - `DEFAULT_COMPANY_ID` 가 없으면 018 그대로(회사 없음).
 """
 
@@ -74,7 +78,7 @@ def _entry(raw: Any) -> dict[str, str] | None:
     verify = verify if isinstance(verify, str) else ""
     conn_id = raw.get("conn_id")
     if not isinstance(conn_id, str) or not conn_id:
-        conn_id = _hash_conn_id(url.strip(), token, verify)
+        conn_id = _hash_conn_id(url.strip())
     return {
         "url": url.strip(),
         "token": token,
@@ -89,9 +93,18 @@ def _entry(raw: Any) -> dict[str, str] | None:
     }
 
 
-def _hash_conn_id(url: str, token: str, verify_tls: str) -> str:
-    digest = hashlib.sha256(f"{url}\0{token}\0{verify_tls}".encode()).hexdigest()
-    return "zc_" + digest[:12]
+def _hash_conn_id(url: str) -> str:
+    """주소로만 정한다(토큰·TLS 는 같은 Zabbix 를 바꾸지 않는다)."""
+    return "zc_" + _url_hash(url)
+
+
+def _url_hash(url: str) -> str:
+    return hashlib.sha256(url.strip().encode()).hexdigest()[:12]
+
+
+def env_conn_id(url: str) -> str:
+    """.env 연결(기본 회사만)의 연결 구분값: 'env:' + 주소 해시 12자."""
+    return f"{ENV_CONN_ID}:{_url_hash(url)}"
 
 
 def _load(path: Path | None) -> dict[str, Any] | None:
@@ -122,6 +135,13 @@ def read_connection(
     if company is None or company == default_company:
         return _entry(raw)
     return None
+
+
+def connection_file_state(path: Path | None) -> str:
+    """'missing'(파일 없음) | 'ok' | 'broken'(있는데 JSON·모양이 깨짐)."""
+    if path is None or not path.exists():
+        return "missing"
+    return "ok" if _load(path) is not None else "broken"
 
 
 def connected_companies(path: Path | None, default_company: str) -> list[str]:
@@ -167,12 +187,7 @@ def save_connection(
             if legacy is not None and default_company:
                 companies[default_company] = legacy
         old = _entry(companies.get(company))
-    same = (
-        old is not None
-        and old["url"] == url
-        and old["token"] == token
-        and old["verify_tls"] == verify_tls
-    )
+    same = old is not None and old["url"] == url  # 주소가 같으면 같은 Zabbix
     entry = {
         "url": url,
         "token": token,
@@ -217,7 +232,7 @@ def resolve(env: Mapping[str, str]) -> dict[str, str] | None:
         "url": url,
         "token": env.get("ZABBIX_API_TOKEN") or "",
         "verify_tls": env.get("ZABBIX_VERIFY_TLS") or "",
-        "conn_id": ENV_CONN_ID,
+        "conn_id": env_conn_id(url),
         "updated_at": "",
         "updated_by": "",
     }
