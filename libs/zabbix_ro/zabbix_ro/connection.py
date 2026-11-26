@@ -111,6 +111,15 @@ def _stamp(path: Path | None) -> tuple[float, int] | None:
     return (st.st_mtime, st.st_size)
 
 
+def _close(client: Any) -> None:
+    close = getattr(client, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:  # noqa: BLE001 - 닫기 실패가 새 연결을 막지 않게
+            pass
+
+
 class LiveClient:
     """연결 파일이 바뀌면 다음 호출 때 새 클라이언트로 바꾸는 감싸개 (`call` 만 넘긴다)."""
 
@@ -127,8 +136,11 @@ class LiveClient:
         if stamp != self._stamp:
             with self._lock:
                 if stamp != self._stamp:
-                    self._client = self._build()
+                    old, self._client = self._client, self._build()
                     self._stamp = stamp
+                    _close(
+                        old
+                    )  # 옛 연결(HTTP 연결 풀)을 닫는다. 바꾸는 일은 드물고 조회는 짧다
         return self._client
 
     @property
