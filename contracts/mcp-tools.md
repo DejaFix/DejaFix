@@ -12,21 +12,21 @@
 
 ### 1-1. 회사 (결정 019)
 - Agent는 회사마다 MCP 세션을 따로 열고 HTTP 머리 `X-AX-Company: <회사 ID>`를 붙인다. **도구 인자에는 회사가 없다**(LLM이 회사를 바꿀 수 없다).
-- mcp-zabbix는 그 회사의 Zabbix 연결(`api.md` #28·#29 연결 파일)로만 조회한다. 그 회사 연결이 없으면 모든 도구가 `TOOL_ERROR`·`unknown_reason:"NOT_COLLECTED"`이고 다른 회사 연결로 떨어지지 않는다. 머리가 없으면 기본 회사.
-- mcp-kb는 그 회사의 해결 메모·장애만 검색한다(색인에 `company_id`).
+- mcp-zabbix는 그 회사의 Zabbix 연결(`api.md` #28·#29 연결 파일)로만 조회한다. 그 회사 연결이 없으면 모든 도구가 `{"ok": false, "reason": "NOT_CONNECTED"}`(2장 봉투, `unknown_reason` 필드는 쓰지 않는다)이고 다른 회사 연결로 떨어지지 않는다. Agent는 이것을 `NOT_COLLECTED`로 바꾼다(`agent-api.md` 4장). 머리가 없으면 기본 회사(`api.md` 1장 "회사" — `DEFAULT_COMPANY_ID`가 없으면 머리를 무시하고 지금처럼).
+- mcp-kb: `incident_report`·`resolution_note`는 **그 회사 것만** 검색한다(색인 조각에 `company_id`). `runbook`·`pack_action`은 설치의 도메인 팩 문서라 **모든 회사에 공통**이다(회사 정보를 넣지 않는다).
 
 ## 2. 공통 봉투 (IF-INT-MCP-001)
 도구 결과는 MCP `tools/call` 응답의 `structuredContent`에 아래 JSON을 넣고, 같은 JSON 문자열을 `content[0].text`(type `text`)에도 넣는다.
 
 ```json
 {"ok": true,  "collected_at": "2026-10-15T06:30:00Z", "data": <도구별>, "truncated": false}
-{"ok": false, "collected_at": "2026-10-15T06:30:00Z", "reason": "NO_PERMISSION" | "NOT_FOUND" | "ZABBIX_ERROR", "message": "<사람용 한 줄>"}
+{"ok": false, "collected_at": "2026-10-15T06:30:00Z", "reason": "NO_PERMISSION" | "NOT_FOUND" | "ZABBIX_ERROR" | "NOT_CONNECTED", "message": "<사람용 한 줄>"}
 ```
 - `collected_at`: MCP가 Zabbix 응답을 받은 시각, UTC ISO8601 `Z`.
 - `truncated`: 목록 100건·이력 500점을 넘어 잘랐으면 `true`(없으면 `false`로 간주) (FR-MCP-007, NFR-PERF-007).
 - 실패 시 예외·스택 트레이스·Zabbix 원문 오류를 그대로 넘기지 않는다. `message`는 한 줄 요약만.
-- `reason` 규칙: Zabbix 권한 오류(`No permissions`) → `NO_PERMISSION` / 대상 없음(빈 결과로 판단되는 단건 조회) → `NOT_FOUND` / 연결 실패·타임아웃·그 밖의 오류 → `ZABBIX_ERROR`.
-- Agent의 `unknown_reason` 변환은 `contracts/agent-api.md`와 같다: `NO_PERMISSION→NO_PERMISSION`, `NOT_FOUND→NO_DATA`, `ZABBIX_ERROR·타임아웃→TOOL_ERROR`, 빈 목록→`NO_DATA`, `stale:true→STALE`.
+- `reason` 규칙: Zabbix 권한 오류(`No permissions`) → `NO_PERMISSION` / 대상 없음(빈 결과로 판단되는 단건 조회) → `NOT_FOUND` / 연결 실패·타임아웃·그 밖의 오류 → `ZABBIX_ERROR` / 요청 회사에 Zabbix 연결이 없음(결정 019, Zabbix를 부르지 않음) → `NOT_CONNECTED`.
+- Agent의 `unknown_reason` 변환은 `contracts/agent-api.md`와 같다: `NO_PERMISSION→NO_PERMISSION`, `NOT_FOUND→NO_DATA`, `ZABBIX_ERROR·타임아웃→TOOL_ERROR`, `NOT_CONNECTED→NOT_COLLECTED`, 빈 목록→`NO_DATA`, `stale:true→STALE`.
 
 ### 2-1. 값 형식 (#34 결정)
 - **Zabbix가 준 필드는 원본 그대로(문자열)** 넘긴다: `eventid`·`itemid`·`hostid`·`triggerid`·`clock`·`r_clock`·`lastclock`·`lastvalue`·`value`·`severity`·`value_type`·`delay` 등. Zabbix API는 숫자도 문자열로 준다(실측 `item.get`·`history.get`). 소비자는 `int()`/`float()`로 바꿔 쓴다.

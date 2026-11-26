@@ -7,7 +7,7 @@
 
 ## 0. 공통
 
-- **회사(결정 019)**: Backend는 모든 요청(`/v1/chat`·`/v1/incidents/{id}/analyze` 등)에 `X-AX-Company`(1장 "회사", `api.md`)를 붙인다. Agent는 그 회사의 장애·대화만 읽고 쓰며(`agent_runs`·`conversations`·리포트·계획에 `company_id`), mcp-zabbix·mcp-kb 는 회사마다 따로 연 MCP 세션으로 부른다(아래 `mcp-tools.md` 1장). Worker(자동 분석)는 장애 행의 `company_id` 를 쓴다. 회사가 없는 요청은 기본 회사다.
+- **회사(결정 019)**: Backend는 모든 요청(`/v1/chat`·`/v1/incidents/{id}/analyze` 등)에 `X-AX-Company`(1장 "회사", `api.md`)를 붙인다. Agent는 그 회사의 장애·대화만 읽고 쓰며(`agent_runs`·`conversations`에 `company_id`, 리포트·계획·근거·메시지는 장애·run·대화를 따른다), mcp-zabbix·mcp-kb 는 회사마다 따로 연 MCP 세션으로 부른다(아래 `mcp-tools.md` 1장). Worker(자동 분석)는 장애 행의 `company_id` 를 쓴다. 회사가 없는 요청은 기본 회사다.
 
 | 항목 | 값 |
 |---|---|
@@ -276,13 +276,14 @@ Backend가 장애마다 **가장 최근 `kind='analyze'` run**과 최신 리포�
 | `STALE` | 마지막 값이 `max(주기×3, 10분)`보다 오래됨 | 확인할 수 없음 · 오래된 값 |
 | `TOOL_ERROR` | 도구·Zabbix 오류, 타임아웃 | 확인할 수 없음 · 조회 실패 |
 | `NO_PERMISSION` | 읽기 전용 계정에 권한 없음 | 확인할 수 없음 · 권한 없음 |
-| `NOT_COLLECTED` | 고정 수집 세트에 없는 항목 | 확인할 수 없음 · 수집하지 않음 |
+| `NOT_COLLECTED` | 고정 수집 세트에 없는 항목. 요청 회사에 Zabbix 연결이 없음(결정 019) | 확인할 수 없음 · 수집하지 않음 |
 
 | MCP 결과 | → `unknown_reason` |
 |---|---|
 | `{ok:false, reason:"NO_PERMISSION"}` | `NO_PERMISSION` |
 | `{ok:false, reason:"NOT_FOUND"}` | `NO_DATA` |
 | `{ok:false, reason:"ZABBIX_ERROR"}`, 타임아웃 | `TOOL_ERROR` |
+| `{ok:false, reason:"NOT_CONNECTED"}` (요청 회사에 Zabbix 연결 없음, 결정 019) | `NOT_COLLECTED` |
 | `{ok:true}` + 빈 결과 | `NO_DATA` |
 | 값에 `stale:true` | `STALE` |
 | 고정 수집 세트에 없는 항목을 물음 | `NOT_COLLECTED` |
