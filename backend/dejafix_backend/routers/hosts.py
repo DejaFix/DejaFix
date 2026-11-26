@@ -125,6 +125,9 @@ async def hosts(
     settings: Settings = Depends(get_settings),
     now: datetime = Depends(get_now),
 ):
+    if not zabbix.connected(settings):
+        # 그 회사에 Zabbix 연결이 없으면 빈 목록(결정 019)
+        return ok([], collected_at=to_iso(now), truncated=False)
     try:
         rows, truncated = await asyncio.wait_for(
             _collect(settings), timeout=settings.zabbix_timeout_sec

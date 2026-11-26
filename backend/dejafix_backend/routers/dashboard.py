@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 
 from dejafix_backend import zabbix
+from dejafix_backend import company
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.db import open_db
 from dejafix_backend.deps import require_role
@@ -72,7 +73,9 @@ _SHARED_UNITS = {
 }
 
 
-def _shared_kpis(settings: Settings, now: datetime) -> dict[str, dict[str, Any]]:
+def _shared_kpis(
+    settings: Settings, now: datetime, scope: str | None = None
+) -> dict[str, dict[str, Any]]:
     collected = to_iso(now)
     missing = {k: unknown(u, collected, "NO_DATA") for k, u in _SHARED_UNITS.items()}
     try:
@@ -84,25 +87,36 @@ def _shared_kpis(settings: Settings, now: datetime) -> dict[str, dict[str, Any]]
             return missing
         start, end = kst_today_window(now)
         conn = db.conn
+        if scope is not None and not company.incidents_scoped(conn):
+            return missing  # 019 이관 전에는 회사로 거를 수 없다 — 섞어 세지 않는다
+        # 회사별(결정 019): 리포트·분석 run 은 장애를 따라 그 회사 것만 센다
+        cond, args = ("", ()) if scope is None else (" AND i.company_id = ?", (scope,))
         active = conn.execute(
-            "SELECT COUNT(*) FROM shared.incidents WHERE status = 'problem'"
+            "SELECT COUNT(*) FROM shared.incidents i WHERE status = 'problem'" + cond,
+            args,
         ).fetchone()[0]
         high = conn.execute(
-            "SELECT COUNT(*) FROM shared.incidents"
-            " WHERE status = 'problem' AND severity >= ?",
-            (HIGH_SEVERITY,),
+            "SELECT COUNT(*) FROM shared.incidents i"
+            " WHERE status = 'problem' AND severity >= ?" + cond,
+            (HIGH_SEVERITY, *args),
         ).fetchone()[0]
+        join = (
+            "" if scope is None else " JOIN shared.incidents i ON i.id = r.incident_id"
+        )
         reports = conn.execute(
-            "SELECT COUNT(*) FROM shared.analysis_reports"
-            " WHERE created_at >= ? AND created_at < ?",
-            (start, end),
+            "SELECT COUNT(*) FROM shared.analysis_reports r"
+            + join
+            + " WHERE r.created_at >= ? AND r.created_at < ?"
+            + cond,
+            (start, end, *args),
         ).fetchone()[0]
         avg = conn.execute(
-            "SELECT AVG((julianday(finished_at) - julianday(started_at)) * 86400.0)"
-            " FROM shared.agent_runs"
-            " WHERE kind = 'analyze' AND finished_at IS NOT NULL"
-            " AND started_at >= ? AND started_at < ?",
-            (start, end),
+            "SELECT AVG((julianday(r.finished_at) - julianday(r.started_at)) * 86400.0)"
+            " FROM shared.agent_runs r"
+            + join
+            + " WHERE r.kind = 'analyze' AND r.finished_at IS NOT NULL"
+            " AND r.started_at >= ? AND r.started_at < ?" + cond,
+            (start, end, *args),
         ).fetchone()[0]
     except sqlite3.Error:
         return missing
@@ -172,6 +186,12 @@ async def _collect_hosts(settings: Settings) -> tuple[int, int, int]:
 
 async def _host_kpis(settings: Settings, now: datetime) -> dict[str, dict[str, Any]]:
     collected = to_iso(now)
+    if not zabbix.connected(settings):
+        # 그 회사에 Zabbix 연결이 없다(결정 019) — 0 으로 그리지 않고 "수집하지 않음"
+        return {
+            name: unknown("대", collected, "NOT_COLLECTED")
+            for name in ("ok", "total", "unknown")
+        }
     try:
         # 여러 호출이 겹쳐도 전체가 한도 안에 끝나게 묶는다.
         # 시간이 지나도 이미 나간 Zabbix 요청은 계속 돌아 캐시를 채운다(zabbix.call 의 shield).
@@ -197,7 +217,7 @@ async def summary(
     now: datetime = Depends(get_now),
 ):
     shared, hosts = await asyncio.gather(
-        run_in_threadpool(_shared_kpis, settings, now),
+        run_in_threadpool(_shared_kpis, settings, now, company.current()),
         _host_kpis(settings, now),
     )
     data = {

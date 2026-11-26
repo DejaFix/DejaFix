@@ -6,9 +6,10 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from dejafix_backend import company
 from dejafix_backend.config import get_settings
 from dejafix_backend.db import init_backend_db
 from dejafix_backend.errors import register_error_handlers
@@ -53,12 +54,21 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", company.HEADER],
     )
     # 나중에 넣은 것이 바깥쪽: CORS preflight 요청도 접근 로그에 남는다
     app.add_middleware(AccessLogMiddleware)
     configure_access_log()
     register_error_handlers(app)
+
+    @app.middleware("http")
+    async def company_echo(request: Request, call_next):
+        # 결정 019: 거른 회사를 돌려준다(AXcellent 프록시는 이 값이 요청 회사와 같을 때만 그 회사 화면에 넘긴다)
+        response = await call_next(request)
+        scope = getattr(request.state, "company", None)
+        if scope:
+            response.headers[company.ECHO] = scope
+        return response
 
     @app.get("/healthz", tags=["health"])
     def healthz():

@@ -11,8 +11,12 @@ libs/zabbix_ro(T30)에 기대하는 최소 인터페이스:
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Protocol
+
+
+log = logging.getLogger("scheduler")
 
 
 class SourceUnavailable(RuntimeError):
@@ -48,7 +52,7 @@ class ZabbixRoSource:
         self.client = client
 
     @classmethod
-    def from_env(cls) -> ZabbixRoSource:
+    def from_env(cls, env: dict[str, str] | None = None) -> ZabbixRoSource:
         try:
             import zabbix_ro
         except ImportError as exc:  # pragma: no cover - 워크스페이스 멤버라 보통 있음
@@ -61,7 +65,7 @@ class ZabbixRoSource:
         if factory is None:
             raise SourceUnavailable("libs/zabbix_ro 클라이언트 미구현 (T30)")
         try:
-            return cls(factory())
+            return cls(factory(env) if env is not None else factory())
         except (
             Exception
         ) as exc:  # 설정 누락 등 — 기동은 계속하고 매 주기 error 로 남긴다
@@ -125,3 +129,78 @@ def make_source(zabbix_mock: bool, mock_file: Path) -> ProblemSource:
         return ZabbixRoSource.from_env()
     except SourceUnavailable as exc:
         return UnavailableSource(str(exc))
+
+
+class CompanySources:
+    """회사마다 그 회사 Zabbix 연결로 조회하는 출처 (결정 019).
+
+    매 주기 `scopes()` 가 연결이 있는 회사와 그 회사 지금 연결 구분값(conn_id)을 준다.
+    - 기본 회사: 연결 파일 칸 → 없으면 `.env`(conn_id 'env'). 목 모드면 목 출처(conn_id 'env')
+    - 다른 회사: 연결 파일 칸만(없으면 폴링하지 않는다 — 다른 회사 연결로 떨어지지 않는다)
+    회사마다 클라이언트(LiveClient)를 한 번 만들어 두고, 연결 파일이 바뀌면 다음 호출 때 따라간다.
+    """
+
+    def __init__(
+        self,
+        default_company: str,
+        zabbix_mock: bool,
+        mock_file: Path,
+        env: dict[str, str] | None = None,
+    ):
+        import os
+
+        self.default = default_company
+        self.mock = zabbix_mock
+        self.mock_file = mock_file
+        self.env = dict(os.environ if env is None else env)
+        self._sources: dict[str, ProblemSource] = {}
+
+    def _company_env(self, company: str) -> dict[str, str]:
+        return {
+            **self.env,
+            "DEFAULT_COMPANY_ID": self.default,
+            "ZABBIX_COMPANY": company,
+        }
+
+    def scopes(self) -> list[tuple[str, str]]:
+        """[(회사, conn_id)] — 지금 Zabbix 연결이 있는 회사들."""
+        import zabbix_ro
+        from zabbix_ro.connection import connection_path
+
+        path = connection_path(self.env)
+        if zabbix_ro.connection_file_state(path) == "broken":
+            # 연결 파일을 못 읽으면 연결이 바뀐 것으로 보지 않는다(준하 님 #216 리뷰):
+            # .env 로 떨어져 폴링하면 conn_id 가 달라 그 회사 장애를 모두 닫게 되니 이 주기를 건너뛴다
+            log.warning("Zabbix 연결 파일을 읽지 못해 이번 주기 폴링을 건너뜀")
+            return []
+        companies = set(zabbix_ro.connected_companies(path, self.default))
+        out: list[tuple[str, str]] = []
+        for company in sorted(companies | {self.default}):
+            found = zabbix_ro.resolve(self._company_env(company))
+            if found is not None:
+                out.append((company, found["conn_id"]))
+            elif company == self.default and self.mock:
+                out.append((company, zabbix_ro.ENV_CONN_ID))
+        return out
+
+    def source(self, company: str) -> ProblemSource:
+        if company not in self._sources:
+            if company == self.default and self.mock:
+                self._sources[company] = MockSource.from_file(self.mock_file)
+            else:
+                try:
+                    self._sources[company] = ZabbixRoSource.from_env(
+                        self._company_env(company)
+                    )
+                except SourceUnavailable as exc:
+                    return UnavailableSource(str(exc))
+        return self._sources[company]
+
+    def migration_conn_id(self) -> str:
+        """019 이관 때 옛 행에 넣을 기본 회사 연결 구분값 (db-schema.sql 규칙 8)."""
+        import zabbix_ro
+
+        found = zabbix_ro.resolve(self._company_env(self.default))
+        if found is not None:
+            return found["conn_id"]
+        return zabbix_ro.ENV_CONN_ID if self.mock else zabbix_ro.LEGACY_CONN_ID

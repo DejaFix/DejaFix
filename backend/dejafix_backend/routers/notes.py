@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
+from dejafix_backend import company
 from dejafix_backend.db import Db
 from dejafix_backend.deps import get_db, require_role
 from dejafix_backend.envelope import ok
@@ -36,8 +37,11 @@ def _require_incident(db: Db, incident_id: int) -> None:
         raise ApiError(
             503, "SHARED_DB_UNAVAILABLE", "공유 DB가 아직 준비되지 않았습니다"
         )
+    cond, args = company.incident_filter(db.conn)
     found = db.conn.execute(
-        "SELECT 1 FROM shared.incidents WHERE id = ?", (incident_id,)
+        "SELECT 1 FROM shared.incidents i WHERE i.id = ?"
+        + (f" AND {cond}" if cond else ""),
+        (incident_id, *args),
     ).fetchone()
     if found is None:
         raise ApiError(404, "NOT_FOUND", "장애를 찾을 수 없습니다")

@@ -20,6 +20,7 @@ from typing import Any
 import zabbix_ro
 from fastapi.concurrency import run_in_threadpool
 
+from dejafix_backend import company
 from dejafix_backend.config import Settings
 
 clock = time.monotonic  # 테스트에서 바꿔 끼운다
@@ -60,14 +61,53 @@ def build_client(settings: Settings) -> zabbix_ro.ZabbixRoClient:
             # 목 모드에서 상황을 고른다. 이 값을 모르는 zabbix_ro 버전은 무시한다.
             # 기본 demo: Scheduler·mcp-zabbix 목과 같은 장애(30001)·호스트라 목 모드 화면이 서로 어긋나지 않는다.
             "ZABBIX_MOCK_SCENARIO": settings.zabbix_mock_scenario,
+            # 결정 019: 요청 회사의 연결만 쓴다(없으면 다른 회사 연결로 떨어지지 않는다)
+            "DEFAULT_COMPANY_ID": settings.default_company_id,
+            "ZABBIX_COMPANY": company.current() or "",
         }
     )
+
+
+def connected(settings: Settings) -> bool:
+    """요청 회사에 Zabbix 연결이 있는가. 회사 나누기가 꺼져 있거나 기본 회사면 늘 True(지금처럼)."""
+    if company.is_default(settings):
+        return True
+    return (
+        zabbix_ro.resolve(
+            {
+                "ZABBIX_CONNECTION_FILE": str(settings.zabbix_connection_path),
+                "DEFAULT_COMPANY_ID": settings.default_company_id,
+                "ZABBIX_COMPANY": company.current() or "",
+            }
+        )
+        is not None
+    )
+
+
+def scope(settings: Settings) -> tuple[str, str] | None:
+    """(요청 회사, 그 회사 지금 연결 구분값). 회사 나누기가 꺼져 있으면 None."""
+    current = company.current()
+    if current is None:
+        return None
+    found = zabbix_ro.resolve(
+        {
+            "ZABBIX_CONNECTION_FILE": str(settings.zabbix_connection_path),
+            "DEFAULT_COMPANY_ID": settings.default_company_id,
+            "ZABBIX_COMPANY": current,
+            "ZABBIX_URL": settings.zabbix_url,
+            "ZABBIX_API_TOKEN": settings.zabbix_api_token,
+            "ZABBIX_VERIFY_TLS": settings.zabbix_verify_tls,
+        }
+    )
+    if found is not None:
+        return current, found["conn_id"]
+    return current, zabbix_ro.ENV_CONN_ID if settings.zabbix_mock else ""
 
 
 def _key(settings: Settings, method: str, params: dict[str, Any]) -> str:
     """같은 서버·같은 요청만 같은 캐시를 쓴다. 주소·토큰은 해시로만 섞고 그대로 저장하지 않는다."""
     server = hashlib.sha256(
-        f"{settings.zabbix_url}\0{settings.zabbix_api_token}".encode()
+        f"{settings.zabbix_url}\0{settings.zabbix_api_token}\0{company.current() or ''}".encode()
     ).hexdigest()[:16]
     body = json.dumps(params, sort_keys=True, default=str, ensure_ascii=False)
     return f"{server}|{method}|{body}"

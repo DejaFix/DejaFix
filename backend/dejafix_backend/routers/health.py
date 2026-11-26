@@ -14,6 +14,7 @@ import httpx
 from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 
+from dejafix_backend import company
 from dejafix_backend import zabbix
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.db import open_db
@@ -26,7 +27,7 @@ router = APIRouter(tags=["health"])
 ZABBIX_HEALTH_TIMEOUT_SEC = 3.0
 
 
-def _db_status(settings: Settings) -> dict[str, Any]:
+def _db_status(settings: Settings, scope: str | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
         "backend_db": "down",
         "shared_db": "waiting",
@@ -42,10 +43,24 @@ def _db_status(settings: Settings) -> dict[str, Any]:
         if db.shared_ok:
             result["shared_db"] = "ok"
             try:
-                row = db.conn.execute(
-                    "SELECT last_ok_at FROM shared.scheduler_jobs"
-                    " WHERE job = 'poll_problems'"
-                ).fetchone()
+                # 회사별(결정 019): 그 회사 poll_problems 행. 이관 전이면 기록 없음(null)
+                cols = {
+                    r[1]
+                    for r in db.conn.execute("PRAGMA shared.table_info(scheduler_jobs)")
+                }
+                if scope is None:
+                    row = db.conn.execute(
+                        "SELECT last_ok_at FROM shared.scheduler_jobs"
+                        " WHERE job = 'poll_problems'"
+                    ).fetchone()
+                elif "company_id" in cols:
+                    row = db.conn.execute(
+                        "SELECT last_ok_at FROM shared.scheduler_jobs"
+                        " WHERE job = 'poll_problems' AND company_id = ?",
+                        (scope,),
+                    ).fetchone()
+                else:
+                    row = None
                 result["scheduler_last_ok"] = row["last_ok_at"] if row else None
             except sqlite3.Error:
                 result["scheduler_last_ok"] = None  # 아직 기록이 없으면 null
@@ -58,7 +73,9 @@ def _db_status(settings: Settings) -> dict[str, Any]:
 
 async def _zabbix_probe(settings: Settings) -> str:
     """apiinfo.version 한 번(인증 없는 읽기). 타임아웃·짧은 캐시·single-flight 는 zabbix.call 이 맡는다."""
-    if settings.zabbix_mock:
+    if not zabbix.connected(settings):
+        return "none"
+    if settings.zabbix_mock and company.is_default(settings):
         return "ok"
     try:
         version = await zabbix.call(
@@ -89,16 +106,19 @@ async def health(
     settings: Settings = Depends(get_settings),
 ):
     async with httpx.AsyncClient(timeout=1.0) as client:
-        zabbix, agent, mcp, db_part = await asyncio.gather(
+        zabbix_state, agent, mcp, db_part = await asyncio.gather(
             _zabbix_probe(settings),
             _probe(client, f"{_origin(settings.agent_url)}/healthz"),
             _probe(client, f"{_origin(settings.mcp_zabbix_url)}/healthz"),
-            run_in_threadpool(_db_status, settings),
+            run_in_threadpool(_db_status, settings, company.current()),
         )
     data = {
-        "zabbix": zabbix,
+        "zabbix": zabbix_state,
         "agent": agent,
         "mcp_zabbix": mcp,
         **db_part,
     }
+    if not zabbix.connected(settings):
+        # 그 회사에 Zabbix 연결이 없다(결정 019): 수집기가 죽은 게 아니라 볼 것이 없다
+        data.update(zabbix="none", scheduler="none", scheduler_last_ok=None)
     return ok(data, checked_at=utc_now_iso())

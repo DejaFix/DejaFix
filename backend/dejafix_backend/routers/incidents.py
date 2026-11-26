@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 
+from dejafix_backend import company
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.db import Db
 from dejafix_backend.deps import get_db, require_role
@@ -134,10 +135,17 @@ def build_list_query(
     severity_min: int | None,
     after: tuple[str, int] | None,
     limit: int,
+    scope: tuple[str, tuple] = ("", ()),
 ) -> tuple[str, list[Any]]:
-    """API 10번 목록의 SQL 과 파라미터. 라우터와 성능 테스트(실행 계획)가 같은 조합을 쓰게 따로 뺐다."""
+    """API 10번 목록의 SQL 과 파라미터. 라우터와 성능 테스트(실행 계획)가 같은 조합을 쓰게 따로 뺐다.
+
+    scope: 회사 조건(company.incident_filter, 결정 019). 꺼져 있으면 ("", ()).
+    """
     where: list[str] = []
     params: list[Any] = []
+    if scope[0]:
+        where.append(scope[0])
+        params += list(scope[1])
     if status is not None:
         where.append("i.status = ?")
         params.append(status)
@@ -180,7 +188,9 @@ def list_incidents(
             ) from None
 
     # limit+1 개를 읽어 다음 쪽이 있는지 안다.
-    sql, params = build_list_query(status, severity_min, after, limit + 1)
+    sql, params = build_list_query(
+        status, severity_min, after, limit + 1, company.incident_filter(db.conn)
+    )
     rows = db.conn.execute(sql, params).fetchall()
 
     page = rows[:limit]
@@ -310,7 +320,10 @@ def incident_detail(
     _require_shared(db)
     conn = db.conn
 
-    row = conn.execute(DETAIL_SQL, (incident_id,)).fetchone()
+    cond, args = company.incident_filter(conn)
+    # 다른 회사 장애 id 는 404 (있다는 것도 알리지 않는다, 결정 019)
+    sql = DETAIL_SQL + (f" AND {cond}" if cond else "")
+    row = conn.execute(sql, (incident_id, *args)).fetchone()
     if row is None:
         raise ApiError(404, "NOT_FOUND", "장애를 찾을 수 없습니다")
 
@@ -347,12 +360,18 @@ def incident_detail(
             )
         ]
 
-    mail_logs = [
-        _mail_log(r)
-        for r in conn.execute(
-            "SELECT * FROM mail_logs WHERE incident_id = ? ORDER BY id", (incident_id,)
-        )
-    ]
+    # 자동 메일은 기본 회사 장애만 보낸다(결정 019) — 다른 회사는 늘 []
+    mail_logs = (
+        [
+            _mail_log(r)
+            for r in conn.execute(
+                "SELECT * FROM mail_logs WHERE incident_id = ? ORDER BY id",
+                (incident_id,),
+            )
+        ]
+        if company.is_default(settings)
+        else []
+    )
 
     return ok(
         {
