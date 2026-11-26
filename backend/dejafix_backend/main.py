@@ -23,6 +23,7 @@ from dejafix_backend.routers import (
     incidents,
     notes,
     problems,
+    zabbix_settings,
 )
 from dejafix_backend.seed import ensure_seed_users
 from dejafix_backend.static import mount_frontend
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
         incidents.router,
         notes.router,
         chat.router,
+        zabbix_settings.router,
     ):
         app.include_router(router, prefix="/api")
     # 반드시 라우터 등록 뒤: 마지막에 붙는 SPA 폴백이 API·/healthz 를 가리지 않게 한다
