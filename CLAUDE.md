@@ -70,7 +70,7 @@
 
 ## ④ 계약 변경 절차
 - `contracts/`(`api.md`, `agent-api.md`, `mcp-tools.md`, `db-schema.sql`, `incident.schema.json`)가 파트 간 유일한 약속이다.
-- 계약 변경은 **계약 PR → 구현 PR** 순서. 계약 PR은 **2인 승인**(계약 소유자 + 소비자 파트 1명).
+- 계약 변경은 **계약 PR → 구현 PR** 순서. 계약 PR은 **승인 1명**(`.github/CODEOWNERS`의 코드 오너 중 1명, 작성자 제외).
 - 계약을 바꾼 PR에서 `docs/plan.md`의 해당 절도 함께 고친다.
 - `contracts/` 보호는 이 PR 규칙으로 한다(훅으로 막지 않음). 계약 소유자가 아니면 `contracts/`를 고치지 말고 계약 변경 제안을 쓴다.
 
@@ -94,12 +94,12 @@
 
 ## ⑦ 브랜치·커밋·PR — 간소화 Git Flow
 - `main`: 배포·데모 안정본. **직접 push 금지.** dev → main 머지는 데모·배포 시점에만(팀장 승인), 데모 버전은 main 태그(`release/demo-1016`).
-- `dev`: 개발 통합 브랜치, GitHub 기본 브랜치. **직접 push 금지.** PR + 승인 1명 이상, squash 머지.
+- `dev`: 개발 통합 브랜치, GitHub 기본 브랜치. **직접 push 금지.** PR만, 필수 승인 0개. CI(python·frontend·safety) 초록 + 충돌 없음이면 자동 머지(머지 큐, squash). `contracts/`를 건드린 PR만 승인 1명(④).
 - 작업 브랜치는 dev에서 따서 dev로 PR: `feat/<영역>-<주제>`, `fix/<영역>-<주제>`, `docs/<주제>`, `night/<파트>-<MMDD>`(야간 루프 전용). 영역 = `frontend|backend|agent|mcp|scheduler|libs|infra|contracts|docs`.
 - release·hotfix 브랜치는 쓰지 않는다. 10/16 11:30 dev → main 머지 후 main 동결.
 - 커밋: Conventional Commits, 한 커밋 한 목적. 예) `feat(agent): 리포트 JSON 스키마 검증 추가`.
 - PR: 400줄 이하 권장. 본문 = 무엇 / 왜 / 테스트 방법 / **계약 변경 여부** / **충돌 확인 결과**(노션·`contracts/`·`docs/plan.md` 기준으로 다른 파트와 충돌하는지 1줄).
-- Claude가 만든 코드도 사람 리뷰 없이 dev에 들어가지 않는다.
+- 리뷰는 선택이다. 문제를 보면 PR에 코멘트하고, 머지를 막아야 하면 `needs-human` 라벨을 붙인다(Claude가 만든 PR도 같다).
 
 ## ⑧ 비밀값
 - 토큰·비밀번호·API 키는 **`.env`에만**. `.env` 커밋 금지, 저장소에는 값 없는 `.env.example`만.

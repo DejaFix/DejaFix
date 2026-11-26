@@ -1,0 +1,3 @@
+# contracts/는 파트 간 약속이라 PR마다 아래 중 1명 승인이 필요해요 (dev 룰셋 "Require review from Code Owners").
+# 그 밖의 경로는 승인 없이 CI(python·frontend·safety) 초록이면 자동 머지돼요.
+/contracts/ @2taeyoon @NYejin @areatmadm @JangJaehyeonn @bxbae @haakim7
