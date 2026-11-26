@@ -201,14 +201,16 @@ Zabbix 감시 중(`status=0`) 호스트마다 에이전트 연결 상태와 열�
 ```json
 {
   "data": [
-    { "id": "10501", "name": "web-01", "state": "up", "problems": 0 },
-    { "id": "10502", "name": "db-01", "state": "down", "problems": 2 },
-    { "id": "10503", "name": "office-pc-07", "state": "unknown", "problems": 0 }
+    { "id": "10501", "name": "web-01", "state": "up", "agent": true, "problems": 0 },
+    { "id": "10502", "name": "db-01", "state": "down", "agent": true, "problems": 2 },
+    { "id": "10503", "name": "office-pc-07", "state": "unknown", "agent": true, "problems": 0 },
+    { "id": "10504", "name": "shop-web", "state": "unknown", "agent": false, "problems": 0 }
   ],
   "meta": { "collected_at": "2026-11-25T08:00:05Z", "truncated": false }
 }
 ```
 - `state` = 에이전트 연결 상태. Zabbix 에이전트 가용성(`active_available`, 에이전트 인터페이스 `available`) 중 하나라도 1 이면 `"up"`, 1 은 없고 2(사용 불가)가 있으면 `"down"`, 그 밖(0·값 없음)은 `"unknown"`. **장애가 없다고 `"up"`으로 보지 않는다**(SAFE-08·09: 근거 없는 값은 확인할 수 없음).
+- `agent` = 이 호스트를 Zabbix 에이전트로 감시하는가(추가 필드). 에이전트 인터페이스가 있거나 액티브 에이전트가 보고한 적(`active_available` 1·2)이 있으면 `true`, 둘 다 없으면 `false`. `false`는 HTTP·SNMP 등 에이전트 없이 감시하는 호스트(또는 아직 한 번도 보고하지 않은 액티브 에이전트)다. `false`인 호스트의 `state`는 늘 `"unknown"`이므로, 화면은 "연결 끊김·확인 불가" 대신 "에이전트 없이 감시"로 보여 줄 수 있다. `state` 판정은 바꾸지 않는다.
 - `problems` = 그 호스트의 해결되지 않은 Problem 수(`problem.get` → `trigger.get selectHosts`). Problem 이 있어도 `state` 는 바뀌지 않는다(연결과 장애는 따로 본다).
 - `name` = Zabbix 표시 이름(`name`), 없으면 기술 이름(`host`).
 - 이름순, 최대 500대. 더 있으면 `meta.truncated: true`.

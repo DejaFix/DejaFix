@@ -1245,7 +1245,7 @@ fallback_plans:
 | 4 | `GET /api/health` | 로그인 | `{zabbix, agent, mcp_zabbix, shared_db, backend_db, scheduler, scheduler_last_ok}` | 전체 | P0 |
 | 5 | `GET /api/dashboard/summary` | viewer | KPI 4종(`Measured`), 오늘 LLM 사용량(선택) | Zabbix + shared | P0 |
 | 6 | `GET /api/problems?severity_min=&hostid=` | viewer | Zabbix 실시간 문제 목록 (+ DejaFix incident_id 매칭), 최대 200건·새 문제가 위, 초과 시 `meta.truncated` | Zabbix `problem.get` | P0 |
-| 7 | `GET /api/hosts` | viewer | 호스트 목록·에이전트 연결 상태(up·down·unknown)·열린 Problem 수 (주요 지표 최신값은 [이후]), 계약 `contracts/api.md` #7 | Zabbix `host.get`,`problem.get`,`trigger.get` | P0 |
+| 7 | `GET /api/hosts` | viewer | 호스트 목록·에이전트 연결 상태(up·down·unknown)·에이전트로 감시하는지(agent)·열린 Problem 수 (주요 지표 최신값은 [이후]), 계약 `contracts/api.md` #7 | Zabbix `host.get`,`problem.get`,`trigger.get` | P0 |
 | 8 | `GET /api/hosts/{hostid}` | viewer | 상세 + 최근 사양 스냅샷 | Zabbix + shared | P1 |
 | 9 | `GET /api/hosts/{hostid}/metrics?keys=cpu,mem,disk&range=1h` | viewer | 시계열 | Zabbix `history.get`/`trend.get` | P1 |
 | 10 | `GET /api/incidents?status=&severity_min=` | viewer | 수집된 장애 + 분석 상태 | shared | P0 |

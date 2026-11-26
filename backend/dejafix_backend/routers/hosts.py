@@ -5,6 +5,8 @@ Zabbix 감시 중(`status=0`) 호스트마다 에이전트 연결 상태와 열�
 거쳐 libs/zabbix_ro 로만 부른다.
 - state: 에이전트 가용성(`active_available`, 에이전트 인터페이스 `available`) 중 1 이 있으면 up,
   1 은 없고 2 가 있으면 down, 그 밖은 unknown. 장애가 없다고 up 으로 보지 않는다(SAFE-08·09).
+- agent: 이 호스트를 Zabbix 에이전트로 감시하는가. 에이전트 인터페이스가 있거나 액티브 에이전트가
+  보고한 적(active_available 1·2)이 있으면 true. 둘 다 없으면 false(HTTP·SNMP 등 에이전트 없이 감시).
 - problems: 해결되지 않은 Problem 수. state 는 바꾸지 않는다(연결과 장애는 따로 본다).
 - 이름순, 최대 MAX_HOSTS 대. 더 있으면 `meta.truncated: true`.
 - Zabbix 를 못 쓰면 503 `ZABBIX_UNAVAILABLE`(#6 과 같다).
@@ -45,6 +47,16 @@ def state_of(host: dict[str, Any]) -> str:
     if "2" in marks:
         return "down"
     return "unknown"
+
+
+def has_agent(host: dict[str, Any]) -> bool:
+    """에이전트 인터페이스가 있거나 액티브 에이전트가 보고한 적이 있으면 True."""
+    if str(host.get("active_available", "0")) in ("1", "2"):
+        return True
+    return any(
+        str(iface.get("type")) == AGENT_INTERFACE
+        for iface in host.get("interfaces") or []
+    )
 
 
 async def _problem_counts(settings: Settings) -> dict[str, int]:
@@ -97,6 +109,7 @@ async def _collect(settings: Settings) -> tuple[list[dict[str, Any]], bool]:
             "id": str(h["hostid"]),
             "name": h.get("name") or h.get("host") or str(h["hostid"]),
             "state": state_of(h),
+            "agent": has_agent(h),
             "problems": counts.get(str(h["hostid"]), 0),
         }
         for h in hosts
