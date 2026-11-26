@@ -1267,7 +1267,7 @@ fallback_plans:
 | 26 | `GET /api/incidents/{id}/notes` | viewer | **[이후]** 해결 메모 목록(최신 먼저, `author{id,display_name}`). 상세는 `contracts/api.md` #26 | backend | L1 |
 | 27 | `POST /api/incidents/{id}/notes` | operator | **[이후]** `{root_cause, action_taken, result}` 각 1000자 이하, 전부 비면 422. 작성자는 토큰에서만. 사람만 쓴다 | backend (+ shared 존재 확인) | L1 |
 | 28 | `GET /api/settings/zabbix` | admin | **[선택]** 지금 Zabbix 연결(출처 file·env·none, 주소, 토큰 있음 여부만). 상세는 `contracts/api.md` #28·#29, 결정 018. 요청 회사(`X-AX-Company`)의 연결만, 결정 019 | Zabbix 연결 파일·`.env` | L1 |
-| 29 | `PUT /api/settings/zabbix` | admin | **[선택]** 화면에서 Zabbix 주소·읽기 전용 토큰 저장(저장 전 `apiinfo.version`·`host.get` 확인). Backend·Scheduler·mcp-zabbix가 재시작 없이 따른다. 회사마다 따로, 연결이 바뀌면 그 회사의 옛 연결 열린 장애를 닫는다(결정 019) | Zabbix 연결 파일 | L1 |
+| 29 | `PUT /api/settings/zabbix` | admin | **[선택]** 화면에서 Zabbix 주소·읽기 전용 토큰 저장(저장 전 `apiinfo.version`·`host.get` 확인). Backend·Scheduler·mcp-zabbix가 재시작 없이 따른다. 회사마다 따로, 주소가 바뀌면 그 회사의 옛 연결 열린 장애를 닫는다. 기본 회사가 아닌 회사는 공인 주소만(결정 019) | Zabbix 연결 파일 | L1 |
 
 - **[B 수정] 등급 매핑**: 위 P 열과 별개로 금요일 등급은 2-4 표를 따른다. [필수] 11개 = #1, #3, #4, #5, #6, #7, #10, #11, #14, #15, #18. v1에서 P0였던 #14·#15는 #11(장애 상세) 응답에 리포트·계획이 이미 들어가므로 **#11이 먼저**, 목록 화면용 #14·#15는 같은 쿼리를 재사용해 마지막에 붙인다. #18 채팅은 SSE가 막히면 비스트리밍 JSON(`{content, evidence_ids, unknowns, tool_calls[]}`)으로 낮춘다(2-4 탈출 규칙 1).
 - **[검토 반영]** **필수 8개로 축소**: #7·#14·#15를 [선택]으로 옮긴다. #7은 KPI 호스트 수를 #5가 직접 계산하고, #14·#15는 소비하는 [필수] 화면(리포트 목록·변경 계획 목록)이 없으며 #11이 리포트·계획을 이미 포함한다. SAFE-04 확인(`execute` 필드 없음, `mode:"preview"`)은 #11 응답에서 한다. 프론트 MSW 핸들러도 8개.

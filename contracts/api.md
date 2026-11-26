@@ -381,7 +381,7 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 
 고객사가 AXcellent 화면에서 자기 Zabbix 주소와 읽기 전용 API 토큰을 넣으면, 같이 설치된 DejaFix(Backend·Scheduler·mcp-zabbix)가 그 Zabbix를 본다. 값은 Zabbix 연결 파일(`ZABBIX_CONNECTION_FILE`)에 두고, 파일이 없으면 지금처럼 `.env`의 `ZABBIX_URL`·`ZABBIX_API_TOKEN`을 쓴다.
 
-**회사별(결정 019)**: 읽기·저장 모두 요청 회사(`X-AX-Company`, 1장 "회사")의 연결이다. 연결 파일은 `{"companies": {"<회사 ID>": {url, token, verify_tls, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다. `.env` 연결(`source:"env"`)은 기본 회사에만 보인다. 다른 회사는 저장 전까지 `source:"none"`이다. 한 회사 저장은 다른 회사 연결을 바꾸지 않는다. 회사 칸에는 연결 구분값 `conn_id`(`zc_` + 16진 12자)도 둔다 — 주소·토큰·`verify_tls` 중 하나라도 바뀌면 새 값이고, 그 회사의 옛 연결 열린 장애는 닫힌다(1장 "회사" — Zabbix를 바꿨을 때). `conn_id`는 #28 응답에 싣지 않는다.
+**회사별(결정 019)**: 읽기·저장 모두 요청 회사(`X-AX-Company`, 1장 "회사")의 연결이다. 연결 파일은 `{"companies": {"<회사 ID>": {url, token, verify_tls, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다. `.env` 연결(`source:"env"`)은 기본 회사에만 보인다. 다른 회사는 저장 전까지 `source:"none"`이다. 한 회사 저장은 다른 회사 연결을 바꾸지 않는다. 회사 칸에는 연결 구분값 `conn_id`(`zc_` + 16진 12자)도 둔다 — **주소(`url`)가 바뀔 때만** 새 값이고(토큰·`verify_tls`만 바뀌면 같은 Zabbix라 그대로 — 장애가 닫혔다 다시 열려 재분석·메일이 겹치지 않게), 그 회사의 옛 연결 열린 장애는 닫힌다(1장 "회사" — Zabbix를 바꿨을 때). `.env` 연결(기본 회사만)의 구분값은 `env:` + 주소 해시 16진 12자라 `.env` 주소가 바뀌어도 가른다. 연결 파일이 있는데 읽지 못하면 연결이 바뀐 것으로 보지 않는다(그 주기 수집을 건너뛰고 장애를 닫지 않는다). `conn_id`는 #28 응답에 싣지 않는다.
 
 `GET` 응답(토큰은 절대 내보내지 않는다):
 ```json
@@ -396,7 +396,7 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 { "url": "https://zbx.example.co.kr/api_jsonrpc.php", "token": "<읽기 전용 API 토큰>", "verify_tls": true }
 ```
 - `token`을 비우면 저장된 토큰을 다시 쓴다. **주소가 저장된 주소와 같을 때만**이다. 주소를 바꾸면 토큰이 필수이고, 비우면 422 `VALIDATION_ERROR`(저장된 토큰을 새 주소로 보내지 않는다). 저장된 토큰이 없을 때도 422 `VALIDATION_ERROR`.
-- `url`의 서버 이름이 루프백·링크로컬·지정 안 된 주소(127.0.0.0/8, ::1, 169.254.0.0/16, fe80::/10, 0.0.0.0 등, IPv4가 섞인 IPv6 포함)로 풀리면 어떤 요청도 보내기 전에 422 `VALIDATION_ERROR`. 사설망 주소는 고객 Zabbix가 있을 수 있어 허용한다. 서버 이름을 못 풀거나 `url`을 해석할 수 없으면(잘못된 포트·괄호) 422. 리다이렉트는 따라가지 않는다.
+- `url`의 서버 이름이 루프백·링크로컬·지정 안 된 주소(127.0.0.0/8, ::1, 169.254.0.0/16, fe80::/10, 0.0.0.0 등, IPv4가 섞인 IPv6 포함)로 풀리면 어떤 요청도 보내기 전에 422 `VALIDATION_ERROR`. 사설망 주소는 고객 Zabbix가 있을 수 있어 **기본 회사(설치 주인)만** 허용한다. 기본 회사가 아닌 회사(결정 019)는 공인 주소가 아닌 것(사설망 10/8·172.16/12·192.168/16, CGNAT 100.64/10, 링크로컬·메타데이터 169.254.169.254, 문서용 대역 등)으로 풀리면 422 `VALIDATION_ERROR` — 다른 회사가 이 서버의 내부망을 두드리지 못하게. 서버 이름을 못 풀거나 `url`을 해석할 수 없으면(잘못된 포트·괄호) 422. 리다이렉트는 따라가지 않는다.
 - 저장 **전에** 그 주소·토큰으로 `apiinfo.version`·`host.get`(1건)을 불러 본다(libs/zabbix_ro, 허용 목록 안). 실패하면 저장하지 않고 422 `ZABBIX_CHECK_FAILED`(이유 한 줄, 토큰·응답 본문은 넣지 않음).
 - 성공하면 파일을 쓰고(0600) Backend의 Zabbix 캐시를 비운다. Scheduler·mcp-zabbix는 다음 호출 때 파일을 다시 읽는다(재시작 없음). 응답은 `GET`과 같은 모양.
 - `url`은 `http://`·`https://`만, 2,048자 이하. 토큰은 512자 이하. `ZABBIX_MOCK=true`면 저장은 하되 목 데이터를 계속 쓴다(`mock:true`).
