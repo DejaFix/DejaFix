@@ -9,8 +9,9 @@ from shared_db import open_db
 
 from .config import Settings
 from .kb_jobs import KbJobConfig, KbRunner
-from .poller import poll_once
-from .source import make_source
+from .migrate import migrate
+from .poller import Scope, poll_once
+from .source import CompanySources, make_source
 
 log = logging.getLogger("scheduler")
 
@@ -27,7 +28,16 @@ def run(
     """
     stop = stop or threading.Event()
     conn = open_db(settings.shared_db_path, "shared")
-    source = make_source(settings.zabbix_mock, settings.mock_file)
+    companies: CompanySources | None = None
+    source = None
+    if settings.default_company_id:
+        # 결정 019: 회사마다 그 회사 Zabbix 로 폴링. 기동 때 Scheduler 몫 표를 한 번 이관한다
+        companies = CompanySources(
+            settings.default_company_id, settings.zabbix_mock, settings.mock_file
+        )
+        migrate(conn, settings.default_company_id, companies.migration_conn_id())
+    else:
+        source = make_source(settings.zabbix_mock, settings.mock_file)
     if kb is None:
         cfg = KbJobConfig.from_env()
         kb = KbRunner(settings.shared_db_path, cfg) if cfg else None
@@ -40,7 +50,14 @@ def run(
     cycles = 0
     try:
         while not stop.is_set():
-            poll_once(conn, source)
+            if companies is None:
+                poll_once(conn, source)
+            else:
+                for company, conn_id in companies.scopes():
+                    # 한 회사 실패는 그 회사 scheduler_jobs 에만 남고 다른 회사는 계속 돈다
+                    poll_once(
+                        conn, companies.source(company), scope=Scope(company, conn_id)
+                    )
             if kb is not None:
                 try:
                     kb.tick()
