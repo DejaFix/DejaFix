@@ -40,8 +40,10 @@
 --    Zabbix 연결 구분값(결정 019, 준하 님 #214 리뷰): 장애를 zabbix_eventid 만으로 가르면 회사가 Zabbix 를
 --    바꿨을 때 새 eventid 가 옛 것과 겹쳐 새 장애가 안 들어가고(옛 제목이 남음) 옛 장애는 계속 problem 이다.
 --      - zabbix_conn_id TEXT NOT NULL: 장애를 본 Zabbix 연결의 구분값. 연결 파일의 회사 칸 conn_id
---        (api.md #29 저장이 주소·토큰·verify_tls 중 하나라도 바뀔 때마다 새로 만든다, 'zc_' + 16진 12자,
---        회사별). .env 연결(기본 회사만)은 'env'. 유일 키는 (company_id, zabbix_conn_id, zabbix_eventid)
+--        (api.md #29 저장이 주소(url)를 바꿀 때만 새로 만든다 — 토큰·verify_tls 만 바뀌면 그대로, 'zc_' + 16진 12자,
+--        회사별). .env 연결(기본 회사만)은 'env:' + 주소 해시 16진 12자(.env 주소가 바뀌어도 가른다).
+--        연결 파일이 있는데 읽지 못하면 연결 변경으로 보지 않는다(그 주기 폴링을 건너뛰고 닫지 않는다).
+--        유일 키는 (company_id, zabbix_conn_id, zabbix_eventid)
 --      - resolved_reason TEXT CHECK (resolved_reason IS NULL OR resolved_reason IN ('zabbix','connection_changed'))
 --        status='problem' 이면 NULL. Zabbix 가 풀렸다고 하면(r_clock) 'zabbix'
 --      - 연결이 바뀌면(Scheduler 가 그 회사의 지금 conn_id 와 다른 conn_id 의 problem 행을 보면, 다음 폴링 전에)
@@ -61,7 +63,7 @@
 --      4) INSERT INTO <표>__new (company_id, <기존 칸들>) SELECT '<DEFAULT_COMPANY_ID>', <기존 칸들>
 --         FROM <표>   — id 는 그대로 복사한다(다른 표의 참조가 그대로 맞게). users 는 company_id NULL.
 --         incidents 는 zabbix_conn_id = 이관 시각의 기본 회사 지금 연결(연결 파일의 conn_id, 파일이 없으면
---         'env', 연결이 아예 없으면 'legacy'), resolved_reason = status 가 'resolved' 면 'zabbix' 아니면 NULL
+--         .env 연결 'env:<주소 해시 12자>', 연결이 아예 없으면 'legacy', ZABBIX_MOCK 이면 'env'), resolved_reason = status 가 'resolved' 면 'zabbix' 아니면 NULL
 --      5) DROP TABLE <표>;  ALTER TABLE <표>__new RENAME TO <표>
 --      6) 그 표의 색인을 위 목록대로 다시 만든다
 --      7) PRAGMA foreign_key_check — 한 줄이라도 나오면 ROLLBACK 하고 기동을 멈춘다(로그에 표 이름만)
