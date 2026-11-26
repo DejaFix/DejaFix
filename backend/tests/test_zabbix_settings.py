@@ -12,6 +12,7 @@ import pytest
 import zabbix_ro
 from dejafix_backend import zabbix
 from dejafix_backend.config import get_settings
+from dejafix_backend.routers import zabbix_settings as zs
 
 URL = "https://zbx.customer.example/api_jsonrpc.php"
 TOKEN = "cust-read-token-123"
@@ -60,6 +61,8 @@ def zbx(monkeypatch):
         return real(env, transport=transport or httpx.MockTransport(fake.handle))
 
     monkeypatch.setattr(zabbix_ro, "from_env", from_env)
+    # 시험 주소는 DNS에 없으니 공인 주소로 풀린다고 둔다(주소 검사는 따로 시험한다)
+    monkeypatch.setattr(zs, "_resolve", lambda host: ["203.0.113.10"])
     zabbix.reset()
     yield fake
     zabbix.reset()
@@ -116,7 +119,8 @@ def test_bad_token_is_not_saved_and_not_echoed(admin, zbx, tmp_path):
     assert not (tmp_path / "zbx.json").exists()
 
 
-def test_empty_token_reuses_saved_one(admin, zbx):
+def test_empty_token_reuses_saved_one_only_for_the_same_url(admin, zbx):
+    """토큰 칸을 비우면 저장된 토큰을 쓰지만, 주소가 같을 때만이다(저장 토큰을 새 주소로 안 보냄)."""
     client, headers = admin
     assert (
         client.put(
@@ -124,12 +128,87 @@ def test_empty_token_reuses_saved_one(admin, zbx):
         ).status_code
         == 200
     )
+    same = client.put(
+        "/api/settings/zabbix",
+        json={"url": URL, "token": "", "verify_tls": False},
+        headers=headers,
+    )
+    assert same.status_code == 200, same.text
+    assert same.json()["data"]["verify_tls"] is False
+    zbx.calls.clear()
     other = "https://zbx2.customer.example/api_jsonrpc.php"
     res = client.put(
         "/api/settings/zabbix", json={"url": other, "token": ""}, headers=headers
     )
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert zbx.calls == []  # 새 주소로는 아무것도 보내지 않았다
+    assert (
+        client.get("/api/settings/zabbix", headers=headers).json()["data"]["url"] == URL
+    )
+
+
+@pytest.mark.parametrize(
+    "resolved",
+    [
+        ["127.0.0.1"],
+        ["::1"],
+        ["169.254.169.254"],
+        ["fe80::1"],
+        ["0.0.0.0"],
+        ["10.0.0.5", "127.0.0.1"],
+    ],
+)
+def test_loopback_and_link_local_are_refused_before_any_call(
+    admin, zbx, monkeypatch, tmp_path, resolved
+):
+    """서버가 직접 부르는 주소라 이 서버 자신·링크로컬(클라우드 메타데이터)로는 못 간다."""
+    monkeypatch.setattr(zs, "_resolve", lambda host: resolved)
+    client, headers = admin
+    res = client.put(
+        "/api/settings/zabbix", json={"url": URL, "token": TOKEN}, headers=headers
+    )
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert zbx.calls == [] and not (tmp_path / "zbx.json").exists()
+
+
+def test_private_network_is_allowed(admin, zbx, monkeypatch):
+    """사설망에는 고객 Zabbix가 있을 수 있어 연다."""
+    monkeypatch.setattr(zs, "_resolve", lambda host: ["192.168.0.217"])
+    client, headers = admin
+    res = client.put(
+        "/api/settings/zabbix", json={"url": URL, "token": TOKEN}, headers=headers
+    )
     assert res.status_code == 200, res.text
-    assert res.json()["data"]["url"] == other
+
+
+def test_unknown_host_is_422(admin, zbx, monkeypatch):
+    def fail(host):
+        raise OSError("no such host")
+
+    monkeypatch.setattr(zs, "_resolve", fail)
+    client, headers = admin
+    res = client.put(
+        "/api/settings/zabbix", json={"url": URL, "token": TOKEN}, headers=headers
+    )
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "ZABBIX_CHECK_FAILED"
+
+
+def test_env_source_shows_env_tls_setting(make_client, helpers, zbx, tmp_path):
+    """.env 연결이면 ZABBIX_VERIFY_TLS=false 를 그대로 보여 준다(켜짐으로 잘못 보이지 않게)."""
+    client = make_client(
+        zabbix_connection_file=str(tmp_path / "none.json"),
+        zabbix_mock="false",
+        zabbix_url=URL,
+        zabbix_api_token=TOKEN,
+        zabbix_verify_tls="false",
+    )
+    headers = helpers.login(client, "admin", helpers.admin_password)
+    data = client.get("/api/settings/zabbix", headers=headers).json()["data"]
+    assert data["source"] == "env" and data["verify_tls"] is False
+    assert TOKEN not in json.dumps(data)
 
 
 def test_first_save_needs_a_token(admin, zbx):

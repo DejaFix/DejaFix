@@ -6,10 +6,18 @@
   실패하면 저장하지 않고 422 ZABBIX_CHECK_FAILED. 이유는 한 줄이고 토큰·응답 본문을 넣지 않는다.
 - 저장하면 Backend 의 Zabbix 캐시를 비운다. Scheduler·mcp-zabbix 는 다음 호출 때 파일을 다시 읽는다.
 - 토큰은 어떤 응답에도 내보내지 않는다(`token_set` 만).
+- 서버가 이 주소로 직접 요청하므로 루프백·링크로컬·지정 안 된 주소(127.0.0.0/8, ::1, 169.254.0.0/16,
+  fe80::/10, 0.0.0.0 등)로 풀리는 주소는 막는다. 사설망(10/8 등)은 고객 Zabbix가 있을 수 있어 연다.
+  리다이렉트는 따라가지 않는다(zabbix_ro 의 httpx 기본값 follow_redirects=False).
+- 토큰 칸을 비우면 저장된 토큰을 다시 쓰는데, 주소가 저장된 주소와 같을 때만이다(저장 토큰을 새 주소로
+  보내지 않는다).
 """
 
 import asyncio
+import ipaddress
+import socket
 from typing import Any
+from urllib.parse import urlsplit
 
 import zabbix_ro
 from fastapi import APIRouter, Depends
@@ -33,11 +41,45 @@ class ZabbixIn(BaseModel):
     verify_tls: bool = True
 
 
+def _truthy_tls(value: str) -> bool:
+    """`verify_tls` 글자(파일·.env). 비어 있으면 확인함(기본)."""
+    return value.strip().lower() not in ("false", "0", "no", "off")
+
+
+def _resolve(host: str) -> list[str]:
+    """호스트 이름이 풀리는 주소들 (시험이 바꿔 끼운다)."""
+    return [info[4][0] for info in socket.getaddrinfo(host, None)]
+
+
+def _blocked(address: str) -> bool:
+    ip = ipaddress.ip_address(address.split("%", 1)[0])
+    return ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast
+
+
+def _host_ok(url: str) -> None:
+    """루프백·링크로컬로 풀리는 주소면 422. 이름을 못 풀면 422."""
+    host = urlsplit(url).hostname or ""
+    if not host:
+        raise ApiError(422, "VALIDATION_ERROR", "Zabbix 주소에 서버 이름이 없습니다")
+    try:
+        addresses = _resolve(host)
+    except OSError:
+        raise ApiError(
+            422, "ZABBIX_CHECK_FAILED", "Zabbix 서버 이름을 찾지 못했습니다"
+        ) from None
+    if not addresses or any(_blocked(a) for a in addresses):
+        raise ApiError(
+            422,
+            "VALIDATION_ERROR",
+            "이 서버 자신이나 링크로컬 주소로는 연결할 수 없습니다",
+        )
+
+
 def _state(settings: Settings) -> dict[str, Any]:
     found = zabbix_ro.read_connection(settings.zabbix_connection_path)
     base = {"verify_tls": True, "mock": settings.zabbix_mock}
     if found is not None:
-        verify = found["verify_tls"].strip().lower() not in ("false", "0", "no", "off")
+        verify = _truthy_tls(found["verify_tls"])
         return {
             **base,
             "source": "file",
@@ -52,6 +94,7 @@ def _state(settings: Settings) -> dict[str, Any]:
             **base,
             "source": "env",
             "url": settings.zabbix_url.strip(),
+            "verify_tls": _truthy_tls(settings.zabbix_verify_tls),
             "token_set": bool(settings.zabbix_api_token),
             "updated_at": None,
             "updated_by": None,
@@ -106,9 +149,16 @@ async def put_zabbix(
             "VALIDATION_ERROR",
             "Zabbix 주소는 http:// 또는 https:// 로 시작해야 합니다",
         )
+    await run_in_threadpool(_host_ok, url)
     token = body.token.strip()
     if not token:
         saved = zabbix_ro.read_connection(settings.zabbix_connection_path)
+        if saved and saved["url"] != url:
+            raise ApiError(
+                422,
+                "VALIDATION_ERROR",
+                "Zabbix 주소를 바꿀 때는 그 주소의 토큰을 다시 넣어 주세요",
+            )
         token = saved["token"] if saved else ""
     if not token:
         raise ApiError(
