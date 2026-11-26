@@ -37,6 +37,7 @@ DejaFix 하나가 여러 회사를 나눠 본다. 회사마다 Zabbix 연결(#28
 | 연결이 없을 때 | 그 회사에 Zabbix 연결이 없으면(#28 `source:"none"`) #5·#10은 빈 목록·0건, #6·#7은 빈 목록, `Measured`는 `unknown_reason:"NOT_COLLECTED"`. 다른 회사 연결로 떨어지지 않는다. `.env` 연결은 기본 회사만 쓴다 |
 | 메일 | 자동 메일은 **기본 회사 장애만** 보낸다(수신자가 `.env` `MAIL_RECIPIENTS` 하나라 다른 회사 장애가 설치 주인에게 가지 않게). 다른 회사는 메일을 보내지 않고 `mail_logs` 행도 없으며 #11 `mail_logs` 는 늘 `[]`. 회사별 수신자는 `(TODO: 추후결정)` |
 | 쓰기 | 회사 칸이 있는 표에 쓸 때는 늘 `company_id`를 직접 넣는다(기본값으로 채우지 않는다, `db-schema.sql` 규칙 8) |
+| Zabbix를 바꿨을 때 | 장애는 (회사, Zabbix 연결 구분값 `zabbix_conn_id`, `zabbix_eventid`)로 가른다. #29로 연결이 바뀌면 그 회사의 옛 연결 열린 장애는 다음 폴링 전에 `status:"resolved"`·`resolved_at`(닫은 시각)으로 닫힌다(DB `resolved_reason='connection_changed'`, 행은 남는다). 새 Zabbix의 eventid가 옛 것과 같아도 새 장애로 들어온다. `zabbix_conn_id`·`resolved_reason`은 응답에 싣지 않는다(`incident.schema.json` 그대로, 닫힌 이유 표시는 `(TODO: 추후결정)`) |
 
 ### Measured — 화면에 숫자로 보이는 값의 공통 타입
 
@@ -380,7 +381,7 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 
 고객사가 AXcellent 화면에서 자기 Zabbix 주소와 읽기 전용 API 토큰을 넣으면, 같이 설치된 DejaFix(Backend·Scheduler·mcp-zabbix)가 그 Zabbix를 본다. 값은 Zabbix 연결 파일(`ZABBIX_CONNECTION_FILE`)에 두고, 파일이 없으면 지금처럼 `.env`의 `ZABBIX_URL`·`ZABBIX_API_TOKEN`을 쓴다.
 
-**회사별(결정 019)**: 읽기·저장 모두 요청 회사(`X-AX-Company`, 1장 "회사")의 연결이다. 연결 파일은 `{"companies": {"<회사 ID>": {url, token, verify_tls, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다. `.env` 연결(`source:"env"`)은 기본 회사에만 보인다. 다른 회사는 저장 전까지 `source:"none"`이다. 한 회사 저장은 다른 회사 연결을 바꾸지 않는다.
+**회사별(결정 019)**: 읽기·저장 모두 요청 회사(`X-AX-Company`, 1장 "회사")의 연결이다. 연결 파일은 `{"companies": {"<회사 ID>": {url, token, verify_tls, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다. `.env` 연결(`source:"env"`)은 기본 회사에만 보인다. 다른 회사는 저장 전까지 `source:"none"`이다. 한 회사 저장은 다른 회사 연결을 바꾸지 않는다. 회사 칸에는 연결 구분값 `conn_id`(`zc_` + 16진 12자)도 둔다 — 주소·토큰·`verify_tls` 중 하나라도 바뀌면 새 값이고, 그 회사의 옛 연결 열린 장애는 닫힌다(1장 "회사" — Zabbix를 바꿨을 때). `conn_id`는 #28 응답에 싣지 않는다.
 
 `GET` 응답(토큰은 절대 내보내지 않는다):
 ```json
