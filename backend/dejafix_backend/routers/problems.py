@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.concurrency import run_in_threadpool
 
 from dejafix_backend import zabbix
+from dejafix_backend import company
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.db import open_db
 from dejafix_backend.deps import require_role
@@ -112,7 +113,9 @@ async def _collect(
     return items, truncated
 
 
-def _incident_ids(settings: Settings, eventids: list[str]) -> dict[str, int]:
+def _incident_ids(
+    settings: Settings, eventids: list[str], scope: tuple[str, str] | None = None
+) -> dict[str, int]:
     """zabbix_eventid → shared.incidents.id. shared.db 가 없거나 읽을 수 없으면 비어 있다(= 전부 null)."""
     if not eventids:
         return {}
@@ -124,9 +127,16 @@ def _incident_ids(settings: Settings, eventids: list[str]) -> dict[str, int]:
         if not db.shared_ok:
             return {}
         marks = ",".join("?" * len(eventids))
+        extra: tuple = ()
+        cond = ""
+        if scope is not None:
+            if not company.incidents_scoped(db.conn):
+                return {}
+            # 그 회사·그 회사 지금 연결의 장애만 이어 준다(다른 회사 eventid 와 겹쳐도 섞이지 않게)
+            cond, extra = " AND i.company_id = ? AND i.zabbix_conn_id = ?", scope
         rows = db.conn.execute(
-            f"SELECT zabbix_eventid, id FROM shared.incidents WHERE zabbix_eventid IN ({marks})",
-            eventids,
+            f"SELECT zabbix_eventid, id FROM shared.incidents i WHERE zabbix_eventid IN ({marks}){cond}",
+            [*eventids, *extra],
         ).fetchall()
         return {str(r["zabbix_eventid"]): int(r["id"]) for r in rows}
     except sqlite3.Error:
@@ -143,6 +153,9 @@ async def problems(
     settings: Settings = Depends(get_settings),
     now: datetime = Depends(get_now),
 ):
+    if not zabbix.connected(settings):
+        # 그 회사에 Zabbix 연결이 없으면 빈 목록(다른 회사 연결로 떨어지지 않는다, 결정 019)
+        return ok([], collected_at=to_iso(now), truncated=False)
     try:
         items, truncated = await asyncio.wait_for(
             _collect(settings, severity_min, hostid),
@@ -151,7 +164,10 @@ async def problems(
     except (zabbix.ZabbixUnavailable, TimeoutError, KeyError, TypeError, ValueError):
         raise _unavailable() from None
     ids = await run_in_threadpool(
-        _incident_ids, settings, [i["eventid"] for i in items]
+        _incident_ids,
+        settings,
+        [i["eventid"] for i in items],
+        zabbix.scope(settings),
     )
     for item in items:
         item["incident_id"] = ids.get(item["eventid"])

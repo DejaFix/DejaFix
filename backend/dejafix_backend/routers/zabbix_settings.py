@@ -11,8 +11,12 @@
   리다이렉트는 따라가지 않는다(zabbix_ro 의 httpx 기본값 follow_redirects=False).
   알려진 한계: 이름을 확인한 뒤 실제 요청 때 다시 풀므로 DNS 를 그 사이에 바꾸는 공격은 막지 못한다.
   관리자(admin)만 부를 수 있어 지금은 기록만 해 둔다(리뷰 11/26).
+- 기본 회사가 아닌 회사는 사설망(10/8·172.16/12·192.168/16)·CGNAT·메타데이터 등 공인 주소가 아닌 주소도 막는다
+  (결정 019, 준하 님 #216 리뷰). 기본 회사는 지금처럼 사내 Zabbix 를 연다.
 - 토큰 칸을 비우면 저장된 토큰을 다시 쓰는데, 주소가 저장된 주소와 같을 때만이다(저장 토큰을 새 주소로
   보내지 않는다).
+- 회사별(결정 019): 읽기·저장 모두 요청 회사의 연결이다. `.env` 연결(source "env")은 기본 회사에만 보이고,
+  다른 회사는 저장 전까지 source "none". 한 회사 저장은 다른 회사 연결을 바꾸지 않는다.
 """
 
 import asyncio
@@ -26,7 +30,7 @@ from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from dejafix_backend import zabbix
+from dejafix_backend import company, zabbix
 from dejafix_backend.config import Settings, get_settings
 from dejafix_backend.deps import require_role
 from dejafix_backend.envelope import ok
@@ -53,15 +57,18 @@ def _resolve(host: str) -> list[str]:
     return [info[4][0] for info in socket.getaddrinfo(host, None)]
 
 
-def _blocked(address: str) -> bool:
+def _blocked(address: str, internal_ok: bool = True) -> bool:
+    """internal_ok=False(기본 회사가 아닌 회사)면 사설망·CGNAT·메타데이터 등 공인 주소가 아닌 것도 막는다."""
     ip = ipaddress.ip_address(address.split("%", 1)[0])
     mapped = getattr(ip, "ipv4_mapped", None)  # ::ffff:127.0.0.1 같은 IPv4 섞인 IPv6
     if mapped is not None:
         ip = mapped
+    if not internal_ok and not ip.is_global:
+        return True
     return ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast
 
 
-def _host_ok(url: str) -> None:
+def _host_ok(url: str, internal_ok: bool = True) -> None:
     """루프백·링크로컬로 풀리는 주소면 422. 이름을 못 풀면 422."""
     try:
         parts = urlsplit(url)
@@ -79,7 +86,13 @@ def _host_ok(url: str) -> None:
         raise ApiError(
             422, "ZABBIX_CHECK_FAILED", "Zabbix 서버 이름을 찾지 못했습니다"
         ) from None
-    if not addresses or any(_blocked(a) for a in addresses):
+    if not addresses or any(_blocked(a, internal_ok) for a in addresses):
+        if not internal_ok:
+            raise ApiError(
+                422,
+                "VALIDATION_ERROR",
+                "이 회사는 공인 주소의 Zabbix만 연결할 수 있습니다(내부망·이 서버 주소 불가)",
+            )
         raise ApiError(
             422,
             "VALIDATION_ERROR",
@@ -87,8 +100,17 @@ def _host_ok(url: str) -> None:
         )
 
 
+def _saved(settings: Settings) -> dict[str, str] | None:
+    """요청 회사의 연결 파일 칸 (꺼져 있으면 018 한 벌)."""
+    return zabbix_ro.read_connection(
+        settings.zabbix_connection_path,
+        company.current(),
+        settings.default_company_id.strip() or None,
+    )
+
+
 def _state(settings: Settings) -> dict[str, Any]:
-    found = zabbix_ro.read_connection(settings.zabbix_connection_path)
+    found = _saved(settings)
     base = {"verify_tls": True, "mock": settings.zabbix_mock}
     if found is not None:
         verify = _truthy_tls(found["verify_tls"])
@@ -101,7 +123,7 @@ def _state(settings: Settings) -> dict[str, Any]:
             "updated_at": found["updated_at"] or None,
             "updated_by": found["updated_by"] or None,
         }
-    if settings.zabbix_url.strip():
+    if settings.zabbix_url.strip() and company.is_default(settings):
         return {
             **base,
             "source": "env",
@@ -161,10 +183,12 @@ async def put_zabbix(
             "VALIDATION_ERROR",
             "Zabbix 주소는 http:// 또는 https:// 로 시작해야 합니다",
         )
-    await run_in_threadpool(_host_ok, url)
+    # 결정 019(준하 님 #216 리뷰): 기본 회사(설치 주인)만 사내 Zabbix(사설망)를 넣을 수 있다.
+    # 다른 회사가 이 서버의 내부망을 두드리지 못하게 공인 주소만 연다
+    await run_in_threadpool(_host_ok, url, company.is_default(settings))
     token = body.token.strip()
     if not token:
-        saved = zabbix_ro.read_connection(settings.zabbix_connection_path)
+        saved = _saved(settings)
         if saved and saved["url"] != url:
             raise ApiError(
                 422,
@@ -200,6 +224,8 @@ async def put_zabbix(
         token,
         "true" if body.verify_tls else "false",
         str(user.get("username") or ""),
+        company.current(),
+        settings.default_company_id.strip() or None,
     )
     zabbix.reset()  # 새 연결로 다시 읽게 캐시를 비운다
     return ok(_state(settings))
