@@ -221,3 +221,17 @@ def test_settings_defaults():
     assert (
         Settings.from_env({"INCIDENT_POLL_SEC": "1"}).poll_sec == 5
     )  # 너무 짧은 주기 방지
+
+
+def test_real_source_follows_screen_zabbix_connection(
+    no_zabbix_env, monkeypatch, tmp_path
+):
+    """화면에서 정한 Zabbix 연결 파일(계약 #29)이 생기면 재시작 없이 다음 호출부터 그 주소를 쓴다."""
+    import zabbix_ro
+
+    path = tmp_path / "zabbix_connection.json"
+    monkeypatch.setenv("ZABBIX_CONNECTION_FILE", str(path))
+    src = make_source(False, DEFAULT_MOCK_FILE)
+    assert src.client.client.url is None  # 아직 연결 전
+    zabbix_ro.save_connection(path, "https://zbx.customer.example/api_jsonrpc.php", "t")
+    assert src.client.client.url == "https://zbx.customer.example/api_jsonrpc.php"
