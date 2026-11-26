@@ -9,6 +9,8 @@
 - 서버가 이 주소로 직접 요청하므로 루프백·링크로컬·지정 안 된 주소(127.0.0.0/8, ::1, 169.254.0.0/16,
   fe80::/10, 0.0.0.0 등)로 풀리는 주소는 막는다. 사설망(10/8 등)은 고객 Zabbix가 있을 수 있어 연다.
   리다이렉트는 따라가지 않는다(zabbix_ro 의 httpx 기본값 follow_redirects=False).
+  알려진 한계: 이름을 확인한 뒤 실제 요청 때 다시 풀므로 DNS 를 그 사이에 바꾸는 공격은 막지 못한다.
+  관리자(admin)만 부를 수 있어 지금은 기록만 해 둔다(리뷰 11/26).
 - 토큰 칸을 비우면 저장된 토큰을 다시 쓰는데, 주소가 저장된 주소와 같을 때만이다(저장 토큰을 새 주소로
   보내지 않는다).
 """
@@ -53,12 +55,22 @@ def _resolve(host: str) -> list[str]:
 
 def _blocked(address: str) -> bool:
     ip = ipaddress.ip_address(address.split("%", 1)[0])
+    mapped = getattr(ip, "ipv4_mapped", None)  # ::ffff:127.0.0.1 같은 IPv4 섞인 IPv6
+    if mapped is not None:
+        ip = mapped
     return ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast
 
 
 def _host_ok(url: str) -> None:
     """루프백·링크로컬로 풀리는 주소면 422. 이름을 못 풀면 422."""
-    host = urlsplit(url).hostname or ""
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname or ""
+        parts.port  # noqa: B018 - 잘못된 포트(:abc)면 여기서 ValueError
+    except ValueError:
+        raise ApiError(
+            422, "VALIDATION_ERROR", "Zabbix 주소 형식이 맞지 않습니다"
+        ) from None
     if not host:
         raise ApiError(422, "VALIDATION_ERROR", "Zabbix 주소에 서버 이름이 없습니다")
     try:

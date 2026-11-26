@@ -157,6 +157,7 @@ def test_empty_token_reuses_saved_one_only_for_the_same_url(admin, zbx):
         ["fe80::1"],
         ["0.0.0.0"],
         ["10.0.0.5", "127.0.0.1"],
+        ["::ffff:127.0.0.1"],
     ],
 )
 def test_loopback_and_link_local_are_refused_before_any_call(
@@ -171,6 +172,20 @@ def test_loopback_and_link_local_are_refused_before_any_call(
     assert res.status_code == 422
     assert res.json()["error"]["code"] == "VALIDATION_ERROR"
     assert zbx.calls == [] and not (tmp_path / "zbx.json").exists()
+
+
+@pytest.mark.parametrize(
+    "url", ["http://[abc/api_jsonrpc.php", "http://192.0.2.1:abc/api_jsonrpc.php"]
+)
+def test_unparsable_url_is_422_not_500(admin, zbx, url):
+    """괄호가 안 닫히거나 포트가 숫자가 아니면 500이 아니라 422 (리뷰 11/26)."""
+    client, headers = admin
+    res = client.put(
+        "/api/settings/zabbix", json={"url": url, "token": TOKEN}, headers=headers
+    )
+    assert res.status_code == 422, res.text
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert zbx.calls == []
 
 
 def test_private_network_is_allowed(admin, zbx, monkeypatch):
