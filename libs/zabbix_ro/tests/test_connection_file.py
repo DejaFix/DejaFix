@@ -83,6 +83,33 @@ def test_live_client_follows_file_changes(tmp_path):
     assert seen[1][1] == "Bearer cust-token"
 
 
+def test_live_client_closes_the_old_client_on_switch(tmp_path):
+    """연결이 바뀌면 옛 클라이언트(HTTP 연결 풀)를 닫는다 (리뷰 11/26)."""
+    path = tmp_path / "zbx.json"
+    built = []
+
+    class Fake:
+        def __init__(self):
+            self.closed = False
+
+        def call(self, method, params=None):
+            return []
+
+        def close(self):
+            self.closed = True
+
+    def build():
+        built.append(Fake())
+        return built[-1]
+
+    live = zabbix_ro.LiveClient(build, path)
+    live.call("host.get", {})
+    zabbix_ro.save_connection(path, "http://cust-zbx/api_jsonrpc.php", "cust-token")
+    live.call("host.get", {})
+    assert len(built) == 2
+    assert built[0].closed is True and built[1].closed is False
+
+
 def test_live_client_still_refuses_write_methods(tmp_path):
     live = zabbix_ro.live_from_env(
         {**ENV, "ZABBIX_CONNECTION_FILE": str(tmp_path / "x.json")}
@@ -98,3 +125,18 @@ def test_token_not_in_repr_or_errors(tmp_path):
     )
     client = zabbix_ro.from_env({"ZABBIX_CONNECTION_FILE": str(path)})
     assert "secret-cust-token" not in repr(client)
+
+
+def test_default_path_is_next_to_db_files(tmp_path):
+    from zabbix_ro.connection import connection_path
+
+    assert connection_path({"BACKEND_DB_PATH": str(tmp_path / "d" / "backend.db")}) == (
+        tmp_path / "d" / "zabbix_connection.json"
+    )
+    assert connection_path({"SHARED_DB_PATH": str(tmp_path / "s" / "shared.db")}) == (
+        tmp_path / "s" / "zabbix_connection.json"
+    )
+    assert connection_path(
+        {"ZABBIX_CONNECTION_FILE": str(tmp_path / "x.json"), "SHARED_DB_PATH": "a/b.db"}
+    ) == (tmp_path / "x.json")
+    assert connection_path({}) is None
