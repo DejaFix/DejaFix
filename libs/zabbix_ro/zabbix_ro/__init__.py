@@ -8,9 +8,16 @@ problems = client.call("problem.get", {...})   # JSON-RPC result 를 그대로 �
 
 from zabbix_ro.client import ALLOWED_METHODS, ZabbixRoClient, from_env, live_from_env
 from zabbix_ro.connection import (
+    COMPANY_ENV,
+    COMPANY_ID_RE,
     CONNECTION_FILE_ENV,
+    DEFAULT_COMPANY_ENV,
+    ENV_CONN_ID,
+    LEGACY_CONN_ID,
     LiveClient,
+    connected_companies,
     read_connection,
+    resolve,
     save_connection,
 )
 from zabbix_ro.errors import MethodNotAllowed, ZabbixError, ZabbixRoError
@@ -18,7 +25,14 @@ from zabbix_ro.mock import SCENARIOS
 
 __all__ = [
     "ALLOWED_METHODS",
+    "COMPANY_ENV",
+    "COMPANY_ID_RE",
     "CONNECTION_FILE_ENV",
+    "DEFAULT_COMPANY_ENV",
+    "ENV_CONN_ID",
+    "LEGACY_CONN_ID",
+    "connected_companies",
+    "resolve",
     "LiveClient",
     "MethodNotAllowed",
     "SCENARIOS",
