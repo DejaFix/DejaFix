@@ -20,6 +20,25 @@
 | 확인할 수 없는 값 | **0이나 빈 문자열로 보내지 않고** `Measured`(아래)로 보낸다 (SAFE-10) |
 | 실행 금지 | 어떤 응답에도 `execute`·`run` 필드가 없다. `plan.mode` 는 항상 `"preview"` (SAFE-04) |
 
+### 회사 (결정 019)
+
+DejaFix 하나가 여러 회사를 나눠 본다. 회사마다 Zabbix 연결(#28·#29)·장애·리포트·계획·대화·메일이 따로다.
+
+| 항목 | 규칙 |
+|---|---|
+| 켜기 | `.env` `DEFAULT_COMPANY_ID`(기본 회사 = 설치 주인)가 있어야 회사 나누기가 켜진다. 값은 **AXcellent 회사 ID와 같아야 한다**(캣북스 설치면 `catbooks`). 다르면 옛 행이 엉뚱한 회사로 이관돼 설치 주인 화면에 장애가 안 보인다 |
+| 꺼져 있을 때 | `DEFAULT_COMPANY_ID`가 없으면 `X-AX-Company`를 무시하고 지금처럼(회사 한 벌) 동작하며 `X-DejaFix-Company`를 **보내지 않는다**. AXcellent 프록시(Axcellent-bs #1884)는 이 머리가 없으면 캣북스(설치 주인)·회사가 직접 연결한 DejaFix만 넘기고 다른 회사는 "Zabbix 연결 전"으로 막으니, 켜기 전에도 다른 회사로 새지 않는다 |
+| 요청 | `X-AX-Company: <회사 ID>`. 영문 소문자·숫자·`-`, 64자 이하. 형식이 틀리면 422 `VALIDATION_ERROR`(아래 오류 표) |
+| 머리를 따르는 계정 | `.env` `COMPANY_HEADER_ACCOUNTS`(쉼표, AXcellent 프록시가 로그인하는 viewer·admin 계정 이름)에 적은 계정만. 비어 있으면 아무 계정도 따르지 않는다 |
+| 그 밖의 계정 | 사람이 DejaFix에 직접 로그인한 계정은 `users.company_id`(비면 기본 회사)로 고정이다. 머리가 그 회사와 다르면 403 `FORBIDDEN`(머리만 바꿔 다른 회사를 읽지 못한다) |
+| 머리가 없을 때 | 머리를 따르는 계정도 기본 회사. AXcellent 프록시는 늘 머리를 싣는다(회사 없는 요청은 프록시가 먼저 막는다) |
+| 응답 | 켜져 있으면 모든 `/api/*` 응답(오류 포함)에 `X-DejaFix-Company: <거른 회사 ID>`. AXcellent 프록시는 이 머리가 요청 회사와 같을 때만 그 회사 화면에 넘긴다 |
+| 거르기 | #5·#10·#11·#18·#26·#27은 그 회사 행만. 다른 회사 장애 id 는 404 `NOT_FOUND`(있다는 것도 알리지 않는다). #6·#7은 그 회사 Zabbix 연결로 실시간 조회. #4는 아래 |
+| 연결이 없을 때 | 그 회사에 Zabbix 연결이 없으면(#28 `source:"none"`) #5·#10은 빈 목록·0건, #6·#7은 빈 목록, `Measured`는 `unknown_reason:"NOT_COLLECTED"`. 다른 회사 연결로 떨어지지 않는다. `.env` 연결은 기본 회사만 쓴다 |
+| 메일 | 자동 메일은 **기본 회사 장애만** 보낸다(수신자가 `.env` `MAIL_RECIPIENTS` 하나라 다른 회사 장애가 설치 주인에게 가지 않게). 다른 회사는 메일을 보내지 않고 `mail_logs` 행도 없으며 #11 `mail_logs` 는 늘 `[]`. 회사별 수신자는 `(TODO: 추후결정)` |
+| 쓰기 | 회사 칸이 있는 표에 쓸 때는 늘 `company_id`를 직접 넣는다(기본값으로 채우지 않는다, `db-schema.sql` 규칙 8) |
+| Zabbix를 바꿨을 때 | 장애는 (회사, Zabbix 연결 구분값 `zabbix_conn_id`, `zabbix_eventid`)로 가른다. #29로 연결이 바뀌면 그 회사의 옛 연결 열린 장애는 다음 폴링 전에 `status:"resolved"`·`resolved_at`(닫은 시각)으로 닫힌다(DB `resolved_reason='connection_changed'`, 행은 남는다). 새 Zabbix의 eventid가 옛 것과 같아도 새 장애로 들어온다. `zabbix_conn_id`·`resolved_reason`은 응답에 싣지 않는다(`incident.schema.json` 그대로, 닫힌 이유 표시는 `(TODO: 추후결정)`) |
+
 ### Measured — 화면에 숫자로 보이는 값의 공통 타입
 
 ```json
@@ -46,9 +65,9 @@
 |---|---|---|
 | 401 | `INVALID_CREDENTIALS` | #1. "아이디 또는 비밀번호가 틀렸습니다" |
 | 401 | `UNAUTHORIZED` | 토큰 없음·만료·위조. 토큰 삭제 후 `/login` |
-| 403 | `FORBIDDEN` | 역할 부족(예: viewer 의 #18). "권한이 없습니다" |
+| 403 | `FORBIDDEN` | 역할 부족(예: viewer 의 #18). 계정 회사와 다른 `X-AX-Company`(결정 019). "권한이 없습니다" |
 | 404 | `NOT_FOUND` | #11 없는 장애. 알 수 없는 경로 |
-| 422 | `VALIDATION_ERROR` | 요청 본문·쿼리 형식 오류, 잘못된 `cursor` |
+| 422 | `VALIDATION_ERROR` | 요청 본문·쿼리 형식 오류, 잘못된 `cursor`, `X-AX-Company` 형식 오류(결정 019) |
 | 422 | `ZABBIX_CHECK_FAILED` | #29 저장 전 Zabbix 확인 실패(주소·토큰·권한). 저장하지 않음, 이유 한 줄 표시 |
 | 502 | `AGENT_UNAVAILABLE` | #18 비스트리밍에서 Agent 연결 실패·중단. 스트림 모드는 `event: error` |
 | 503 | `ZABBIX_UNAVAILABLE` | #6 Zabbix 조회 실패. 상단 경고 배너 |
@@ -120,6 +139,7 @@ Agent 가 스트림을 열기 전에 거절한 오류(`CONVERSATION_NOT_FOUND`, 
 ```
 - 값은 `"ok" | "down"`. `shared_db` 만 `"waiting"`(shared.db 파일이 아직 없음, 요청마다 재시도), `scheduler` 만 `"stale"` 이 더해진다.
 - `scheduler_last_ok` = `shared.scheduler_jobs` 의 `job='poll_problems'` `last_ok_at`. 기록이 없거나 shared.db 가 없으면 `null`.
+- **회사(결정 019)**: `zabbix`·`scheduler`·`scheduler_last_ok` 는 **요청 회사** 기준이다(`scheduler_jobs` 의 `company_id = 요청 회사 AND job='poll_problems'`, `zabbix` 는 그 회사 연결로 `apiinfo.version`). 그 회사에 Zabbix 연결이 없으면 `zabbix:"none"`, `scheduler:"none"`, `scheduler_last_ok:null` 이다(수집기가 죽은 게 아니라 볼 것이 없다 — 화면은 "Zabbix 연결 전"). `agent`·`mcp_zabbix`·`shared_db`·`backend_db` 는 설치 전체 값이다. #10 `meta.data_as_of` 도 같은 요청 회사 값이고, 연결이 없으면 `null`·`stale:false`.
 - `zabbix` 는 `apiinfo.version` 한 번(인증 없는 읽기)으로 판정한다. Zabbix 가 느려도 health 가 같이 느려지지 않도록 **3초 안에 답이 없으면 `"down"`**. `ZABBIX_MOCK=true` 면 항상 `"ok"`.
 - `scheduler` = 수집기가 살아 있는지의 판정. 응답을 만드는 시각과 `scheduler_last_ok` 의 차이가 **`SCHEDULER_STALE_SEC` 이내면 `"ok"`**, 그보다 오래됐으면 `"stale"`(수집이 멈춘 것으로 본다), `scheduler_last_ok` 가 `null` 이면 `"down"`. `SCHEDULER_STALE_SEC` 기본값은 **90**(폴링 주기 `INCIDENT_POLL_SEC=30` × 3)이다. 화면은 이 값으로 "수집 중단" 배너를 띄운다.
 
@@ -360,6 +380,8 @@ data: {"message_id":102,"content":"...","evidence_ids":["ev_b1"],"unknowns":[{"l
 ### #28·#29 `GET`·`PUT /api/settings/zabbix` — 화면에서 Zabbix 연결 ([선택], 결정 018)
 
 고객사가 AXcellent 화면에서 자기 Zabbix 주소와 읽기 전용 API 토큰을 넣으면, 같이 설치된 DejaFix(Backend·Scheduler·mcp-zabbix)가 그 Zabbix를 본다. 값은 Zabbix 연결 파일(`ZABBIX_CONNECTION_FILE`)에 두고, 파일이 없으면 지금처럼 `.env`의 `ZABBIX_URL`·`ZABBIX_API_TOKEN`을 쓴다.
+
+**회사별(결정 019)**: 읽기·저장 모두 요청 회사(`X-AX-Company`, 1장 "회사")의 연결이다. 연결 파일은 `{"companies": {"<회사 ID>": {url, token, verify_tls, updated_at, updated_by}}}` 모양이고, 018 모양(회사 없는 한 벌)은 기본 회사 것으로 읽는다. `.env` 연결(`source:"env"`)은 기본 회사에만 보인다. 다른 회사는 저장 전까지 `source:"none"`이다. 한 회사 저장은 다른 회사 연결을 바꾸지 않는다. 회사 칸에는 연결 구분값 `conn_id`(`zc_` + 16진 12자)도 둔다 — 주소·토큰·`verify_tls` 중 하나라도 바뀌면 새 값이고, 그 회사의 옛 연결 열린 장애는 닫힌다(1장 "회사" — Zabbix를 바꿨을 때). `conn_id`는 #28 응답에 싣지 않는다.
 
 `GET` 응답(토큰은 절대 내보내지 않는다):
 ```json

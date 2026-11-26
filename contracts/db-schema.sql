@@ -8,6 +8,7 @@
 -- 규칙
 -- 1. 모든 문장은 IF NOT EXISTS (멱등). 기동할 때마다 다시 실행해도 오류가 없어야 한다.
 -- 2. MVP 중 ALTER 금지. 스키마가 바뀌면 개발 DB를 지우고 다시 만든다 (NFR-MAINT-009).
+--    예외: 결정 019 이관(규칙 8)은 운영 DB의 데이터를 지우지 않고 한 번만 바꾼다(표 다시 만들기).
 -- 3. 이 파일은 두 DB를 함께 담는다. "-- @db shared" 줄부터 다음 "-- @db" 줄 전까지는
 --    shared.db, "-- @db backend" 이후는 backend.db 에만 적용한다.
 --      shared.db  : Agent·Scheduler 가 기동 시 shared 구역을 실행
@@ -23,6 +24,52 @@
 --    URI 모드가 아니면 ATTACH 의 ?mode=ro 를 해석하지 못해 "unable to open database" 가 난다.
 -- 7. *_json 컬럼은 JSON 문자열. 형식은 각 컬럼 주석과 contracts/agent-api.md 를 따른다.
 --    API 응답 필드 이름은 컬럼 이름에서 _json 을 뗀 이름과 같다 (예: causes_json → causes).
+-- 8. 회사(결정 019): 회사별 행은 company_id TEXT NOT NULL **기본값 없음** — 쓰는 코드가 늘 직접 넣는다
+--    (기본값으로 채우면 회사 없이 쓴 행이 기본 회사 것이 된다). 값은 api.md 1장 "회사"의 회사 ID.
+--    읽기는 늘 요청 회사로 거른다. DEFAULT_COMPANY_ID(.env, AXcellent 회사 ID와 같은 값)가 없으면
+--    회사 나누기가 꺼져 있고 아래 이관도 하지 않는다(지금 스키마 그대로).
+--    아래 CREATE 문은 구현 PR(결정 019 구현 순서)에서 바꾼다. 계약만 먼저 바꾸면 지금 코드가 빈 DB에
+--    쓰지 못하므로, 바뀔 칸은 이 목록이 약속이다:
+--      shared: incidents(company_id, zabbix_conn_id, resolved_reason,
+--                        UNIQUE(company_id, zabbix_conn_id, zabbix_eventid), 색인 앞에 company_id)
+--              scheduler_jobs(company_id, PK(company_id, job)) · agent_runs · conversations
+--              (analysis_reports·change_plans·plan_steps·tool_calls·messages 는 장애·run·대화로 회사를 따른다)
+--      backend: users.company_id(NULL = 기본 회사, 머리를 따르는 계정은 api.md 1장 COMPANY_HEADER_ACCOUNTS)
+--               · mail_logs.company_id · resolution_notes.company_id
+--
+--    Zabbix 연결 구분값(결정 019, 준하 님 #214 리뷰): 장애를 zabbix_eventid 만으로 가르면 회사가 Zabbix 를
+--    바꿨을 때 새 eventid 가 옛 것과 겹쳐 새 장애가 안 들어가고(옛 제목이 남음) 옛 장애는 계속 problem 이다.
+--      - zabbix_conn_id TEXT NOT NULL: 장애를 본 Zabbix 연결의 구분값. 연결 파일의 회사 칸 conn_id
+--        (api.md #29 저장이 주소·토큰·verify_tls 중 하나라도 바뀔 때마다 새로 만든다, 'zc_' + 16진 12자,
+--        회사별). .env 연결(기본 회사만)은 'env'. 유일 키는 (company_id, zabbix_conn_id, zabbix_eventid)
+--      - resolved_reason TEXT CHECK (resolved_reason IS NULL OR resolved_reason IN ('zabbix','connection_changed'))
+--        status='problem' 이면 NULL. Zabbix 가 풀렸다고 하면(r_clock) 'zabbix'
+--      - 연결이 바뀌면(Scheduler 가 그 회사의 지금 conn_id 와 다른 conn_id 의 problem 행을 보면, 다음 폴링 전에)
+--        그 행을 status='resolved', resolved_at=닫은 시각(UTC), resolved_reason='connection_changed' 로 닫는다.
+--        행은 지우지 않는다(리포트·계획·메모가 가리킨다). 옛 연결로 다시 조회하지 않는다
+--
+--    019 이관 — 표마다 그 표의 작성자가 기동할 때 한 번(칸이 이미 있으면 건너뜀). 데이터는 지우지 않는다.
+--      | 표                              | 이관 담당 | DB      |
+--      | incidents, scheduler_jobs       | Scheduler | shared  |
+--      | agent_runs, conversations       | Agent     | shared  |
+--      | users, mail_logs, resolution_notes | Backend | backend |
+--    절차(표 하나씩, ALTER ... ADD COLUMN 은 쓰지 않는다 — NOT NULL 칸에 DEFAULT 가 남기 때문):
+--      1) 트랜잭션 **밖**에서 PRAGMA foreign_keys=OFF  (트랜잭션 안에서는 바뀌지 않는다. 켠 채로
+--         incidents 를 지우면 agent_runs 등이 가리켜 DROP 이 실패한다)
+--      2) BEGIN IMMEDIATE  (같은 shared.db 의 다른 작성자는 busy_timeout 으로 기다린다)
+--      3) CREATE TABLE <표>__new (위 목록의 새 모양, company_id 기본값 없음)
+--      4) INSERT INTO <표>__new (company_id, <기존 칸들>) SELECT '<DEFAULT_COMPANY_ID>', <기존 칸들>
+--         FROM <표>   — id 는 그대로 복사한다(다른 표의 참조가 그대로 맞게). users 는 company_id NULL.
+--         incidents 는 zabbix_conn_id = 이관 시각의 기본 회사 지금 연결(연결 파일의 conn_id, 파일이 없으면
+--         'env', 연결이 아예 없으면 'legacy'), resolved_reason = status 가 'resolved' 면 'zabbix' 아니면 NULL
+--      5) DROP TABLE <표>;  ALTER TABLE <표>__new RENAME TO <표>
+--      6) 그 표의 색인을 위 목록대로 다시 만든다
+--      7) PRAGMA foreign_key_check — 한 줄이라도 나오면 ROLLBACK 하고 기동을 멈춘다(로그에 표 이름만)
+--      8) COMMIT, 그다음 PRAGMA foreign_keys=ON
+--    배포 순서: Scheduler·Agent(shared 이관) → Backend(backend 이관). Backend 는 shared 의 incidents 에
+--      company_id 칸이 없으면 company_id 로 거르는 읽기를 하지 않고 #10·#11 을 503
+--      SHARED_DB_UNAVAILABLE(요청마다 재시도)로 답한다 — 회사 없이 섞어 읽지 않는다.
+--      이관 뒤 mcp-kb 색인을 한 번 다시 만든다(조각에 company_id).
 -- =====================================================================
 
 
