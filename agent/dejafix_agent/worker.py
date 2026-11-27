@@ -19,7 +19,7 @@ import sqlite3
 import uuid
 from typing import Any
 
-from . import fallback
+from . import company, fallback
 from .collect import ToolCall, collect, iso, utcnow
 from .config import Settings
 from .llm import LlmError, complete_json, fake_draft
@@ -44,20 +44,28 @@ def _data(value: Any) -> str:
 
 
 def pending_incidents(
-    conn: sqlite3.Connection, min_severity: int, limit: int = BATCH
+    conn: sqlite3.Connection,
+    min_severity: int,
+    limit: int = BATCH,
+    default_company: str = "",
 ) -> list[dict]:
+    """자동 분석할 장애. 회사 나누기가 켜져 있으면 기본 회사 장애만(결정 019 — Agent·MCP 는 아직
+    기본 회사 Zabbix 만 보므로 다른 회사 장애를 분석하면 섞인다). incidents 가 이관 전이면 모두 기본 회사."""
+    cond, args = "", ()
+    if default_company and company.has_company(conn, "incidents"):
+        cond, args = " AND i.company_id = ?", (default_company,)
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
-        """
+        f"""
         SELECT i.* FROM incidents i
-        WHERE i.severity >= ?
+        WHERE i.severity >= ?{cond}
           AND NOT EXISTS (SELECT 1 FROM analysis_reports r WHERE r.incident_id = i.id)
           AND NOT EXISTS (SELECT 1 FROM agent_runs a
                           WHERE a.incident_id = i.id AND a.kind = 'analyze' AND a.caller = 'worker')
         ORDER BY i.started_at, i.id
         LIMIT ?
         """,
-        (min_severity, limit),
+        (min_severity, *args, limit),
     ).fetchall()
     conn.row_factory = None
     return [dict(r) for r in rows]
@@ -183,9 +191,14 @@ def run_analysis(
     requested_by: int | None = None,
 ) -> str:
     run_id = "r_" + uuid.uuid4().hex[:12]
+    cols, marks, extra = company.write_cols(
+        conn,
+        "agent_runs",
+        incident.get("company_id") or settings.default_company_id,
+    )
     conn.execute(
-        """INSERT INTO agent_runs(id, kind, incident_id, caller, requested_by, status, model, started_at)
-           VALUES (?, 'analyze', ?, ?, ?, 'queued', ?, ?)""",
+        f"""INSERT INTO agent_runs(id, kind, incident_id, caller, requested_by, status, model, started_at{cols})
+           VALUES (?, 'analyze', ?, ?, ?, 'queued', ?, ?{marks})""",
         (
             run_id,
             incident["id"],
@@ -193,6 +206,7 @@ def run_analysis(
             requested_by,
             settings.model_label,
             iso(utcnow()),
+            *extra,
         ),
     )
     conn.commit()
@@ -288,7 +302,11 @@ def tick(
 ) -> list[str]:
     return [
         run_analysis(conn, inc, settings, pack, client)
-        for inc in pending_incidents(conn, settings.analyze_min_severity)
+        for inc in pending_incidents(
+            conn,
+            settings.analyze_min_severity,
+            default_company=settings.default_company_id,
+        )
     ]
 
 

@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from shared_db import open_db
 
-from . import chat, worker
+from . import chat, company, worker
 from .collect import _call
 from .config import Settings
 from .mcp_client import McpToolClient, startup_check
@@ -96,7 +96,12 @@ def create_app(
         else:
             await startup_check(client, ZABBIX_SERVER_TOOLS)  # 허용 밖 → 기동 실패
         app.state.tool_client = client
-        open_db(settings.shared_db_path, "shared").close()
+        conn = open_db(settings.shared_db_path, "shared")
+        try:
+            # 결정 019: Agent 몫 표 이관(DEFAULT_COMPANY_ID 가 없으면 하지 않음). 실패하면 기동을 멈춘다
+            company.migrate(conn, settings.default_company_id)
+        finally:
+            conn.close()
 
         def db_factory():
             return open_db(settings.shared_db_path, "shared")
@@ -132,7 +137,13 @@ def create_app(
         db_path = settings.shared_db_path
         try:
             started = await asyncio.to_thread(
-                chat.start, db_path, body, user_id, caller, settings.model_label
+                chat.start,
+                db_path,
+                body,
+                user_id,
+                caller,
+                settings.model_label,
+                settings.default_company_id,
             )
         except chat.ChatError as exc:
             return JSONResponse(
