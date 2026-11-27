@@ -37,6 +37,6 @@ ENV PATH="/app/.venv/bin:$PATH" \
     MCP_ZABBIX_URL=http://127.0.0.1:8200/mcp
 
 EXPOSE 8000
-HEALTHCHECK --interval=15s --timeout=8s --start-period=20s --retries=5 \
+HEALTHCHECK --interval=15s --timeout=15s --start-period=20s --retries=5 \
     CMD ["python", "/app/infra/docker/app-healthcheck.py"]
 CMD ["supervisord", "-n", "-c", "/etc/supervisord.conf"]
