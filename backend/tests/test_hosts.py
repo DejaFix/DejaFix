@@ -11,7 +11,7 @@ import pytest
 import zabbix_ro
 from dejafix_backend import zabbix
 from dejafix_backend.routers.dashboard import get_now
-from dejafix_backend.routers.hosts import state_of
+from dejafix_backend.routers.hosts import has_agent, state_of
 
 NOW = datetime(2026, 11, 25, 8, 0, 0, tzinfo=timezone.utc)
 
@@ -89,10 +89,16 @@ def test_state_comes_from_agent_availability_not_from_problems(make_client, help
     assert res.status_code == 200, res.text
     body = res.json()
     assert body["data"] == [
-        {"id": "4", "name": "api-01", "state": "up", "problems": 0},
-        {"id": "2", "name": "db-01", "state": "down", "problems": 2},
-        {"id": "3", "name": "office-pc-07", "state": "unknown", "problems": 0},
-        {"id": "1", "name": "web-01", "state": "up", "problems": 0},
+        {"id": "4", "name": "api-01", "state": "up", "agent": True, "problems": 0},
+        {"id": "2", "name": "db-01", "state": "down", "agent": True, "problems": 2},
+        {
+            "id": "3",
+            "name": "office-pc-07",
+            "state": "unknown",
+            "agent": False,
+            "problems": 0,
+        },
+        {"id": "1", "name": "web-01", "state": "up", "agent": True, "problems": 0},
     ]
     assert body["meta"] == {"collected_at": "2026-11-25T08:00:00Z", "truncated": False}
 
@@ -135,6 +141,46 @@ def test_needs_login(make_client):
 )
 def test_state_of(raw, state):
     assert state_of(raw) == state
+
+
+@pytest.mark.parametrize(
+    ("raw", "agent"),
+    [
+        ({"active_available": "1"}, True),  # 액티브 에이전트가 보고함
+        ({"active_available": "2"}, True),  # 보고했다가 끊김
+        (
+            {"active_available": "0", "interfaces": [{"type": "1", "available": "0"}]},
+            True,
+        ),
+        (
+            {"active_available": "0", "interfaces": []},
+            False,
+        ),  # HTTP 아이템만 (catbooks-shop)
+        (
+            {"active_available": "0", "interfaces": [{"type": "2", "available": "1"}]},
+            False,
+        ),  # SNMP
+        ({}, False),
+    ],
+)
+def test_has_agent(raw, agent):
+    assert has_agent(raw) is agent
+
+
+def test_agentless_host_stays_unknown_but_is_marked(make_client, helpers):
+    """에이전트 없이 HTTP 아이템으로만 감시하는 호스트: 연결 상태는 그대로 unknown, agent 는 false."""
+    FakeZabbix.hosts = [host("7", "catbooks-shop")]
+    res = get_hosts(make_client, helpers)
+    assert res.status_code == 200, res.text
+    assert res.json()["data"] == [
+        {
+            "id": "7",
+            "name": "catbooks-shop",
+            "state": "unknown",
+            "agent": False,
+            "problems": 0,
+        }
+    ]
 
 
 def test_more_than_max_hosts_is_truncated(make_client, helpers, monkeypatch):
