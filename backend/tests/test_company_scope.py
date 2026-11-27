@@ -145,6 +145,17 @@ def test_before_scheduler_migration_reads_are_503(app):
     assert res.status_code == 503
 
 
+def test_backend_up_before_migration_recovers_without_restart(app, env):
+    """한 컨테이너에서 Backend 가 Scheduler 이관보다 먼저 떠도: 이관 전엔 503, 이관이 끝나면 재시작 없이 정상."""
+    client, admin, _ = app(scoped=False)
+    nubi = {**admin, "X-AX-Company": NUBI}
+    assert client.get("/api/incidents", headers=nubi).status_code == 503
+    scope_shared(env.shared)  # 같은 앱이 떠 있는 동안 Scheduler 가 이관을 끝냄
+    res = client.get("/api/incidents", headers=nubi)
+    assert res.status_code == 200
+    assert [i["title"] for i in res.json()["data"]] == ["nubi only"]
+
+
 def test_scoping_off_ignores_header_and_sends_no_echo(make_client, helpers):
     client = make_client(seeded=True, company_header_accounts="admin")
     admin = helpers.login(client, "admin", helpers.admin_password)

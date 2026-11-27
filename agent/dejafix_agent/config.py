@@ -36,6 +36,7 @@ class Settings:
     llm_fake: bool
     domain_pack: str
     analyze_min_severity: int
+    default_company_id: str = ""  # 결정 019. 비면 회사 나누기 꺼짐
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "Settings":
@@ -54,6 +55,7 @@ class Settings:
             llm_fake=_bool(e.get("LLM_FAKE")),
             domain_pack=e.get("DOMAIN_PACK") or DEFAULT_DOMAIN_PACK,
             analyze_min_severity=_int(e.get("ANALYZE_MIN_SEVERITY"), 2),
+            default_company_id=(e.get("DEFAULT_COMPANY_ID") or "").strip(),
         )
 
     @property

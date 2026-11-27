@@ -22,6 +22,7 @@ from typing import Any
 
 from shared_db import open_db
 
+from . import company
 from .collect import iso, utcnow
 from .config import Settings
 from .llm import LlmError, complete_text
@@ -227,6 +228,7 @@ def start(
     user_id: int | None,
     caller: str,
     model: str | None,
+    company_id: str | None = None,
 ) -> ChatStart:
     message = (body.get("message") or "").strip()
     if not message:
@@ -251,16 +253,18 @@ def start(
             incident_id = incident_id or row["incident_id"]
         else:
             conv_id = "c_" + uuid.uuid4().hex[:12]
+            cols, marks, extra = company.write_cols(conn, "conversations", company_id)
             conn.execute(
-                """INSERT INTO conversations(id, user_id, caller, incident_id, title, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (conv_id, user_id, caller, incident_id, message[:40], now, now),
+                f"""INSERT INTO conversations(id, user_id, caller, incident_id, title, created_at, updated_at{cols})
+                   VALUES (?,?,?,?,?,?,?{marks})""",
+                (conv_id, user_id, caller, incident_id, message[:40], now, now, *extra),
             )
         run_id = "r_" + uuid.uuid4().hex[:12]
+        cols, marks, extra = company.write_cols(conn, "agent_runs", company_id)
         conn.execute(
-            """INSERT INTO agent_runs(id, kind, incident_id, conversation_id, caller, requested_by, status, model, started_at)
-               VALUES (?, 'chat', ?, ?, ?, ?, 'analyzing', ?, ?)""",
-            (run_id, incident_id, conv_id, caller, user_id, model, now),
+            f"""INSERT INTO agent_runs(id, kind, incident_id, conversation_id, caller, requested_by, status, model, started_at{cols})
+               VALUES (?, 'chat', ?, ?, ?, ?, 'analyzing', ?, ?{marks})""",
+            (run_id, incident_id, conv_id, caller, user_id, model, now, *extra),
         )
         cur = conn.execute(
             "INSERT INTO messages(conversation_id, role, content, created_at) VALUES (?, 'user', ?, ?)",
